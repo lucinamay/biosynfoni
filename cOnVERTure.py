@@ -13,9 +13,20 @@ ____________________________________
 ||||||||||||  ()()()  |||||||||||||||
 
 description:    parses (COCONUT) CDK-style sdf's for its CNP-ID, SMILEs,
-                InChi and molecular formula, returning a sdf of mol objects
-                and csv with related info for further use in fingerprinter 
-                program 
+                InChi and molecular formula, returning 
+                [0] a sdf of mol objects
+                [1] a tsv with related info for further use in fingerprinter 
+                    program
+                    [0] CNP-ID
+                    [1] InChi
+                    [2] SMILES
+                    [3] molecular formula
+                    [4] NPLS
+                [2] a csv with stats on errors
+                    [0] (str) -- CNP-ID of entry causing InChi2mol errors
+                    [1] (str) -- CNP-ID of entry causing SMILES2mol errors
+                    [2] (list) -- CNP-ID of entries causing errors in both
+                    [3] (int)  -- total number of entries
 
 style:          attempting to follow PEP8 styleguide
 
@@ -101,9 +112,11 @@ def molifier(NP_property_list, representation_info = False, stats_out = True):
 
     returns:    (list) all_mols -- mol classes of all successful inchi/smiles
                 (list) prop_list -- 
-                    [0] CNP-ID 
-                    [1] molecular formula 
-                    [2] NPLS
+                    [0] CNP-ID
+                    [1] InChi
+                    [2] SMILES
+                    [3] molecular formula
+                    [4] NPLS (NaPLeS)
                 (list) stats -- if set to true, returns
                     [0] (str) -- entry CNP causing InChi2mol errors
                     [1] (str) -- entry CNP causing SMILES2mol errors
