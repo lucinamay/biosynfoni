@@ -36,6 +36,7 @@ import os
 class MyFile:
     def __init__(self, path):
         self.path = path
+        self.name = path.split("/")[-1].split(".")[0]
 
     def readr(self):
         with open(self.path, 'r') as filetoread:
@@ -43,24 +44,30 @@ class MyFile:
         return lines
 
 class MolSupplier(MyFile):
-    def __init__(self, path, info_titles:lst):
-        self.path = path
-        self.name = path.split("/")[-1].strip(".sdf").strip("_rdk")
+    """molecule supplier file (.sdf)
+    """
+    def __init__(self, path, info_titles: list):
+        #further clean up the name-------------
+        MyFile.__init__(self, path) #or use super()? --> does not work
+        self.name = self.name.strip("_rdk") #does not strip if not exist
         self.supplier = Chem.SDMolSupplier(self.path)
-        self.info_titles = info_titles #list of titles of the extra info in sdf
+
+        #extra info of interest: (list) of titles of the extra info in sdf
+        self.info_titles = info_titles
     
-    def infopath(self):
-        """returns path of file to save additional info to of sdf
+    def infopath(self) -> str:
+        """returns path for file to save additional info to of sdf
         """
         return "{}{}".format(path.strip("_rdk.sdf"),"_info.tsv")
         
-    def statspath(self):
+    def statspath(self) -> str:
+        """returns path for file containing error-producing molfiles"""
         return "{}{}".format(path.strip("_rdk.sdf"),"_stats.csv")
     
-    def molslist(self):
+    def molslist(self) -> list:
         return [x for x in self.supplier]
     
-    def entries(self):
+    def entries(self) -> list:
         lines = self.readr()
         entries, current_entry = [],[] #initialise
         for line in lines:
@@ -71,6 +78,9 @@ class MolSupplier(MyFile):
         return entries
     
     def _empty_infodict(self)-> dict:
+        """make dictionary of the info-type-descriptors so the order of them
+        in the sdf does not matter for parsing and always returns the right
+        info in the right 'column' of the info array"""
         info_dict = {}
         for title in self.info_titles():
             info_dict[title]=''
@@ -80,7 +90,7 @@ class MolSupplier(MyFile):
         """makes the titles represent sdf format of extra info"""
         return [">  <{}>".format(name) for name in self.info_titles]
     
-    def _info_per_entry(self, entry):
+    def _info_per_entry(self, entry) -> list:
         #empty dictionary to hold un-ordered info
         info_dict = self._empty_infodict()
         info_announcers = self._info_announcers()
@@ -98,25 +108,12 @@ class MolSupplier(MyFile):
         entry_info = [info_dict[title] for title in self.info_titles]
         return entry_info
 
-    def info(self):
-        titles = self.info_titles
-        info_announcers = [">  <{}>".format(name) for name in self.info_titles]
-        
-        #make 'dictionary' #so the order of the info in sdf does not matter
-        empty_info_dict = {}
-        for title in titles:
-            empty_info_dict[title] = ''
-
+    def info(self) -> list:
+        infos = []
+        # {should i add in the self._empty_infodict() and info_announcers here}
         for entry in self.entries():
-            info_dict = empty_info_dict
-            for e_i in range(len(entry)): #e_i==line index for entry
-                if not entry[e_i].startswith(">"): #prevent unnecces. checking
-                    continue
-                else: 
-                    for a_i in info_announcers:
-                        if entry[e_i].startswith(info_announcer[a_i]):
-                            info_dict[titles[a_i]] = entry[e_i+1]
-                    
+            infos.append(self._info_per_entry(entry))
+        return infos
 
                     
 
