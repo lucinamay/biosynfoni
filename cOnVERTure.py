@@ -195,10 +195,13 @@ def outfile_namer(filename_root: str, addition = '', extraroot=True) -> str:
     if extraroot:
         #in case filename_root is not rooty enough:
         realroot = filename_root.split('/')[-1].split('.')[0]
-
+    else:
+        real_root = filename_root    
+    
+    #main functionality
     if addition:
         outfile_name = "{}_{}_{}".format(my_date, realroot, addition)
-    else: 
+    else:
         outfile_name = "{}_{}".format(my_date, real_root)
 
     return outfile_name
