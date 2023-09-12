@@ -187,17 +187,20 @@ def csv_writr(lst, outfile, sep = ","):
 def outfile_namer(filename_root: str, addition = '', extraroot=True) -> str:
     """gives outfile names in the right formats (with the date 'MMDD_' prefix)
     input: (str) filename_root -- main name (e.g. the cdk sdf  filename)
-    requires datetime -- 'from datetime import date' 
+    requires datetime -- 'from datetime import date'
     """
     today = date.today()
     my_date = today.strftime("%m%d")
-    
+    #for if needed to remove date (if it is same as today)
+    ifrem = "{}_".format(my_date)
+
     if extraroot:
-        #in case filename_root is not rooty enough:
-        realroot = filename_root.split('/')[-1].split('.')[0]
+        #in case filename_root is not rooty enough and has same date:
+        realroot = filename_root.split('/')[-1].split('.')[0].strip(ifrem)
     else:
-        real_root = filename_root    
-    
+        real_root = filename_root.strip(ifrem)
+
+
     #main functionality
     if addition:
         outfile_name = "{}_{}_{}".format(my_date, realroot, addition)
