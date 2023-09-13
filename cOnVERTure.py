@@ -49,7 +49,6 @@ def readr(filename): #takes 9 sec for full file(24764158 line)
     input: (str) filename -- file to be read
            (None / int) len_stop -- stop value for shorter reading
     """
-    i = 0
     #dev function:
     #len_stop = None
     all_lines = []
@@ -241,7 +240,7 @@ def main():
     
     output_direr('./output')
     
-    #sdf_writr(all_mols, out_rdk_sdf_name)
+    sdf_writr(all_mols, out_rdk_sdf_name)
     csv_writr(ids_props, out_info_name, sep= "\t")
     csv_writr(stats, out_stats_name)
     
