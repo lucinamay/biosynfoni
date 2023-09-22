@@ -1,6 +1,7 @@
 # thesis
 
 === overview of files ===
+
 cOnVERTure.py	--	converts file of InChI's or SMILES into a RDKit Chem.Mol object sdf file
 ConCeRTO-fp.py 	--  converts RDKit Chem.Mol objects into their respective Biosynfoni fingerprints
 def_biosynfoni 	--  contains the definitions of Biosynfoni (versions of each substructure key, 
