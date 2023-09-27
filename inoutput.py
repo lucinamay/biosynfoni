@@ -26,7 +26,8 @@ import os
 from datetime import date
 from typing import Any
 
-def readr(filename:str) -> list: 
+def readr(filename:str,ignore_start='',
+          encoding='UTF-8',errors='ignore') -> list: 
     """
     reads in file in ls of lines (stripped)
     input: (str) filename -- file to be read
@@ -37,8 +38,12 @@ def readr(filename:str) -> list:
     
     #main functionality
     all_lines = []
-    with open (filename,'r') as fil:
+    with open (filename,'r', 
+               encoding=encoding, errors=errors) as fil:
         for line in fil:
+            if ignore_start:
+                if line.startswith(ignore_start):
+                    continue
             all_lines.append(line.strip())
     return all_lines
 
@@ -78,9 +83,9 @@ def outfile_namer(filename_root:str,
     ifrem = "{}_".format(my_date)       #for redundant date removal
     if extraroot:
         #in case not rooty enough:
-        realroot = filename_root.split('/')[-1].split('.')[0].strip(ifrem)
+        realroot = filename_root.split('/')[-1].split('.')[0].replace(ifrem,'')
     else:
-        realroot = filename_root.strip(ifrem)
+        realroot = filename_root.replace(ifrem,'')
 
     #main functionality -----------------------------------------------
     if addition:
@@ -116,6 +121,17 @@ def fp_writr(fp_array:list, outfile_name: str)->None:
             biosyn.write(','.join(str(col) for col in row))
             biosyn.write('\n')
     return None
+
+def clean_dict(dic:dict):
+    """cleans dictionary entries with empty values"""
+    clean = {}
+    for key, val in dic.items():
+        if val:
+            clean[key]=val
+    return clean
+
+def ASCII_UTF8(string):
+    return 
 
 
 
