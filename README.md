@@ -1,4 +1,4 @@
-# thesis
+# biosynfoni
 
 === overview of files ===
 
