@@ -17,3 +17,15 @@ def sdf_writr(mols:list, outfile:str) -> None:
     for mol in mols:
         writer.write(mol)
     return None
+
+def get_supplier(sdf_file:str, supplier_only:bool = True)->list:
+    suppl = Chem.SDMolSupplier(sdf_file)
+    
+    print('reading sdf, number of entries:', len(suppl))
+    
+    if supplier_only:
+        return suppl
+    else:
+        mols = [x for x in suppl]
+        return mols
+
