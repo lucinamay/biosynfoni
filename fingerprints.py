@@ -12,6 +12,8 @@ from rdkit.Chem import AllChem
 import def_biosynfoni
 from concerto_fp import get_biosynfoni
 
+DEFAULT_BIOSYNFONI_VERSION = 'fps3_full'
+
 def morgan_getter(mol, useChirality=False, radius=2, nBits=2048):
     fingerprint = AllChem.GetMorganFingerprintAsBitVect(mol,
                                                    useChirality=useChirality,
@@ -31,7 +33,20 @@ def rdk_fp_getter(mol, nbits=2048):
     return daylight_like
 
 
-def biosynfoni_getter(mol, version='fps3_full'):
+def biosynfoni_getter(mol, version=DEFAULT_BIOSYNFONI_VERSION):
     fingerprint = get_biosynfoni(mol, version=version,matches=False)
     biosynfoni = np.array(fingerprint)
     return biosynfoni
+
+def binosynfoni_getter(mol, version=DEFAULT_BIOSYNFONI_VERSION):
+    counted = get_biosynfoni(mol, version=version, matches=False)
+    binary=[]
+    for i in counted:
+        if i > 0:
+            binary.append(1)
+        elif i == 0:
+            binary.append(0)
+    assert (len(binary)==len(counted)), "error in obtaining binosynfoni"
+    binosynfoni = np.array(binary)
+    return binosynfoni
+            
