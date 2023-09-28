@@ -16,15 +16,34 @@ ____________________________________
 ||||||||||||  ()()()  |||||||||||||||
 
 description:    general functions needed in the other file
-
-- readr(filename:list)
-- entry_parser(lines:list, entry_sep:str = "$$$$")
+======= input =======
+- readr(filename:str,ignore_start='',
+          encoding='UTF-8',errors='ignore')->list
+- entry_parser(lines:list, sep:str = "$$$$")->list[list]
+- extractr(lines:list, starts:list=[], remove_starts:bool= True, 
+            strip_extra:str=' - ')->dict[list[str]]
+======= general =======
+- per_entry(entries,fnx,*args,**kwargs)->list
+- dictify(listoflists:list[list])->dict
+- tuplist_flattenr(list_of_tuples:list[tuple[tuple]])->list[list]
+- clean_dict(dic:dict)
+======= storage =======
+- picklr(cucumber:Any, title:str)->str
+- jaropener(picklepath='')-> pickle
+======= output =======
+- outfile_namer(filename_root:str,
+                  addition:str = '',
+                  extraroot:bool=True)->str
+- output_direr(dirname:str='./output')->tuple[str]
+- fp_writr(fp_array:list, outfile_name: str)->None
 
 """
 import pickle
 import os
 from datetime import date
 from typing import Any
+
+#============================== input handling  ==============================
 
 def readr(filename:str,ignore_start='',
           encoding='UTF-8',errors='ignore') -> list: 
@@ -47,17 +66,71 @@ def readr(filename:str,ignore_start='',
             all_lines.append(line.strip())
     return all_lines
 
-def entry_parser(lines:list, entry_sep:str = "$$$$") -> list[list]:
+def entry_parser(lines:list, sep:str = "$$$$")->list[list]:
     entries = []
     current_entry = []
     for line in lines:
         current_entry.append(line)
-        if line == entry_sep:
+        if line == sep:
             entries.append(current_entry)
             current_entry = []  #new entry
     return entries
 
-def picklr(cucumber:Any, title:str)-> str:
+def extractr(lines:list, starts:list=[], remove_starts:bool= True, 
+            strip_extra:str=' - ')-> dict[list[str]]:
+    """within a collection of lines, only extracts the lines starting with 
+    terms in starts, returning them as a list to accomodate multiple values
+    per entry"""
+    extraction = {}
+    for start in starts:
+        extraction[start]=[]
+    for line in lines:
+        for start in starts:
+            if line.startswith(start):
+                extraction[start].append(
+                    line.strip().replace(start,'').replace(strip_extra,'').strip()
+                    )
+    return extraction
+
+#============================= general handling  =============================
+
+def per_entry(entries,fnx,*args,**kwargs)->list:
+    """loops given function over given entries, passes any additional args to
+    the function as follows: fnx(entries,*args,**kwargs)"""
+    all_vals = []
+    for entry in entries:
+        val = fnx(entry,*args,**kwargs)
+        all_vals.append(val)
+    return all_vals
+
+def dictify(listoflists:list[list])->dict:
+    """for a list of lists, turns it into a dictionary where the first item is
+    the key and the second the value. consecutive items are ignored. lists of 
+    one item are also ignored"""
+    assert(isinstance(listoflists, list)), "input error for dictify, not list" 
+    dictionary={}
+    for item in listoflists:
+        if isinstance(item, list) and len(item)>=2:
+            dictionary[item[0]] = item[1]
+    return dictionary
+
+def tuplist_flattenr(list_of_tuples:list[tuple[tuple]])->list[list]:
+    per_bit = []
+    for bit in list_of_tuples:
+        per_bit.append(list(sum(bit, ())))
+    return per_bit
+
+def clean_dict(dic:dict):
+    """cleans dictionary entries with empty values"""
+    clean = {}
+    for key, val in dic.items():
+        if val:
+            clean[key]=val
+    return clean
+
+#=========================== temporary storage etc ===========================
+
+def picklr(cucumber:Any, title:str)->str:
     picklename = "{}.pickle".format(title)
     if os.path.exists(picklename):
         print("Pickle exists at this date, will write to {}_1")
@@ -67,9 +140,17 @@ def picklr(cucumber:Any, title:str)-> str:
         pickle.dump(cucumber, pkl, protocol=-1)
     return picklename
 
+def jaropener(picklepath=''):
+    if not picklepath:
+        picklepath = outfile_namer('wikifile', 'pickle')
+    with open(picklepath, 'rb') as pkl:
+            return pickle.load(pkl)
+        
+#================================== output ===================================
+
 def outfile_namer(filename_root:str,
                   addition:str = '',
-                  extraroot:bool=True) -> str:
+                  extraroot:bool=True)->str:
     """gives outfile names with the date prefix 'MMDD_' 
     input: (str) filename_root -- main name (e.g. the cdk sdf  filename)
     output: (str) filename without extension
@@ -95,7 +176,7 @@ def outfile_namer(filename_root:str,
 
     return outfile_name
 
-def output_direr(dirname:str='./output') -> tuple[str]:
+def output_direr(dirname:str='./output')->tuple[str]:
     """moves to the right directory, if dir doesn't exist yet, will make dir
     (default uses relative location!: './output')
     * dependency: os
@@ -106,12 +187,6 @@ def output_direr(dirname:str='./output') -> tuple[str]:
         os.mkdir(dirname)
     os.chdir(dirname)
     return dirname, init_dir
-
-def flatten_tuplelist(list_of_tuples:list[tuple[tuple]])->list[list]:
-    per_bit = []
-    for bit in list_of_tuples:
-        per_bit.append(list(sum(bit, ())))
-    return per_bit
     
 def fp_writr(fp_array:list, outfile_name: str)->None:
     """writes csv of fingerprint
@@ -122,16 +197,6 @@ def fp_writr(fp_array:list, outfile_name: str)->None:
             biosyn.write('\n')
     return None
 
-def clean_dict(dic:dict):
-    """cleans dictionary entries with empty values"""
-    clean = {}
-    for key, val in dic.items():
-        if val:
-            clean[key]=val
-    return clean
-
-def ASCII_UTF8(string):
-    return 
 
 
 
