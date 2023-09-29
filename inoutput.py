@@ -7,10 +7,8 @@ ____________________________________
 
 title: inoutput                     ||
 creaetd: 2023.09.13 14:40           ||
-language: python                    ||
 author: lucina-may nollen           || 
 institute: WUR Bioinformatics       ||
-student no: 1197142                 ||
 ____________________________________
 
 ||||||||||||  ()()()  |||||||||||||||
