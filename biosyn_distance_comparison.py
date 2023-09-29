@@ -38,61 +38,74 @@ FP_FUNCTIONS={
     'rdkit':fp.rdk_fp_getter,
     }
 
+DIST_FUNCTIONS={
+    'tanimoto':fp.tanimoto,
+    'euclidean':fp.euclidean,
+    }
 #============================================================
 
-
-def tanimoto(expl_bitvectors:list)->float:
-    array = Metric.rdMetricMatrixCalc.GetTanimotoDistMat(\
-        expl_bitvectors)
-    return array.tolist()[0]
-
-def euclidean(expl_bitvectors:list):
-    array =  Metric.rdMetricMatrixCalc.GetEuclideanDistMat(\
-        expl_bitvectors)
-    return array.tolist()[0]
     
-DIST_FUNCTIONS={
-    'tanimoto':tanimoto,
-    'euclidean':euclidean,
-    }
-
-def fp_to_distance(fp1,fp2, metric='tanimoto'):
+def fp_to_distance(fp1, fp2, metric='tanimoto'):
     """for given molecule pair fp1 and fp2, gives distance"""
     #input handling & checking
     metric = metric.lower()
-    assert metric in DIST_FUNCTIONS.keys(),\
+    assert metric in DIST_FUNCTIONS.keys(), \
         'unsupported metric: {}'.format(metric)
+    assert fp1 and fp2,\
+        ''
         
     distance=DIST_FUNCTIONS[metric]([fp1,fp2])
     return distance
 
-def molpair_to_distance(mol1,mol2, 
-                        fingerprint:str='morgan',
-                        metric:str='tanimoto')->float:
+
+from enum import Enum, auto
+
+class FingerprintType(Enum):
+    Morgan = "morgan"
+
+
+def molpair_to_distance(
+        molpair:list[Chem.Mol],
+        fingerprint:str='morgan',
+        #fingerprint:FingerprintType = FingerprintType.Morgan,
+        metric:str='tanimoto'
+        )->float:
     """uses default settings, check fingerprints.py for
     default settings per fingerprint type"""
+    """if not isinstance(fingerprint, FingerprintType):
+        raise TypeError(f"wrong signature for fingerprint: {type(fingerprint)} != FingerprintType" )
+    """
     
+    #fingerprint = fingerprint.value.lower()
     fingerprint = fingerprint.lower()
     assert fingerprint in FP_FUNCTIONS.keys(),\
         "unsupported fingerprint: {}".format(fingerprint)
+    assert len(molpair)>1 and \
+        isinstance(molpair[0],Chem.Mol) and\
+        isinstance(molpair[1],Chem.Mol),\
+        "please provide two Chem.Mol-type molecules"
     
-    fp1 = FP_FUNCTIONS[fingerprint](mol1)
-    fp2 = FP_FUNCTIONS[fingerprint](mol2)
+    fp1 = FP_FUNCTIONS[fingerprint](molpair[0])
+    fp2 = FP_FUNCTIONS[fingerprint](molpair[1])
     distance = fp_to_distance(fp1,fp2, metric=metric)
     return distance
 
-def get_step_pairs(chain_mols:list, degree_of_sep:int=1):
+
+def get_step_pairs(chain_mols: list, degree_of_sep: int = 1)->list:
     """for given list of molecules originating from one reaction,
     gets the available(non-null) molecule pairs separated by 
     degree of separation"""
+    
     pairs = []
     for i in range(len(chain_mols)-degree_of_sep):
         if chain_mols[i] and chain_mols[i+degree_of_sep]:
             pairs.append([chain_mols[i],chain_mols[i+degree_of_sep]])
     return pairs
 
-def yield_row(struct_loc:str):
-    struct = pd.read_csv(struct_loc,sep="\t", header=None)
+
+def yield_row(struct_loc: str):
+    
+    struct = pd.read_csv(struct_loc, sep = "\t", header = None)
     #get headers
     nums = ['{}'.format(i-1) for i in range(len(struct.columns))]
     nums.pop(0)
@@ -106,15 +119,20 @@ def yield_row(struct_loc:str):
     for i in range(len(final.index)):
         yield final.iloc[i].tolist()
 
-def handle_dis_dict_kargs(metrics,fingerprints):
+
+def handle_dis_dict_kargs(
+        metrics,
+        fingerprints
+        ) -> tuple[list[str]]:
     """handles non-list input, as well as giving the right options for 'all'"""
+    
     #fix metrics
     if isinstance(metrics, str):
         if metrics == 'all':
             metrics = list(DIST_FUNCTIONS.keys())
         else:
             metrics = [metrics]
-    elif isinstance(metrics, list):
+    elif isinstance(metrics, list) or isinstance(metrics, tuple):
         if 'all' in metrics:
             metrics = list(DIST_FUNCTIONS.keys())
     #fix fingerprints
@@ -123,7 +141,7 @@ def handle_dis_dict_kargs(metrics,fingerprints):
             fingerprints = list(FP_FUNCTIONS.keys())
         else:
             fingerprints = [fingerprints]
-    elif isinstance(fingerprints, list):
+    elif isinstance(fingerprints, list) or isinstance(fingerprints, tuple):
         if 'all' in fingerprints:
             fingerprints = list(FP_FUNCTIONS.keys())
     #check validity        
@@ -135,8 +153,14 @@ def handle_dis_dict_kargs(metrics,fingerprints):
             "unsupported fingerprint type: {}".format(fingerprint)
     return metrics, fingerprints 
 
-def distances_dictify(molpair, distances_dict={},
-                      metrics:list=['all'], fingerprints:list=['all']):
+
+def distances_dictify(
+        molpair:list[Chem.Mol],
+        distances_dict = {},
+        metrics:list = ['all'],
+        fingerprints:list = ['all']
+        ) -> dict[dict[dict[list[float]]]]:
+    
     metrics, fingerprints = handle_dis_dict_kargs(metrics, fingerprints)
     
     if not distances_dict:
@@ -162,16 +186,22 @@ def distances_dictify(molpair, distances_dict={},
             distances_dict[metric][fingerprint].append(current_distance)
     return distances_dict
 
-def yield_pairs(struct_loc:str, degree_of_sep:int=1)->list[list[list[str]]]:
+
+def yield_pairs(
+        struct_loc:str,
+        degree_of_sep:int=1
+        ) -> list[list[list[str]]]:
     """returns as [pathway][pairnumber][0]product[1]precursor"""
     for i in yield_row(struct_loc):
         #remove the pathway annotation
         yield get_step_pairs(i[1:], degree_of_sep=degree_of_sep)
 
-def mean_distances(chain_distances:list[float])->float:
+
+def mean_distances(chain_distances:list[float]) -> float:
     #remove the None values resulting from invalid Inchi's
     valid_list = [x for x in chain_distances if x] 
-    return sum(valid_list)/len(valid_list)
+    return float(sum(valid_list))/float(len(valid_list))
+
 
 def main():
     struct_loc = '/Users/lucina-may/thesis/scripts/0927_metacyc_reactions.tsv'
