@@ -5,11 +5,9 @@
 ____________________________________
 
 title: inoutput                     ||
-creaetd: 2023.09.28 09:49           ||
-language: python                    ||
+created: 2023.09.28 09:49           ||
 author: lucina-may nollen           || 
 institute: WUR Bioinformatics       ||
-student no: 1197142                 ||
 ____________________________________
 
 ||||||||||||  ()()()  |||||||||||||||
