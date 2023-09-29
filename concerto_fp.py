@@ -10,7 +10,6 @@ title: ConCERTO-fp                  ||
 created: 2023-09-22                 ||
 author: Lucina-May Nollen           || 
 institute: WUR Bioinformatics       ||
-student no: 1197142                 ||
 ____________________________________
  
 ||||||||||||  ()()()  |||||||||||||||
