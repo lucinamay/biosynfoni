@@ -7,7 +7,6 @@ title: cOnVERTure (cdk_rdk_parser)  |
 language: python                    |
 author: Lucina-May Nollen           | 
 institute: WUR Bioinformatics       |
-student no: 1197142                 |
 ____________________________________
 
 ||||||||||||  ()()()  |||||||||||||||
