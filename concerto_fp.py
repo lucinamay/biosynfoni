@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-(unfinished: does not output yet)
 
 ||||||||||||  ㅇㅅㅇ  |||||||||||||||
 ____________________________________
@@ -14,7 +13,7 @@ ____________________________________
  
 ||||||||||||  ()()()  |||||||||||||||
 
-'CONvert Compound E-Representation TO FingerPrint'
+ConCERTO-fp | CONvert Compound E-Representation TO FingerPrint
 description: gets fp for given molecule, also shows which fp version was used
 """
 
