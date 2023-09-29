@@ -28,6 +28,7 @@ from rdkit.Chem import AllChem
 import pandas as pd
 import numpy as np
 import fingerprints as fp
+from inoutput import picklr 
 
 #=========================== GLOBALS =========================
 FP_FUNCTIONS={
@@ -100,12 +101,44 @@ def yield_row(struct_loc:str):
     #clean up
     struct.replace('', np.nan, inplace=True) # just in case one was missed
     filtered = struct.dropna(thresh=2) #drop completely empty ones
-    filtered.replace(np.nan, '', inplace=True) # replace back for later fnxs
+    final = filtered.replace(np.nan, '') # replace back for later fnxs
     #return pathways
-    for i in range(len(filtered.index)):
-        yield filtered.iloc[i].tolist()
+    for i in range(len(final.index)):
+        yield final.iloc[i].tolist()
 
-def distances_dictify(molpair, distances_dict={}):
+def handle_dis_dict_kargs(metrics,fingerprints):
+    """handles non-list input, as well as giving the right options for 'all'"""
+    #fix metrics
+    if isinstance(metrics, str):
+        if metrics == 'all':
+            metrics = list(DIST_FUNCTIONS.keys())
+        else:
+            metrics = [metrics]
+    elif isinstance(metrics, list):
+        if 'all' in metrics:
+            metrics = list(DIST_FUNCTIONS.keys())
+    #fix fingerprints
+    if isinstance(fingerprints,str):
+        if fingerprints == 'all':
+            fingerprints = list(FP_FUNCTIONS.keys())
+        else:
+            fingerprints = [fingerprints]
+    elif isinstance(fingerprints, list):
+        if 'all' in fingerprints:
+            fingerprints = list(FP_FUNCTIONS.keys())
+    #check validity        
+    for metric in metrics:
+        assert metric in DIST_FUNCTIONS.keys(),\
+            "unsupported distance type: {}".format(metric)
+    for fingerprint in fingerprints:
+        assert fingerprint in FP_FUNCTIONS.keys(),\
+            "unsupported fingerprint type: {}".format(fingerprint)
+    return metrics, fingerprints 
+
+def distances_dictify(molpair, distances_dict={},
+                      metrics:list=['all'], fingerprints:list=['all']):
+    metrics, fingerprints = handle_dis_dict_kargs(metrics, fingerprints)
+    
     if not distances_dict:
         #init.
         for metric in DIST_FUNCTIONS.keys():
@@ -117,7 +150,9 @@ def distances_dictify(molpair, distances_dict={}):
         for fingerprint in distances_dict[metric].keys():
             mol1,mol2 = molpair[0],molpair[1]
             current_distance = None
-            if mol1 and mol2:
+            #if the mol is a Nonetype, distance will return None too
+            #this is to not mess up further calculations (eg. with -1 or 0)
+            if mol1 and mol2: 
                 current_distance = molpair_to_distance(
                     mol1,
                     mol2, 
@@ -127,22 +162,35 @@ def distances_dictify(molpair, distances_dict={}):
             distances_dict[metric][fingerprint].append(current_distance)
     return distances_dict
 
+def yield_pairs(struct_loc:str, degree_of_sep:int=1)->list[list[list[str]]]:
+    """returns as [pathway][pairnumber][0]product[1]precursor"""
+    for i in yield_row(struct_loc):
+        #remove the pathway annotation
+        yield get_step_pairs(i[1:], degree_of_sep=degree_of_sep)
+
+def mean_distances(chain_distances:list[float])->float:
+    #remove the None values resulting from invalid Inchi's
+    valid_list = [x for x in chain_distances if x] 
+    return sum(valid_list)/len(valid_list)
 
 def main():
     struct_loc = '/Users/lucina-may/thesis/scripts/0927_metacyc_reactions.tsv'
-    reactions = [x[1:] for x in yield_row(struct_loc)]
+    degree_of_sep = 1
     pw_ids = [x[0] for x in yield_row(struct_loc)]
-    pairs_per_chain=[]
-    for chain in reactions[:10]:
-        pairs_per_chain.append(get_step_pairs(chain))
+    pairs_per_pw =[x for x in yield_pairs(struct_loc, 
+                                          degree_of_sep=degree_of_sep)]
     
-    distances_per_chain = []
-    for chain in pairs_per_chain:
+    #getting a list of dictionaries per pathway, of the various distance values
+    distances_per_pw = []
+    for chain in pairs_per_pw:
         chain_dict = {}
         for pairs in chain:
+            #later, add functionality to take the SMILES if it is not InChI
             molpairs = [Chem.MolFromInchi(x) for x in pairs]
             chain_dict=distances_dictify(molpairs, chain_dict)
-        distances_per_chain.append(chain_dict)
+        distances_per_pw.append(chain_dict)
+    picklr(distances_per_pw, 'distances_per_pw_sep{}'.format(degree_of_sep))
+    distances_per_pw['tanimoto']
         
 
 if __name__ == "__main__":
