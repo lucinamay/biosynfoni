@@ -2,8 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Sep 28 12:20:39 2023
+||||||||||||  ㅇㅅㅇ  |||||||||||||||
+____________________________________
 
-@author: lucina-may
+title: fingerprints                 ||
+created: 2023-09-28 12:20           ||
+author: Lucina-May Nollen           || 
+institute: WUR Bioinformatics       ||
+____________________________________
+ 
+||||||||||||  ()()()  |||||||||||||||
+
+description: fingerprints and related functionality.
 """
 import numpy as np
 from rdkit import Chem, DataStructs
@@ -93,13 +103,13 @@ def euclidean(
     return array.tolist()[0]
 
 
-def fingerprint_similarity(fp1: np.ndarray, fp2: np.ndarray) -> float:
-    return (
-        np.logical_and(fp1, fp2).sum() / (
-            float(np.logical_or(fp1, fp2).sum())
-        )
-    )
+def counted_tanimoto_sim(fp1:np.array, fp2: np.array) -> float:
+    nom = sum(np.minimum(fp1,fp2)) #overlap
+    denom = float(sum(np.maximum(fp1,fp2))) #all bits 'on'
+    return (nom/denom)
 
+def countanimoto(pair:list) -> float:
+    return counted_tanimoto_sim(np.array(pair[0]),np.array(pair[1]))
 
 #============================= formatting ===================================
 
