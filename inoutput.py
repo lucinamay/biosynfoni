@@ -14,6 +14,7 @@ ____________________________________
 ||||||||||||  ()()()  |||||||||||||||
 
 description:    general functions needed in the other file
+
 ======= input =======
 - readr(filename:str,ignore_start='',
           encoding='UTF-8',errors='ignore')->list
@@ -38,6 +39,7 @@ description:    general functions needed in the other file
 """
 import pickle
 import os
+import json
 from datetime import date
 from typing import Any
 
@@ -112,6 +114,39 @@ def dictify(listoflists:list[list])->dict:
             dictionary[item[0]] = item[1]
     return dictionary
 
+def get_twovals(entry:list[str], start1:str, start2:str,
+                start_val_sep = ' - ') -> list[str]:
+    val1,val2='',''
+    for line in entry:
+        if line.startswith(start1):
+            val1 = line.split(start_val_sep)[-1]
+        elif line.startswith(start2):
+            val2 = line.split(start_val_sep)[-1]
+    return [val1, val2]
+
+def entryfile_dictify(
+        filename:str,
+        keyvals:tuple[str],
+        start_val_sep:str,
+        entry_sep:str = "//",
+        encoding:str = 'UTF-8'
+        ) -> dict:
+    """makes dictionary out of files """
+    annot_entries = entry_parser(
+        readr(
+            filename,
+            encoding=encoding
+            ),
+        sep=entry_sep
+        )
+    annot = dictify(per_entry(
+        annot_entries, 
+        get_twovals,
+        start1=keyvals[0],
+        start2=keyvals[1],
+        start_val_sep=start_val_sep))
+    return annot
+
 def tuplist_flattenr(list_of_tuples:list[tuple[tuple]])->list[list]:
     per_bit = []
     for bit in list_of_tuples:
@@ -129,7 +164,7 @@ def clean_dict(dic:dict):
 #=========================== temporary storage etc ===========================
 
 def picklr(cucumber:Any, title:str)->str:
-    picklename = "{}.pickle".format(title)
+    picklename = "{}.pickle".format(outfile_namer(title))
     if os.path.exists(picklename):
         print("Pickle exists at this date, will write to {}_1")
         picklename = "{}_1".format(picklename)
@@ -143,6 +178,16 @@ def jaropener(picklepath=''):
         picklepath = outfile_namer('wikifile', 'pickle')
     with open(picklepath, 'rb') as pkl:
             return pickle.load(pkl)
+
+def dump_json(data, filename:str) -> None:
+    with open(filename, 'w') as f:
+        json.dump(data, f)
+    return None
+
+def open_json(filename):
+    with open(filename, 'r') as f:
+        data = json.load(f)
+    return data
         
 #================================== output ===================================
 
@@ -194,7 +239,6 @@ def fp_writr(fp_array:list, outfile_name: str)->None:
             biosyn.write(','.join(str(col) for col in row))
             biosyn.write('\n')
     return None
-
 
 
 
