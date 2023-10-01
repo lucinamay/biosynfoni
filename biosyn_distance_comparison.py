@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-||||||||||||  ㅇㅅㅇ  |||||||||||||||
+|||||||||||||  ㅇㅅㅇ  ||||||||||||||||
 ____________________________________
 
 title: biosyn distance comparison   ||
@@ -15,23 +15,22 @@ ____________________________________
 description: uses molecule pairs for comparison of distance estimation
 between various fingerprints, including biosynfoni and binosynfoni(binary
 biosynfoni)
-
+#3:26 - 4:16
+#4:36 - 
 """
-
+#standard packages
+from sys import argv
+#packages requiring installing
 from rdkit import Chem
-from rdkit.DataManip import Metric
-from rdkit.Chem import AllChem
 import pandas as pd
 import numpy as np
+import plotly.express as px
+#from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
+#own imports
 import fingerprints as fp
 from inoutput import picklr, jaropener, outfile_namer
 from inoutput import entryfile_dictify as ann
-import plotly
-import plotly.express as px
-from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
-import os
-import matplotlib
-
+from metacyc_better_taxonomy import better_taxonomy as BETTER_TAX
 #=========================== GLOBALS =========================
 FP_FUNCTIONS={
     'biosynfoni':fp.biosynfoni_getter,
@@ -75,6 +74,7 @@ def fp_to_distance(fp1, fp2, metric='c_tanimoto'):
     distance=SIM_FUNCTIONS[metric]([fp1,fp2])
     return distance
 
+
 def _twomols_to_distance(
         mol1:Chem.Mol,
         mol2:Chem.Mol,
@@ -110,6 +110,7 @@ def molpair_to_distance(
         metric=metric)
     return distance
 
+
 def inchi_pair_to_distance(
         pair:list[str],
         metric:str = 'c_tanimoto',
@@ -144,6 +145,7 @@ def get_step_pairs(chain_mols: list, degree_of_sep: int = 1)->list:
             pairs.append([chain_mols[i],chain_mols[i+degree_of_sep]])
     return pairs
 
+
 def yield_row_from_file(struct_loc: str):
     """yields rows from csv, cleaning up the rows in the process"""
     struct = pd.read_csv(struct_loc, sep = "\t", header = None)
@@ -160,6 +162,7 @@ def yield_row_from_file(struct_loc: str):
     for i in range(len(final.index)):
         yield final.iloc[i].tolist()
 
+
 def yield_pairs_from_file(
         struct_loc:str,
         degree_of_sep:int = 1
@@ -168,6 +171,7 @@ def yield_pairs_from_file(
     for i in yield_row_from_file(struct_loc):
         #remove the pathway annotation
         yield get_step_pairs(i[1:], degree_of_sep=degree_of_sep)
+
 
 def dictify_pw_pairs(
         struct_loc:str, 
@@ -182,21 +186,39 @@ def dictify_pw_pairs(
     return dictionary
 
 def _label_pairs(
-        distances_per_pathway:dict[list[float]]
-        ) -> tuple[str,float]:
+        pairs_per_pathway:dict[list[list[str]]]
+        ) -> tuple[str,list[str]]:
     """returns list of (pathway,distances)"""
     labeled_distances = []
-    for pw_id in distances_per_pathway.keys():
-        for distance in distances_per_pathway[pw_id]:
+    for pw_id in pairs_per_pathway.keys():
+        for distance in pairs_per_pathway[pw_id]:
             labeled_distances.append((pw_id,distance))
     return labeled_distances
 
+def get_mol_from_representations(repres, clean = True):
+    mol = ''
+    if repres.startswith("InChI="):
+        mol = Chem.MolFromInchi(repres)
+    elif clean:
+        mol = Chem.MolFromSmiles(repres.split('[a ',)[0])
+    else:
+        mol = Chem.MolFromSmiles(repres)
+    if mol:
+        return mol
+    else:
+        return ''
+
 def get_pairs_dist_df(
         labeled_distances:list[tuple[str,float]],
-        metric = 'c_tanimoto_similarity'
+        inchi_pair_column:str = 'inchis_sep',
+        metric = 'c_tanimoto'
         ) -> pd.DataFrame:
+    """only supports inchi_pairs at the moment"""
     df = pd.DataFrame(labeled_distances)
     df.columns = ['pathway', 'inchis_sep']
+    
+    #molecules: 
+    labeled_mols = [Chem.MolFromInchi]
     #find way to convert to mol only once instead of continuously
     for fp_type in FP_FUNCTIONS.keys():
         df[fp_type] = df['inchis_sep'].apply(
@@ -205,6 +227,7 @@ def get_pairs_dist_df(
                 fingerprint=fp_type,
                 metric='c_tanimoto'))
     return df
+
 
 def annotate_pathways(df, pw_tax_file:str, tax_text_file:str) -> pd.DataFrame:
     ndf = df.copy()
@@ -227,48 +250,117 @@ def annotate_pathways(df, pw_tax_file:str, tax_text_file:str) -> pd.DataFrame:
     print(len(pw_tax),len(class_text))
     ndf['tax_id']=ndf['pathway'].replace(to_replace=pw_tax)
     ndf['taxonomic_range']=ndf['tax_id'].replace(to_replace=class_text)
+    ndf['taxonomy']=ndf['taxonomic_range'].replace(to_replace=BETTER_TAX)
     ndf['pathway_name']=ndf['pathway'].replace(to_replace=class_text)
     #ndf['pathway_name']=ndf['pathway_name'].fillna(ndf['pathway'])
     return ndf
+
 
 def plot_two_cols(
         df,
         col1,
         col2,
-        colour_label='taxonomic_range',
+        colour_label='taxonomy',
         shape_label='',
-        hover_data=['pathway_name','taxonomic_range']):
+        hover_data=['pathway_name','taxonomic_range'],
+        symbol="reaction_steps",
+        i='i'
+        ) -> None:
     #fig = px.scatter(df,x=col1, y=col2, hover_data=['class1,class2'])
     fig = px.scatter(
         df,
         x=col1, 
         y=col2,
         color=colour_label,
-        hover_data=hover_data)
-    fig.update_layout(
-        title='Tanimoto similarity for biosynthetic (x,x+1) pairs'
+        symbol = symbol,
+        hover_data=hover_data,
+        marginal_x="histogram", 
+        marginal_y="histogram",
+        #facet_col = "reaction_steps",
+        color_discrete_map={
+                "Viridiplantae": px.colors.qualitative.Plotly[7], #green
+                "Bacteria": px.colors.qualitative.D3[9], # light red
+                "Fungi": px.colors.qualitative.Plotly[3], #purple
+                "Metazoa": px.colors.qualitative.Plotly[4], #orange
+                "Archaea": px.colors.qualitative.T10[7], #pink
+                "Eukaryota": px.colors.qualitative.Set3[8],
+                "Cellular organisms": px.colors.qualitative.Plotly[9],
+                "Opisthokonta":px.colors.qualitative.Plotly[8],
+                },
+        category_orders={
+            "taxonomy": [
+                "Bacteria",
+                "Archaea",
+                "Viridiplantae",
+                "Fungi", 
+                "Metazoa",
+                "Opisthokonta",
+                "Eukaryota",
+                "Cellular organisms"]}
+        
         )
-    outfilename = outfile_namer(f'{col1}_{col2}',colour_label)
+    
+    fig.update_layout(
+        title=f'Tanimoto similarity for biosynthetic (x,x+{i}) pairs'
+        )
+    outfilename = outfile_namer(f'sep{i}_{col1}_{col2}',colour_label)
     fig.write_html(f'{outfilename}.html', auto_open=True)
     return None
 
+def get_fp_combinations():
+    combinations = []
+    for firstkey in FP_FUNCTIONS.keys():
+        for secondkey in FP_FUNCTIONS.keys():
+            if firstkey != secondkey:
+                if (firstkey,secondkey) not in combinations:
+                    if (secondkey,firstkey) not in combinations:
+                        combinations.append((firstkey,secondkey))
+    return combinations
+    
+#%%
+
+
 def main():
+    #struct_loc = argv[1]
     struct_loc = '../scripts/0927_metacyc_reactions.tsv'
     degree_of_sep = 1
+    pw_tax_file = '../metacyc/pathways_taxid.txt'
+    tax_text_file='../metacyc/cleaner_classes.dat'
     
-    """#add function for folder moving
-
-    #pickle_loc = f"{outfile_namer(f'distances_per_pw_sep{degree_of_sep}')}.pickle"
-    pickle_loc = '../scripts/0929_distances_per_pw.pickle'
+    current_df, previous_df = None, None
+    for i in range(1,5,1):
+        if isinstance(current_df,pd.DataFrame):
+            previous_df = current_df.copy()
+        degree_of_sep = i
+        dictionary = dictify_pw_pairs(struct_loc, degree_of_sep=degree_of_sep)
+        labeled_pairs = _label_pairs(dictionary)
+        current_df = get_pairs_dist_df(labeled_pairs,
+                               inchi_pair_column='inchi_sep',
+                               metric='c_tanimoto'
+                               )
+        current_df['reaction_steps']=i
+        if isinstance(previous_df,pd.DataFrame):
+            current_df = pd.concat([previous_df,current_df],axis=0)
+    annotated_df = annotate_pathways(current_df, pw_tax_file, tax_text_file)
     
+    fp_combs = get_fp_combinations()
+    for com in fp_combs:
+        for i in range(1,5,1):
+            plot_two_cols(
+                annotated_df[annotated_df['reaction_steps']==i], 
+                com[0], 
+                com[1],
+                symbol=None,
+                i = i
+                )
+    #plot_two_cols(annotated_df,'biosynfoni', 'rdkit',symbol=None)    
+        
     
+    #
+    #annotate_pathways(df, pw_tax_file, tax_text_file)
+    #plot_two_cols(df,col1,col2,colour_label='taxonomic_range',shape_label='',\
+    #              hover_data=['pathway_name','taxonomic_range'])
     
-    if not os.path.exists(pickle_loc):
-        distances_per_pw =_run_distancer(struct_loc, degree_of_sep)
-    else:
-        distances_per_pw = jaropener(pickle_loc)
-    #test = [list(x['tanimoto']) for x in distances_per_pw]
-    """
     
 if __name__ == "__main__":
     main()
