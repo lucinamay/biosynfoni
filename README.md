@@ -1,4 +1,8 @@
+
+
 # biosynfoni
+![33](https://github.com/lucinamay/biosynfoni/assets/119406697/93498121-b298-4cc7-ab3a-a7b7ca54b665)
+a biosynformatic molecular fingerprint tailored for natural product cheminformatic use
 
 === overview of files ===
 
