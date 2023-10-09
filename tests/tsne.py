@@ -142,10 +142,12 @@ def pcaed_tsne(arr, annotfile='../arch/0914_COCONUT_DB_rdk_npcs.tsv'):
 
 def main():
     print("hello")
-    # fingerprintfile = argv[1]
+    fingerprintfile = argv[1]
     fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
     arr = read_coco_biosynfoni(fingerprintfile)
+    
     annotfile = '../arch/0914_COCONUT_DB_rdk_npcs.tsv'
+    annotfile = argv[2]
 
     pca_plot(arr, annotfile=annotfile)
     pcaed_tsne(arr, annotfile=annotfile)
