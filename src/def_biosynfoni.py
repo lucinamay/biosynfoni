@@ -12,7 +12,6 @@ ____________________________________
 
 ||||||||||||  ()()()  |||||||||||||||
 
-'CONvert Compound E-Representation TO FingerPrint'
 Biosynfoni Definition. Can be converted into an sdf file per 'version'
 
 """
@@ -64,7 +63,7 @@ SUBSTRUCTURES = {
     'sulfonate_2': 'S~O',
     'sulfonate_5': 'O~S(~O)(~O)~O',
     # additional
-    'n_nitrate_1': '[NH3]',
+    'n_nitrate_1': '[NX3;H2,H1]',
     'o_epoxy_1': '[!H]1-O-[!H]1',  # take only oxygen
     'o_ether_1': '[!H]-O-[!H]',  # check detection #+epoxy?
     'o_hydroxyl_1': '[OH]',  # check detection
@@ -88,22 +87,6 @@ SUBSTRUCTURES = {
     # maybe do a loop where we do substructure searches intra-fingerprint
     # any matches get a 'distance' of one
 }
-# studio: for trying out new SMARTS notations
-studio = Chem.MolFromSmarts('SCCNC(~O)CCNC(~O)C(C(C)(C)COP(O)(~O)OP(=O)'
-                            '(O)OCC1C(C(C(O1)N2C=NC3=C(N=CN=C32)N)O)OP(=O)(O)O)O')
-studio = Chem.MolFromSmarts('SCCNC(~O)CCNC(~O)C(C(C)(C)COP(O)(~O)OP(=O)'
-                            '(O)OCC1C(C(C(O1)n2cnc3c(ncnc32)N)O)OP(=O)(O)O)O')
-studio = Chem.MolFromSmarts('SCCN~C(~O)CCN~C(~O)C(C(C)(C)COP(O)(~O)OP(~O)'
-                            '(O)OCC1C(C(C(O1)n2cnc3c(ncnc32)[#7])O)OP(~O)(O)O)~O')
-studio = Chem.MolFromSmarts('SCCN~C(~O)CCN~C(~O)C(C(C)(C)COP(O)(~O)OP(~O)'
-                            '(O)OCC1C(C(C(O1)[#7]2~[#6]~[#7]~[#6]3~[#6](~[#7]~[#6]~[#7]~[#6]32)~[#7])O)OP(~O)(O)O)~O')
-
-studio2 = Chem.MolFromSmarts('C~O')
-mol = Chem.MolFromSmiles('CC=O')
-studio_atoms, studio2_atoms = studio.GetNumAtoms(), studio2.GetNumAtoms()
-print(studio_atoms, studio2_atoms)
-print(mol.GetSubstructMatches(studio2))
-studio
 
 
 class Biosynfoni(Enum):
@@ -240,9 +223,9 @@ FP_VERSIONS = {
         'hal_br',
         'hal_i',
         'n_nitrate_1',
-        # 'o_epoxy_1',
-        # 'o_ether_1',
-        # 'o_hydroxyl_1',
+        'o_epoxy_1',
+        'o_ether_1',
+        'o_hydroxyl_1',
     ]
 }
 
@@ -371,10 +354,11 @@ SUBS_PATHWAYS_old = {
 
 # --------------------------- get substructure set ----------------------------
 
+
 def get_smarts(
         fp_version_name: str,
         subs_smarts: dict = SUBSTRUCTURES,
-        fp_versions: dict[list] = FP_VERSIONS) -> list[list[str,str]]:
+        fp_versions: dict[list] = FP_VERSIONS) -> list[list[str, str]]:
     """ gives list of smarts of substructures of choice
     input:   fp_version_name (str) -- name of the version
              subs_smarts (dict)
@@ -386,6 +370,7 @@ def get_smarts(
     """
     chosen_sub_names = fp_versions[fp_version_name]
     return [[x, subs_smarts[x]] for x in chosen_sub_names]
+
 
 def get_subsset(
         fp_version_name: str,
@@ -402,7 +387,7 @@ def get_subsset(
 
     output: (list) rdkit.Chem.rdchem.Mol files for substructure keys
     """
-    #print(f"getting substructures from set {fp_version_name}")
+    # print(f"getting substructures from set {fp_version_name}")
     if not fp_version_name:
         raise 'No version name provided to select substructure set'
 
@@ -413,10 +398,11 @@ def get_subsset(
         if isinstance(subs_smarts[substructure_name], Chem.Mol):
             substructures.append(subs_smarts[substructure_name])
         elif isinstance(subs_smarts[substructure_name], str):
-            substructures.append(
-                Chem.MolFromSmarts(subs_smarts[substructure_name])
-            )
+            dirtymol = Chem.MolFromSmarts(subs_smarts[substructure_name])
+            substructures.append(dirtymol)
     return substructures
 
+# get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
+# get_subsset(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
 
 # get_subsset('regular_1007')
