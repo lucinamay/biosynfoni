@@ -34,7 +34,9 @@ DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
 
 def detect_substructures(
         mol: Chem.Mol,
-        substructure_set: list
+        substructure_set: list,
+        blocking_intersub:bool = True,
+        blocking_intrasub:bool = True
 ) -> list[tuple[tuple[int]]]:
     """for mol, extracts fingerprint & atomnumbers of each 
     match
@@ -55,14 +57,16 @@ def detect_substructures(
 
     for substructure in substructure_set:
         sub_matches = mol.GetSubstructMatches(substructure)  # all matches
-
+        if not blocking_intersub:
+            blockedout_atoms = []
         # start with all matches, then remove non-unique ones:
         unique_sub_matches = list(sub_matches)
 
         # removing overlapping finds from unique_matches
         for match in sub_matches:  # for each found match for curr subs
             approved_atoms = []  # unique matches for current subs
-
+            if not blocking_intrasub:
+                blockedout_atoms = []
             # yields either all atoms for a match or none (when has an overlap)
             for atom in match:
                 if atom in blockedout_atoms:
@@ -200,14 +204,26 @@ def main():
     print(10*"=", "\nCONCERTO-FP\n", 10*"=")
 
     coverage_info = False  # default
+    blocking = True # default
+
     supplier_loc = argv[1]
     fp_version = argv[2]
-    if len(argv) == 4:
+    if len(argv) >= 4:
         coverage_info_bool = argv[3]  # if want coverage: write True or T
         if coverage_info_bool in ['True', 'true', 'T', 't',
                                   'coverage', 'y', 'yes', 'Y', 'Yes']:
             coverage_info = True
+    if len(argv) >= 5:
+        blocking = argv[5]  # if want coverage: write True or T
+        if blocking in ['no', 'NO', 'N', 'n',
+                                  'false', 'f', 'No', 'False', 'noblock']:
+            blocking = False
+            print("Blocking out set to False, will detect all overlapping", 
+                  "building blocks")
+    
     outname = outfile_namer(supplier_loc, 'bsf')
+    if not blocking:
+        outname = outfile_namer(supplier_loc, 'overlap_bsf')
 
     print("getting supplier...")
     supplier = rdkfnx.get_supplier(supplier_loc)
