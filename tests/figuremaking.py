@@ -13,9 +13,6 @@ ____________________________________
 
 description: functions for figuremaking
 """
-from concerto_fp import get_biosynfoni, DEFAULT_BIOSYNFONI_VERSION
-from def_biosynfoni import get_subsset as gss
-from def_biosynfoni import get_smarts
 import plotly.express as px
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -25,6 +22,10 @@ import typing as ty
 
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
+
+from ..src.concerto_fp import get_biosynfoni, DEFAULT_BIOSYNFONI_VERSION
+from ..src.def_biosynfoni import get_subsset as gss
+from ..src.def_biosynfoni import get_smarts
 
 # Based off of David's code ====================================================
 
