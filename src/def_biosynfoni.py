@@ -4,7 +4,7 @@
 ||||||||||||  ㅇㅅㅇ  |||||||||||||||
 ____________________________________
 
-title: definition biosynfoni        ||
+title: biosynfoni arrangement       ||
 created: 2023-09                    ||
 author: Lucina-May Nollen           ||
 institute: WUR Bioinformatics       ||
