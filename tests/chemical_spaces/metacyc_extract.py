@@ -5,55 +5,32 @@ Created on Fri Sep 22 16:15:34 2023
 
 @author: lucina-may
 """
-from inoutput import readr, entry_parser, picklr, clean_dict, outfile_namer
+from inoutput import *
 from sys import argv
 import numpy as np
 import pandas as pd
 import subprocess
+import json
 
 #============================== input handling ===============================
-def extract(lines:list, starts:list=[], remove_starts:bool= True, 
-            strip_extra:str=' - ')-> dict:
-    """within a collection of lines, only extracts the lines, but not data
-    normalised"""
-    extraction = {}
-    for start in starts:
-        extraction[start]=[]
-    for line in lines:
-        for start in starts:
-            if line.startswith(start):
-                extraction[start].append(
-                    line.strip().replace(start,'').replace(strip_extra,'').strip()
-                    )
-    return extraction
 
-def per_entry(entries,fnx,*args,**kwargs)->list:
-    all_vals = []
-    for entry in entries:
-        val = fnx(entry,*args,**kwargs)
-        all_vals.append(val)
-    return all_vals
-
-def dictify(listoflists)->dict:
-    dictionary={}
-    for item in listoflists:
-        dictionary[item[0]] = item[1]
-    return dictionary
-
-def get_df(info_loc:str,
-           info2extract:list[str],
-           ignore_start:str='#',
-           entry_sep='//',
-           encoding = 'iso8859-1',
-           remove_starts=True,
-           strip_extra=' - '):
+def get_df(
+        info_loc:str,
+        info2extract:list[str],
+        ignore_start:str = '#',
+        entry_sep = '//',
+        encoding = 'iso8859-1',
+        remove_starts = True,
+        strip_extra:str = ' - '
+        ) -> pd.DataFrame:
+    
     entries = entry_parser(
         readr(info_loc,
               ignore_start=ignore_start,
-              encoding=encoding),entry_sep=entry_sep)
+              encoding=encoding),sep=entry_sep)
     
     all_vals = per_entry(entries, 
-                         extract, 
+                         extractr, 
                          starts=info2extract,
                          remove_starts=remove_starts,
                          strip_extra=strip_extra)
@@ -62,7 +39,11 @@ def get_df(info_loc:str,
     df = get_normalised_db(all_vals) 
     return df
 
-def get_relevant_pws(df,reactions_of_interest:list, min_pw_len:int = 4):
+def get_relevant_pws(
+        df:pd.DataFrame,
+        reactions_of_interest:list, 
+        min_pw_len:int = 4
+        ) -> pd.DataFrame:
     """from DataFrame with pathways, for each pathway with at least min_pw_len,
     returns the Dataframe containing them and their pathway unique-id's"""
     #get pathways containing reactions----------------------------------------
@@ -91,12 +72,12 @@ def get_relevant_pws(df,reactions_of_interest:list, min_pw_len:int = 4):
 #============================ obtain annotations ============================
 #---------------------------- classes annotation ----------------------------
 
-def cmd_clean_classes():
+def cmd_clean_classes() -> None: #under construction
     cmd = 'grep -E "^[A-Za-z]|/{2}" classes.dat | grep -E -v "SYNONYMS" | grep -E -v "COMMENT" | grep -E -v "TYPES" > cleaner_classes.dat '
     subprocess.run(cmd, shell=True)
     return None
 
-def get_idandname(dat_entry:list):
+def get_idandname(dat_entry:list) -> tuple[str]:
     idnum,name='',''
     for line in dat_entry:
         if line.startswith("UNIQUE-ID"):
@@ -106,22 +87,27 @@ def get_idandname(dat_entry:list):
     return idnum, name
 
 def get_classes_annotation(
-        filename:str='/Users/lucina-may/thesis/metacyc/cleaner_classes.dat'
-        )-> dict:
-    annot_entries = entry_parser(readr(
-        '/Users/lucina-may/thesis/metacyc/cleaner_classes.dat',
-        encoding='iso8859-1'),entry_sep='//')
+        filename:str = '../metacyc/cleaner_classes.dat'
+        ) -> dict:
+    
+    annot_entries = entry_parser(
+        readr(
+            '../metacyc/cleaner_classes.dat',
+            encoding='iso8859-1'
+            ),
+        sep='//'
+        )
     annot = dictify(per_entry(annot_entries, get_idandname))
     return annot
 
 #----------------------------------------------------------------------------
 #---------------------------- reaction annotation (obsolete)-----------------
-def cmd_clean_rxns():
+def cmd_clean_rxns() -> None:
     cmd = 'grep -E "^[A-Za-z]|/{2}" reactions.dat | grep -E "^UNI|^LEFT|^RIGHT|^REACTION\-DIRECTION|^/{2}" > cleaner_rxns.dat'
     subprocess.run(cmd, shell=True)
     return None
 
-def get_preandpost(entry:list):
+def get_preandpost(entry:list[str]) -> tuple[str]:
     idnum,name='',''
     for line in entry:
         if line.startswith("UNIQUE-ID"):
@@ -133,9 +119,10 @@ def get_preandpost(entry:list):
 #----------------------------------------------------------------------------
 #---------------------------- compound annotation ---------------------------
 
-def id_repr(filename:str=
-            '/Users/lucina-may/thesis/metacyc/compound-links.dat',
-            representation='inchi')-> dict:
+def id_repr(
+        filename:str = '../metacyc/compound-links.dat',
+        representation:str = 'inchi'
+        )-> dict:
     
     reprs = ['inchi','smiles']
     assert representation in reprs,"representation type unavailable"
@@ -162,9 +149,13 @@ def id_repr(filename:str=
 
 #============================= traverse pathway =============================
 #------------------------- handle the reaction-layout------------------------
-def split_rxns(reaction_layouts:list, pre_post = True)->list[list[str]]:
+def split_rxns(
+        reaction_layouts:list[str], 
+        pre_post:bool = True
+        ) -> list[list[str]]:
     """splits reaction terms into left, direction, right. if pre_post == True
     the reaction is automatically written as [precursor,product]"""
+    
     rxns = []
     for item in reaction_layouts:
         left = ' '.join(item.split('(:')[1].strip(') ').split(' ')[1:])
@@ -185,7 +176,7 @@ def split_rxns(reaction_layouts:list, pre_post = True)->list[list[str]]:
             rxns.append([pre,post])
     return rxns
 
-def inverse_rxns(pre_posts:list[list[str]])->list[list[str]]:
+def inverse_rxns(pre_posts:list[list[str]]) -> list[list[str]]:
     """mainly for degradation pathways, where the 'parent' is actually
     the terminal precursor in the pathway"""
     inversed=[]
@@ -193,9 +184,12 @@ def inverse_rxns(pre_posts:list[list[str]])->list[list[str]]:
         inversed.append([pair[1],pair[0]])
     return inversed
 
+
 #----------------------------------------------------------------------------
 #------------------------------ find start point ----------------------------
-def find_ancestor_rxn(split_rxns:list[list[str]])->list[list[str]]:
+
+
+def find_ancestor_rxn(split_rxns:list[list[str]]) -> list[list[str]]:
     """with a list [pre, post]"""
     #find oldest ancestor (parent) reaction
     parents = []
@@ -219,12 +213,10 @@ def find_ancestor_rxn(split_rxns:list[list[str]])->list[list[str]]:
             parents.append(split_rxns[i])
     return parents
 
-def check_ancestor_res(ancestor_rxns_res):
+
+def check_ancestor_res(ancestor_rxns_res:list[list[str]]) -> str:
     parent=''
-    #if len(ancestor_rxns_res) >1: #if multiple results
-    #    ancestor_rxns_res=ancestor_rxns_res[0]
-    #print(ancestor_rxns_res)
-    #if ancestor_rxns_res and len(ancestor_rxns_res)==1:
+    
     if ancestor_rxns_res:
         #select the reaction from list
         parent_rxn = ancestor_rxns_res[0]
@@ -235,6 +227,7 @@ def check_ancestor_res(ancestor_rxns_res):
             if len(parent_rxn[1].split(' '))==1:
                 parent = parent_rxn[1] #selected product
     return parent
+
 
 def get_checked_ancestor(prec_prods:list[list[str]])-> tuple[str,str]:
     """gets parent compound of pathway, and returns if its a synthesis
@@ -261,10 +254,15 @@ def get_checked_ancestor(prec_prods:list[list[str]])-> tuple[str,str]:
                 parent = ''
                 parent_type = ''
     return parent, parent_type
+
+
 #----------------------------------------------------------------------------
 #--------------------------------- tree-making ------------------------------
 
-def get_child_rxn(parent:list[str], rxn_layout:list[list[str]]):#obsolete?
+
+def get_child_rxn(
+        parent:list[str], 
+        rxn_layout:list[list[str]]):#obsolete?
     """par_child = [parent]
     child_found = False
     for child_i in range(len(rxn_layout)):
@@ -279,6 +277,7 @@ def get_child_rxn(parent:list[str], rxn_layout:list[list[str]]):#obsolete?
     return par_child"""
     return None
 
+
 def getchild_rxns(parent:str, prec_prods:list[list[str]]) -> list[list[str]]:
     """for parent compound, returns list of the children reactions"""
     children=[]
@@ -289,23 +288,36 @@ def getchild_rxns(parent:str, prec_prods:list[list[str]]) -> list[list[str]]:
             children.append(prec_prods[reaction])
     return children
 
-def make_tree_dict(parent:str,
-                   all_rxns,
-                   parent_lvl:int=0,
-                   max_lvl:int=5)->dict:
-    tree_dict={} #total dictionary   
+
+def make_tree_dict(
+        parent:str,
+        pw_rxns:list[list[str]],
+        parent_lvl:int=0,
+        max_lvl:int=5
+        ) -> dict[int,str,dict]:
+    
+    tree_dict={} #total dictionary
     tree_dict['level'] = parent_lvl
-    tree_dict['compound'] = parent
-    children_rxns = getchild_rxns(parent, all_rxns)
+    tree_dict['compound'] = parent 
+    
+    #get children of parent
+    children_rxns = getchild_rxns(parent, pw_rxns)
     child_lvl = parent_lvl+1
+    
+    #check level to prevent overrecursion
     if child_lvl > max_lvl:
         #print('stop at lvl{}: {}'.format(max_lvl,parent))
         return tree_dict
-    #if no reactions leading to parent's compound ()
+    
+    #if no reactions leading to parent's compound, return the tree dict
     if not children_rxns:
         return tree_dict
+    
+    #if reactions preceding this parent, recurse:
     else:
-        tree_dict['reactions']=[] #list of all reactions producing parent
+        #list of all reactions producing parent
+        tree_dict['reactions']=[] 
+        
         for children_rxn in children_rxns:
             #check if valid result, otherwise will stop walking this branch
             if len(children_rxn) != 2: 
@@ -315,7 +327,8 @@ def make_tree_dict(parent:str,
             #rxn_num = 'rxn1{}'.format(i)
             #tree_dict[rxn_num]={}
             
-            reaction_dict={} #make dictionar for reaction
+            reaction_dict={} #make dictionary for reaction
+            #later, add in reaction name?
             reaction_dict['byproducts']=[]
             reaction_dict['precursors']=[]
             
@@ -329,19 +342,23 @@ def make_tree_dict(parent:str,
             child_precs = children_rxn[0].split(' ')
             for prec in child_precs:
                 if prec:
-                    prec_dict = make_tree_dict(prec, 
-                                               all_rxns, 
-                                               child_lvl,
-                                               max_lvl=max_lvl)
+                    prec_dict = make_tree_dict(
+                        parent=prec,     
+                        pw_rxns=pw_rxns, 
+                        parent_lvl=child_lvl,
+                        max_lvl=max_lvl
+                        )
                     reaction_dict['precursors'].append(prec_dict)
             
             #append dictionary to the reactions list
             tree_dict['reactions'].append(reaction_dict)
         return tree_dict
 
+
 #----------------------------------------------------------------------------
 #------------------------------- combine all --------------------------------
-def join_rxns(reaction_layouts:list[str], max_lvl:int=5)->list[list[str]]:
+
+def get_pw_tree(reaction_layouts:list[str], max_lvl:int=5)->list[list[str]]:
     """creates a list where each index corresponds to the amount of reactions
     it takes to get to the final product (i.e. first item is the final product
     !!does not take into accound double left-side primaries"""
@@ -359,25 +376,38 @@ def join_rxns(reaction_layouts:list[str], max_lvl:int=5)->list[list[str]]:
                                    max_lvl=max_lvl)
     reaction_tree['type'] = parent_type
     return reaction_tree
+
+
 #----------------------------------------------------------------------------
 
 def get_reactions(entry:dict): #obsolete?
     """split=split_rxns(entry['REACTION-LAYOUT'],pre_post = True)
-    reactions= join_rxns(split)
+    reactions= get_pw_tree(split)
     return reactions"""
     return None
 
 #============================= getting reactions =============================
 
-def traverse_subdict(reactions_subdicts:list[dict])-> list[dict]:
-    all_rxns=[]  
-    parent,child = '',''      
-    return parent, child
+def traverse( #under construction
+        subdict:dict[int,str,dict],
+        reaction_list:list = []
+        level_list:list = []
+        )-> list[dict]:#under constr.
+    
+    reaction_list.append(subdict['compound'])
+    
+    if len(reactions) > 1:
+        reaction_list = [reaction_list.append(traverse(i)) for i in reactions]
+        for i in reactions:
+    elif len(reactions) == 1:
+        reaction_list.append(traverse(reactions[i]))
+            
+    return 
     
 
 def get_long_chain(pathway_tree:dict, max_level:int=4)->dict:
     """for a given pathway_tree, traverses to get the reaction. gives first
-    resulting chain"""
+    resulting chain, often the only chain"""
     #chain with minimum length of min_len
     current_dict = pathway_tree
     level = 0
@@ -395,10 +425,12 @@ def get_long_chain(pathway_tree:dict, max_level:int=4)->dict:
     return chain
 
 
-
-def get_struct_rxn(long_chain:dict, 
-                   compound_struct:dict,
-                   second_dict={},third_dict={})->list[str]:
+def get_struct_rxn(
+        long_chain:dict, 
+        compound_struct:dict,
+        second_dict:dict = {},
+        third_dict:dict = {}
+        ) -> list[str]:
     """for given chain of reactions, translates compounds to their inchies"""
     structures = []
     compounds = list(long_chain.values())
@@ -415,37 +447,51 @@ def get_struct_rxn(long_chain:dict,
         structures.append(structure)
     return structures
 
+def compound_id_to_structure(): #under construction
+    return None
+
 #============================ df transformations =============================
-def df_filter(df, col, lst_yes):
+
+def df_filter(df:pd.DataFrame, col:str, lst_yes:list) -> pd.DataFrame:
     mask = df[col].isin(lst_yes)
     df_of_interest = df[mask]
     return df_of_interest
 
-def get_indexes(df):
+
+def get_indexes(df: pd.DataFrame) list[int]:
     unique_index = df.index.unique()
     return  unique_index
 
-def get_unique_vals(df,col):
+
+def get_unique_vals(df: pd.DataFrame, col:str) -> list:
     unique_col_vals = df.index.get_level_values(col).unique()
     return unique_col_vals
 
-def remove_cols(df, cols:list[str]):
+
+def remove_cols(df:pd.DataFrame, cols:list[str]) -> pd.DataFrame:
     new = df
     for i in cols:
         new = new.drop(columns=i).drop_duplicates()
     return new
 
-def annotate(df, replace_dict):
+
+def annotate(df: pd.DataFrame, replace_dict:dict) -> pd.DataFrame:
     return df.replace(to_replace=replace_dict)
-                
-def get_normalised_db(list_of_dict:list[dict[list]]):
+  
+              
+def get_normalised_db(list_of_dict:list[dict[list]]) -> pd.DataFrame:
     df = pd.DataFrame.from_records(list_of_dict)
     for col in df.columns:
         df = df.explode(col)
     return df
 
-def split_rxn_columns(df,col:str,new_headers:list[str]): #obsolete?
-    """df_new = df
+
+def split_columns(
+        df:pd.DataFrame,
+        col:str,
+        new_headers:list[str]
+        ) -> pd.DataFrame: #obsolete?
+    df_new = df
     df_new[new_headers] = df_new[col].str.split('\(:',expand=True)
     for header in new_headers:
         df_new[header] = df_new[header].str.replace(header+' ', '')
@@ -453,37 +499,46 @@ def split_rxn_columns(df,col:str,new_headers:list[str]): #obsolete?
         df_new[header] = df_new[header].str.replace('(', '')
         df_new[header] = df_new[header].str.replace(' :', '')
     # drop the original 'Name' column
-    df_new.drop(col, axis=1, inplace=True)
-    return df"""
-    return None
+    df_new.drop(col, axis = 1, inplace = True)
+    return df
+
 
 def lost_function(df, column): #where did this come from?
     """for unique_val in df[column].unique():
         row = df.loc[df[column] == unique_val]"""
     return None
 
-def colval_per_index(df, colname:str='REACTION-LAYOUT')-> list[str]:
+
+def colval_per_index(
+        df:pd.DataFrame, 
+        colname:str = 'REACTION-LAYOUT'
+        ) -> list[str]:
     "yields pw_reactions"
     unique_ind = get_indexes(df).tolist()
     for i in unique_ind:
         colval = df[df.index.isin([i])][colname].tolist()
         yield colval
 
-def filter_by_rxn_len(df, length:int=4):
+
+def filter_by_rxn_len(df:pd.DataFrame, length:int = 4) -> pd.DataFrame:
     mask = np.array([len(x)>3 for x in colval_per_index(df)])
     all_ind = np.array(df.index.unique())
     long_enough = all_ind[mask]
     new= df[df.index.isin(long_enough)]
     return new
-    
-def mergeinchis(df):
+   
+ 
+def mergeinchis(df:pd.DataFrame) -> pd.DataFrame:
     newdf = df
     newdf['InChi'] = newdf['INCHI'].fillna(newdf['NON-STANDARD-INCHI'])
     return newdf
 
-def to_conversion_dict(df,allcapskeys=True):
+
+def to_conversion_dict(df:pd.DataFrame, allcapskeys:bool = True) -> dict:
     ndf = df
-    ndf['filled'] = ndf['INCHI'].fillna(ndf['SMILES']).fillna(ndf['NON-STANDARD-INCHI'])
+    ndf['filled'] = ndf['INCHI'].fillna(ndf['SMILES']).fillna(
+        ndf['NON-STANDARD-INCHI']
+        )
     ndf['filled'].fillna('')
     dic = pd.Series(ndf['filled'].values,index=ndf['UNIQUE-ID']).to_dict()
     full_dic = {}
@@ -494,13 +549,21 @@ def to_conversion_dict(df,allcapskeys=True):
             else:
                 full_dic[key]=val
     return full_dic
+
 #============================================================================
 #================================ output ====================================
 
-def pickle_mols(pathways, dict1, max_level=7,
-                    dict2={},dict3={},
-                    title='metacyc_reactions'):
+#obsolete
+def pickle_mols( 
+        pathways, 
+        dict1, 
+        max_level=7, 
+        dict2={},
+        dict3={},   
+        title='metacyc_reactions'):
     return None
+
+def 
 
 def write_reactions(pathways, dict1, max_level=7,
                     dict2={},dict3={},
@@ -519,13 +582,16 @@ def write_reactions(pathways, dict1, max_level=7,
         with open(annotation_name, 'w') as an:
             an.write('')
     
+    all_pathway_trees = []
     for i in range(len(all_reaction_layouts)):
-        pathway_tree = join_rxns(all_reaction_layouts[i], max_lvl=max_level)
+        pathway_tree = get_pw_tree(all_reaction_layouts[i], max_lvl=max_level)
+        all_pathway_trees.append(pathway_tree)
         if not pathway_tree:
             continue
         long_chain = get_long_chain(pathway_tree, max_level=max_level)
         structures = get_struct_rxn(long_chain, compound_struct=dict1,
                                     second_dict=dict2,third_dict=dict3)
+        
         
         with open(outfile_name,'a') as nf:
             nf.write('{}\t'.format(all_pw_ids[i][0]))
@@ -564,7 +630,7 @@ def main():
 
     #get reactions containing COCONUT
     pathways_ofinterest_loc = '/Users/lucina-may/thesis/metacyc/interest_pws.tmp'
-    reactions_of_interest = extract(readr(pathways_ofinterest_loc),
+    reactions_of_interest = extractr(readr(pathways_ofinterest_loc),
                       ['REACTION-LAYOUT'], 
                       strip_extra=' - ')['REACTION-LAYOUT']
     #get pathways containing COCONUT compounds of defined minimal length 
@@ -602,12 +668,12 @@ def main():
     """#enough_split = split_rxns(reaction_layouts[0]) #UNIQUE-ID:PWY-6527
     for i in range(len(all_reaction_layouts)):
         print(i)
-        pathway_tree = join_rxns(all_reaction_layouts[i], max_lvl=7)    
+        pathway_tree = get_pw_tree(all_reaction_layouts[i], max_lvl=7)    
         long_chain = get_long_chain(pathway_tree, max_level=7)
         levels.append(len(long_chain)-1)
     fil = [x>=7 for x in levels]
     sum(fil)
-    pathway_tree = join_rxns(all_reaction_layouts[537],max_lvl=150)
+    pathway_tree = get_pw_tree(all_reaction_layouts[537],max_lvl=150)
     long_chain = get_long_chain(pathway_tree,max_level=7)
     structs = get_struct_rxn(long_chain, main_dict,compound_inchi,compound_smiles)
     
