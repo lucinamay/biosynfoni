@@ -43,9 +43,9 @@ import plotly.express as px
 # own imports #fix to work with different folders
 from ...src import fingerprints as fp
 from .. import figuremaking as fm
-from ...src.inoutput import picklr, jaropener, outfile_namer, save_version
-from ...src.inoutput import entryfile_dictify as ann
-from ..chemical_spaces.metacyc_better_taxonomy import BETTER_TAX
+from ...src import picklr, jaropener, outfile_namer, save_version
+from ...src import entryfile_dictify as ann
+from ..chemical_spaces import BETTER_TAX
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
