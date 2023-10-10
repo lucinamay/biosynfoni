@@ -41,11 +41,11 @@ import plotly.express as px
 
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
-from ...src import fingerprints as fp
-from .. import figuremaking as fm
-from ...src import picklr, jaropener, outfile_namer, save_version
-from ...src import entryfile_dictify as ann
-from ..chemical_spaces import BETTER_TAX
+import fingerprints as fp
+import figuremaking as fm
+from biosynfoni import picklr, jaropener, outfile_namer, save_version
+from biosynfoni import entryfile_dictify as ann
+from metacyc_better_taxonomy import BETTER_TAX
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {

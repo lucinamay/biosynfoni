@@ -19,7 +19,7 @@ import json
 import subprocess
 import pandas as pd
 
-from inoutput import picklr, jaropener, outfile_namer
+from biosynfoni import picklr, jaropener, outfile_namer
 
 # init.
 global TAX_TREE

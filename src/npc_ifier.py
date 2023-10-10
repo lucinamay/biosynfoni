@@ -35,13 +35,17 @@ description:    using RDK Chem mols and NPClassifier API, requests
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/////////////////////////////////////////
 
 #--------------------------------- IMPORTS-------------------------------------
+from sys import argv 
+from datetime import date
+import requests
+import time
+import os
+import json
+
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit import RDLogger  #for muting warnings
-from sys import argv
-from datetime import date
 
-import requests, time, os, json
 #------------------------------------------------------------------------------
 
 #================================= GLOBALS ====================================

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Thu Sep 28 12:20:39 2023
@@ -21,9 +20,9 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from src import get_biosynfoni
+from concerto_fp import get_biosynfoni
+from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
 
-DEFAULT_BIOSYNFONI_VERSION = "fps_full_3"
 
 
 # circular fingerprint -------------------------------------------------
