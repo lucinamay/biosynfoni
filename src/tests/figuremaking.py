@@ -13,18 +13,17 @@ ____________________________________
 
 description: functions for figuremaking
 """
-import plotly.express as px
-import matplotlib.pyplot as plt
-import pandas as pd
-
 from enum import Enum
 import typing as ty
 
+import plotly.express as px
+import matplotlib.pyplot as plt
+import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from ..src.concerto_fp import get_biosynfoni, DEFAULT_BIOSYNFONI_VERSION
-from ..src.def_biosynfoni import get_subsset as gss
+from src.concerto_fp import get_biosynfoni, DEFAULT_BIOSYNFONI_VERSION
+from src.def_biosynfoni import get_subsset as gss
 
 # Based off of David's code ====================================================
 

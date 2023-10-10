@@ -24,8 +24,8 @@ import numpy as np
 
 # my imports
 import def_biosynfoni
-from inoutput import outfile_namer, csv_writr, save_version
 import rdkfnx
+from inoutput import outfile_namer, csv_writr, save_version
 
 
 # not used, just for reference

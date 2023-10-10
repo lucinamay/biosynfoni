@@ -21,7 +21,7 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from concerto_fp import get_biosynfoni
+from src import get_biosynfoni
 
 DEFAULT_BIOSYNFONI_VERSION = "fps_full_3"
 

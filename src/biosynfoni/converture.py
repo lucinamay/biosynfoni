@@ -31,13 +31,14 @@ style:          attempting to follow PEP8 styleguide
 
 """
 #--------------------------------- IMPORTS-------------------------------------
+from sys import argv 
+from datetime import date
+import os
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  #for muting warnings
-from sys import argv
-from datetime import date
-import os
+
 
 #================================ FUNCTIONS ===================================
 #================================== input =====================================
