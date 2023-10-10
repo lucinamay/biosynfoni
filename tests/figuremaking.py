@@ -25,7 +25,6 @@ from rdkit.Chem.Draw import rdMolDraw2D
 
 from ..src.concerto_fp import get_biosynfoni, DEFAULT_BIOSYNFONI_VERSION
 from ..src.def_biosynfoni import get_subsset as gss
-from ..src.def_biosynfoni import get_smarts
 
 # Based off of David's code ====================================================
 
@@ -34,20 +33,21 @@ class Palette(Enum):
     """
     Palette of colors for drawing molecules as RGB.
     """
-    Red = (230,  25,  75)
+
+    Red = (230, 25, 75)
     Blue = (0, 130, 200)
-    Green = (60, 180,  75)
-    Maroon = (128,   0,   0)
-    Brown = (170, 110,  40)
-    Olive = (128, 128,   0)
+    Green = (60, 180, 75)
+    Maroon = (128, 0, 0)
+    Brown = (170, 110, 40)
+    Olive = (128, 128, 0)
     Teal = (0, 128, 128)
-    Navy = (0,   0, 128)
-    Orange = (245, 130,  48)
-    Yellow = (255, 225,  25)
-    Lime = (210, 245,  60)
+    Navy = (0, 0, 128)
+    Orange = (245, 130, 48)
+    Yellow = (255, 225, 25)
+    Lime = (210, 245, 60)
     Cyan = (70, 240, 240)
-    Purple = (145,  30, 180)
-    Magenta = (240,  50, 230)
+    Purple = (145, 30, 180)
+    Magenta = (240, 50, 230)
     Pink = (255, 190, 212)
     Apricot = (255, 215, 180)
     Beige = (255, 250, 200)
@@ -75,7 +75,9 @@ class Palette(Enum):
         else:
             return hex_base
 
-    def normalize(self, minv: float = 0.0, maxv: float = 255.0) -> ty.Tuple[float, float, float]:
+    def normalize(
+        self, minv: float = 0.0, maxv: float = 255.0
+    ) -> ty.Tuple[float, float, float]:
         """
         Normalize the color values to the range [0, 1].
 
@@ -87,7 +89,11 @@ class Palette(Enum):
             ty.Tuple[float, float, float]: Normalized color values.
         """
         r, g, b = self.value
-        return (round((r-minv)/(maxv-minv), 3), round((g-minv)/(maxv-minv), 3), round((b-minv)/(maxv-minv), 3))
+        return (
+            round((r - minv) / (maxv - minv), 3),
+            round((g - minv) / (maxv - minv), 3),
+            round((b - minv) / (maxv - minv), 3),
+        )
 
 
 def draw(
@@ -111,9 +117,7 @@ def draw(
     """
     if get_match_highlighting:
         _, subs = get_biosynfoni(
-            mol,
-            version=DEFAULT_BIOSYNFONI_VERSION,
-            return_matches=True
+            mol, version=DEFAULT_BIOSYNFONI_VERSION, return_matches=True
         )
 
     drawing = rdMolDraw2D.MolDraw2DSVG(*window_size)
@@ -160,7 +164,7 @@ def draw(
         highlightAtoms=atoms_to_highlight,
         highlightBonds=bonds_to_highlight,
         highlightAtomColors=atom_highlight_colors,
-        highlightBondColors=bond_highlight_colors
+        highlightBondColors=bond_highlight_colors,
     )
 
     drawing.FinishDrawing()
@@ -170,8 +174,8 @@ def draw(
 
 
 def drawfp(
-        version: str = DEFAULT_BIOSYNFONI_VERSION,
-        window_size: ty.Tuple[int, int] = (1000, 1000),
+    version: str = DEFAULT_BIOSYNFONI_VERSION,
+    window_size: ty.Tuple[int, int] = (1000, 1000),
 ) -> str:
     drawing = rdMolDraw2D.MolDraw2DSVG(*window_size)
     mols, indexes = [], []
@@ -186,13 +190,13 @@ def drawfp(
 
 
 # -------- displaying
-'''
+"""
 mol = Chem.MolFromInchi('')
 substructures = detect_substructures(mol, ss('fps_full_3'))
 svg_text = draw(mol, substructures, background_color=(1, 1, 1))
 with open('my.svg', 'w') as f:
     f.write(svg_text)
-'''
+"""
 # =============================================================================
 
 
@@ -206,21 +210,18 @@ def df_scatterplot(
     *args,
     **kwargs,
 ) -> None:
-    fig = px.scatter(
-        df,
-        x=col_x,
-        y=col_y,
-        *args,
-        **kwargs
-    )
+    fig = px.scatter(df, x=col_x, y=col_y, *args, **kwargs)
     fig.update_layout(title=figtitle)
-    fig.write_html(f"{filename}.html", auto_open=auto_open,)
+    fig.write_html(
+        f"{filename}.html",
+        auto_open=auto_open,
+    )
     # fig.close()
     return None
 
 
 COLOUR_DICT = {
-    'taxonomy': {
+    "taxonomy": {
         "Viridiplantae": px.colors.qualitative.Plotly[7],  # green
         "Bacteria": px.colors.qualitative.D3[9],  # light red
         "Fungi": px.colors.qualitative.Plotly[3],  # purple
@@ -230,20 +231,20 @@ COLOUR_DICT = {
         "Cellular organisms": px.colors.qualitative.Plotly[9],
         "Opisthokonta": px.colors.qualitative.Plotly[8],
     },
-    'stepnum': {
+    "stepnum": {
         "1": px.colors.qualitative.Pastel[0],  # blue,
         "2": px.colors.qualitative.Pastel[4],  # green,
         "3": px.colors.qualitative.Pastel[1],  # yellow,
         "4": px.colors.qualitative.Pastel[2],  # orange
     },
-    'pathways': {
+    "pathways": {
         "shikimate": px.colors.qualitative.Plotly[3],  # purple
         "acetate": px.colors.qualitative.Pastel[2],  # orange,
         "mevalonate": px.colors.qualitative.Pastel[4],  # green,
         "methylerythritol": px.colors.qualitative.Pastel[0],  # blue
         "sugar": px.colors.qualitative.T10[7],  # pink
     },
-    'NPClasses': {
+    "NPClasses": {
         "Terpenoids": px.colors.qualitative.Plotly[7],  # green
         "Alkaloids": "lightblue",  # purple
         "Shikimates and Phenylpropanoids": px.colors.qualitative.Plotly[3],
@@ -251,20 +252,20 @@ COLOUR_DICT = {
         "Carbohydrates": "lightpink",  # pink
         "Polyketides": px.colors.qualitative.Prism[7],  # light red
         "Amino acids and Peptides": "bisque",
-        "No NP-Classifier prediction": "grey"
-    }
+        "No NP-Classifier prediction": "grey",
+    },
 }
 
 
-def scatter_3d(df, col1, col2, col3, m='o'):
+def scatter_3d(df, col1, col2, col3, m="o"):
     fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
+    ax = fig.add_subplot(projection="3d")
 
     ax.scatter(df[col1], df[col2], df[col3], marker=m)
 
-    ax.set_xlabel('Dim 1')
-    ax.set_ylabel('Dim 2')
-    ax.set_zlabel('Dim 3')
+    ax.set_xlabel("Dim 1")
+    ax.set_ylabel("Dim 2")
+    ax.set_zlabel("Dim 3")
 
     plt.show()
     return None

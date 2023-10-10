@@ -19,11 +19,10 @@ mainly supplier-handling
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
-import def_biosynfoni
 
 
 def sdf_writr(mols: list, outfile: str) -> None:
-    """writes sdf of mols, 
+    """writes sdf of mols,
     * needs RDKit Chem
     """
     writer = Chem.SDWriter(outfile)
@@ -35,7 +34,7 @@ def sdf_writr(mols: list, outfile: str) -> None:
 def get_supplier(sdf_file: str, supplier_only: bool = True) -> list:
     suppl = Chem.SDMolSupplier(sdf_file)
 
-    print('reading sdf, number of entries:', len(suppl))
+    print("reading sdf, number of entries:", len(suppl))
 
     if supplier_only:
         return suppl

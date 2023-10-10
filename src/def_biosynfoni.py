@@ -63,7 +63,7 @@ SUBSTRUCTURES = {
     "sulfonate_2": "S~O",
     "sulfonate_5": "O~S(~O)(~O)~O",
     # additional
-    "n_nitrate_1": "[NX3;H2,H1]",
+    "n_nitrate_1": "[N;D1]",
     "o_epoxy_1": "[!H]1-O-[!H]1",  # take only oxygen
     "o_ether_1": "[!H]-O-[!H]",  # check detection #+epoxy?
     "o_hydroxyl_1": "[O;D1]",  # check detection

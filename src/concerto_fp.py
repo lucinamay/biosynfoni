@@ -22,6 +22,7 @@ import argparse
 from rdkit import Chem
 import numpy as np
 
+# my imports
 import def_biosynfoni
 from inoutput import outfile_namer, csv_writr, save_version
 import rdkfnx
@@ -33,19 +34,19 @@ DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
 
 
 def detect_substructures(
-        mol: Chem.Mol,
-        substructure_set: list,
-        blocking_intersub:bool = True,
-        blocking_intrasub:bool = True
+    mol: Chem.Mol,
+    substructure_set: list,
+    blocking_intersub: bool = True,
+    blocking_intrasub: bool = True,
 ) -> list[tuple[tuple[int]]]:
-    """for mol, extracts fingerprint & atomnumbers of each 
+    """for mol, extracts fingerprint & atomnumbers of each
     match
 
     input: (Chem.Mol) mol -- RDKit Chem Mol object, molecule
-           (list) fp_set -- list of RDKit Chem mol files of 
+           (list) fp_set -- list of RDKit Chem mol files of
                             substructure keys
-    output: 
-        [0] (list[tuples[int]]) atomnumbers of each match per 
+    output:
+        [0] (list[tuples[int]]) atomnumbers of each match per
             substructure
 
     """
@@ -97,17 +98,18 @@ def matches_to_vector(matches: list[tuple[tuple[int]]]) -> list[int]:
 
 
 def get_biosynfoni(
-        mol: Chem.Mol,
-        version: str = '',
-        substructure_set: list = [],
-        return_matches: bool = False
+    mol: Chem.Mol,
+    version: str = "",
+    substructure_set: list = [],
+    return_matches: bool = False,
 ) -> list[int]:
-    """given a name of the fp version, uses get_subsset to get 
-    the set of substructures, passing them todetect_substructures 
+    """given a name of the fp version, uses get_subsset to get
+    the set of substructures, passing them todetect_substructures
     to get the fingerprint. can also pass a substructure set directly"""
 
-    assert (version or substructure_set),\
-        'please give either the version name or the substructure set'
+    assert (
+        version or substructure_set
+    ), "please give either the version name or the substructure set"
     if not substructure_set:
         substructure_set = def_biosynfoni.get_subsset(version)
 
@@ -134,8 +136,9 @@ def coverage_per_subs(matches: list[tuple[tuple[int]]]) -> list[float]:
     for sub in subs_assigned_atoms(matches):
         coverage.append(len(sub))
 
-    assert (len(coverage) == len(matches)),\
-        "error in coverage finding: coverage and matches lengths do not match"
+    assert len(coverage) == len(
+        matches
+    ), "error in coverage finding: coverage and matches lengths do not match"
     return coverage
 
 
@@ -150,26 +153,22 @@ def count_listitems(nested_list: list) -> int:
     return count
 
 
-def get_coverage(
-        mol: Chem.Mol,
-        matches: list[tuple[tuple[int]]]
-) -> float:
+def get_coverage(mol: Chem.Mol, matches: list[tuple[tuple[int]]]) -> float:
     """gets non-h atom-based coverage of fingerprints over atoms"""
     matched_atoms = count_listitems(subs_assigned_atoms(matches))
-    nonh_mol = Chem.rdmolops.RemoveHs(mol,
-                                      implicitOnly=False,
-                                      sanitize=True)
+    nonh_mol = Chem.rdmolops.RemoveHs(mol, implicitOnly=False, sanitize=True)
 
     mol_size = nonh_mol.GetNumAtoms()  # non-H atoms
-    coverage = (float(matched_atoms)/float(mol_size))
+    coverage = float(matched_atoms) / float(mol_size)
     return coverage
 
 
 def loop_over_supplier(
-        supplier: Chem.SDMolSupplier,
-        fp_version: str = '',
-        substructure_set: list = [],
-        coverage_info=False):
+    supplier: Chem.SDMolSupplier,
+    fp_version: str = "",
+    substructure_set: list = [],
+    coverage_info=False,
+):
     """gets the fingerprint of the entire set"""
 
     print("looping over supplier, coverage info provided:", coverage_info)
@@ -183,7 +182,8 @@ def loop_over_supplier(
                 mol,
                 version=fp_version,
                 substructure_set=substructure_set,
-                return_matches=coverage_info)
+                return_matches=coverage_info,
+            )
             fingerprint_collection.append(fingerprint)
             coverage_collection.append(get_coverage(mol, matchlist))
         return fingerprint_collection, coverage_collection
@@ -193,37 +193,49 @@ def loop_over_supplier(
                 mol,
                 version=fp_version,
                 substructure_set=substructure_set,
-                return_matches=coverage_info)
+                return_matches=coverage_info,
+            )
             fingerprint_collection.append(fingerprint)
         return fingerprint_collection
+
 
 # ==========================  main ============================================
 
 
 def main():
-    print(10*"=", "\nCONCERTO-FP\n", 10*"=")
+    print(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
 
     coverage_info = False  # default
-    blocking = True # default
+    blocking = True  # default
 
     supplier_loc = argv[1]
     fp_version = argv[2]
     if len(argv) >= 4:
         coverage_info_bool = argv[3]  # if want coverage: write True or T
-        if coverage_info_bool in ['True', 'true', 'T', 't',
-                                  'coverage', 'y', 'yes', 'Y', 'Yes']:
+        if coverage_info_bool in [
+            "True",
+            "true",
+            "T",
+            "t",
+            "coverage",
+            "y",
+            "yes",
+            "Y",
+            "Yes",
+        ]:
             coverage_info = True
     if len(argv) >= 5:
         blocking = argv[5]  # if want coverage: write True or T
-        if blocking in ['no', 'NO', 'N', 'n',
-                                  'false', 'f', 'No', 'False', 'noblock']:
+        if blocking in ["no", "NO", "N", "n", "false", "f", "No", "False", "noblock"]:
             blocking = False
-            print("Blocking out set to False, will detect all overlapping", 
-                  "building blocks")
-    
-    outname = outfile_namer(supplier_loc, 'bsf')
+            print(
+                "Blocking out set to False, will detect all overlapping",
+                "building blocks",
+            )
+
+    outname = outfile_namer(supplier_loc, "bsf")
     if not blocking:
-        outname = outfile_namer(supplier_loc, 'overlap_bsf')
+        outname = outfile_namer(supplier_loc, "overlap_bsf")
 
     print("getting supplier...")
     supplier = rdkfnx.get_supplier(supplier_loc)
@@ -231,19 +243,17 @@ def main():
 
     if not coverage_info:
         biosynfonies = loop_over_supplier(
-            supplier,
-            fp_version=fp_version,
-            coverage_info=coverage_info)
+            supplier, fp_version=fp_version, coverage_info=coverage_info
+        )
     else:
         biosynfonies, coverages = loop_over_supplier(
-            supplier,
-            fp_version=fp_version,
-            coverage_info=coverage_info)
-        csv_writr(coverages, f"{outname}_coverages.tsv", sep='\t')
+            supplier, fp_version=fp_version, coverage_info=coverage_info
+        )
+        csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
 
     print(f"writing {len(biosynfonies)} biosynfonies to file...")
-    csv_writr(biosynfonies, f'{outname}.bsf', sep=',')
-    save_version(fp_version, extra_text='inbsf')
+    csv_writr(biosynfonies, f"{outname}.bsf", sep=",")
+    save_version(fp_version, extra_text="inbsf")
     print("done")
 
     return None

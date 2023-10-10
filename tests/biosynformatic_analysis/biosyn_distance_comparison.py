@@ -41,8 +41,8 @@ import plotly.express as px
 
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
-import fingerprints as fp
-import figuremaking as fm
+from ...src import fingerprints as fp
+from .. import figuremaking as fm
 from ...src.inoutput import picklr, jaropener, outfile_namer, save_version
 from ...src.inoutput import entryfile_dictify as ann
 from ..chemical_spaces.metacyc_better_taxonomy import BETTER_TAX
@@ -317,10 +317,10 @@ def draw_squares(
 
 def main():
     # struct_loc = argv[1]
-    struct_loc = "../scripts/0927_metacyc_reactions.tsv"
+    struct_loc = "../../../scripts/0927_metacyc_reactions.tsv"
     degree_of_sep = 1
-    pw_tax_file = "../metacyc/pathways_taxid.txt"
-    tax_text_file = "../metacyc/cleaner_classes.dat"
+    pw_tax_file = "../../../metacyc/pathways_taxid.txt"
+    tax_text_file = "../../../metacyc/cleaner_classes.dat"
     biosynfoni_version = fp.DEFAULT_BIOSYNFONI_VERSION
     metric = "c_tanimoto"
     # get all the reaction pairs
@@ -342,13 +342,15 @@ def main():
             marginal_x="box",
             marginal_y="box",
         )
-    one_step = annotated_df[annotated_df["stepnum"] == "1"]
-    left_bottom = get_square(one_step, "biosynfoni", "rdkit", (0, 0.2), (0, 0.2))
-    left_top = get_square(one_step, "biosynfoni", "rdkit", (0, 0.2), (0.8, 1))
-    right_bottom = get_square(one_step, "biosynfoni", "rdkit", (0.8, 1), (0, 0.2))
-    right_top = get_square(one_step, "biosynfoni", "rdkit", (0.8, 1), (0.8, 1))
-    draw_squares(left_bottom, squarename="origin")
-    draw_squares(left_top, squarename="left_top")
+    for fp_type in ["rdkit", "maccs", "morgan"]:
+        one_step = annotated_df[annotated_df["stepnum"] == "1"]
+        left_bottom = get_square(one_step, "biosynfoni", fp_type, (0, 0.2), (0, 0.2))
+        left_top = get_square(one_step, "biosynfoni", fp_type, (0, 0.2), (0.8, 1))
+        right_bottom = get_square(one_step, "biosynfoni", fp_type, (0.8, 1), (0, 0.2))
+        # right_top = get_square(one_step, "biosynfoni", fp_type, (0.8, 1), (0.8, 1))
+        draw_squares(left_bottom, squarename=f"{fp_type}_origin")
+        draw_squares(left_top, squarename=f"{fp_type}_left_top")
+
     # draw_squares(right_bottom, squarename='right_bottom')
     # draw_squares(right_top, squarename='right_top')
     # plot_two_cols(annotated_df,'biosynfoni', 'rdkit',symbol=None)
