@@ -6,15 +6,20 @@ Created on Tue Oct  3 11:17:39 2023
 @author: lucina-may
 """
 import os
+import sys
 import numpy as np
 import pandas as pd
 from rdkit import Chem
 
+sys.path.append("../../src")
+from biosynfoni import jaropener, get_biosynfoni
+from tests.tsne import tsner
+from tests import figuremaking as fm
 
-from inoutput import jaropener
-from concerto_fp import get_biosynfoni
-from tsne import tsner
-import figuremaking as fm
+# from inoutput import jaropener
+# from concerto_fp import get_biosynfoni
+# from tsne import tsner
+# import figuremaking as fm
 
 cwd = os.getcwd()
 taxonomy_files = "../wikidata_compounds_taxonomy/kingdom_annotated_mols"
@@ -63,20 +68,20 @@ taxonomied_inchis = all_taxonomy["shortinchi"].tolist()
 # get dataframe with available taxonomy labeling:
 
 
-
 coco_taxonomy = pd.merge(coco, all_taxonomy, how="inner", on="shortinchi")
-#get biosynfoni for all inchis (using the inchis from the coconut database)
+# get biosynfoni for all inchis (using the inchis from the coconut database)
 coco_taxonomy["biosynfoni_3"] = coco_taxonomy["InChI"].apply(
     lambda x: get_biosynfoni(Chem.MolFromInchi(x), "fps_full_3")
 )
 array = np.array(coco_taxonomy["biosynfoni_3"].to_list())
 tsne_df = tsner(array)
 components = tsne_df.columns.to_list()
-tsne_df['kingdom'] = coco_taxonomy['kingdom']
+tsne_df["kingdom"] = coco_taxonomy["kingdom"]
 fm.plot_two_cols(
-    tsne_df, 
+    tsne_df,
     components[0],
     components[1],
-    figtitle = "BioSynFoNi t-SNE per taxonomic kingdom",
-    colour_label = 'kingdom',
-    colour_dict= fm.TAXONOMY_COLOURS)
+    figtitle="BioSynFoNi t-SNE per taxonomic kingdom",
+    colour_label="kingdom",
+    colour_dict=fm.TAXONOMY_COLOURS,
+)
