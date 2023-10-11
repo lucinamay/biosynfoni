@@ -19,6 +19,7 @@ import json
 import subprocess
 import pandas as pd
 
+sys.path.append('../src/')
 from biosynfoni import picklr, jaropener, outfile_namer
 
 # init.

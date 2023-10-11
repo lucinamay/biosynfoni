@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 14 10:42:22 2023
-
-@author: lucina-may
+created: 2023.09.14 10:42 AM
+name: treer
+author: lucina-may
 """
 import subprocess
 

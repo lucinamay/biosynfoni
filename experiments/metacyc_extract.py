@@ -5,13 +5,15 @@ Created on Fri Sep 22 16:15:34 2023
 
 @author: lucina-may
 """
-from inoutput import *
 from sys import argv
-import numpy as np
-import pandas as pd
 import subprocess
 import json
 
+import numpy as np
+import pandas as pd
+
+sys.path.append('../src/')
+from biosynfoni.inoutput import *
 #============================== input handling ===============================
 
 def get_df(

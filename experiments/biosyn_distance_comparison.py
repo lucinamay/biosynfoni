@@ -29,18 +29,22 @@ also supports various distance metrics:
 # ideally, do not have any metacyc-related things in here, but in metacyc_extract.py
 """
 # standard packages
+import sys
+import typing as ty
 from enum import Enum, auto
 from sys import argv
-import typing as ty
 
 # packages requiring installing
-from rdkit import Chem
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from rdkit import Chem
 
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
+
+sys.path.append('../src/')
+
 import fingerprints as fp
 import figuremaking as fm
 from biosynfoni import picklr, jaropener, outfile_namer, save_version

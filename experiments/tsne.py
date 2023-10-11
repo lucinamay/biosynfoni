@@ -13,7 +13,7 @@ from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 
-from figuremaking import df_scatterplot
+from utils.figuremaking import df_scatterplot
 
 # parameters
 
@@ -84,7 +84,7 @@ def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
     return subset_df
 
 
-def pca_plot(arr, annotfile='../arch/0914_COCONUT_DB_rdk_npcs.tsv'):
+def pca_plot(arr, annotfile:str ='../arch/0914_COCONUT_DB_rdk_npcs.tsv'):
     # pca
     print('starting pca...')
     n_components = len(arr[0])
@@ -143,10 +143,10 @@ def pcaed_tsne(arr, annotfile='../arch/0914_COCONUT_DB_rdk_npcs.tsv'):
 def main():
     print("hello")
     fingerprintfile = argv[1]
-    fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
+    #fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
     arr = read_coco_biosynfoni(fingerprintfile)
     
-    annotfile = '../arch/0914_COCONUT_DB_rdk_npcs.tsv'
+    #annotfile = '../arch/0914_COCONUT_DB_rdk_npcs.tsv'
     annotfile = argv[2]
 
     pca_plot(arr, annotfile=annotfile)

@@ -110,3 +110,4 @@ def list_to_bitvect(lst: list):
 
 def array_to_bitvect(numpy_array):
     return list_to_bitvect(numpy_array.tolist())
+

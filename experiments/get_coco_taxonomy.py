@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-sys.path.append("../../src")
+sys.path.append("../src")
 from biosynfoni import jaropener, get_biosynfoni
 from tests.tsne import tsner
 from tests import figuremaking as fm
