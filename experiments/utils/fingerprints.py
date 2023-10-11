@@ -14,16 +14,16 @@ ____________________________________
 
 description: fingerprints and related functionality.
 """
+import sys
 import numpy as np
 from rdkit import Chem, DataStructs
 from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-sys.path.append('../../src/')
+sys.path.append("../../src/")
 from biosynfoni.concerto_fp import get_biosynfoni
 from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
-
 
 
 # circular fingerprint -------------------------------------------------
@@ -111,4 +111,3 @@ def list_to_bitvect(lst: list):
 
 def array_to_bitvect(numpy_array):
     return list_to_bitvect(numpy_array.tolist())
-

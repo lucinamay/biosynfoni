@@ -13,8 +13,8 @@ from rdkit import Chem
 
 sys.path.append("../src")
 from biosynfoni import jaropener, get_biosynfoni
-from tests.tsne import tsner
-from tests import figuremaking as fm
+from tsne import tsner
+from utils import figuremaking as fm
 
 # from inoutput import jaropener
 # from concerto_fp import get_biosynfoni

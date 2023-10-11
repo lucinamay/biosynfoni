@@ -43,13 +43,13 @@ from rdkit import Chem
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
 
-sys.path.append('../src/')
+sys.path.append("../src/")
 
-import fingerprints as fp
-import figuremaking as fm
+from biosynfoni import fingerprints as fp
 from biosynfoni import picklr, jaropener, outfile_namer, save_version
 from biosynfoni import entryfile_dictify as ann
 from metacyc_better_taxonomy import BETTER_TAX
+from utils import figuremaking as fm
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
