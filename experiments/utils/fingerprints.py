@@ -20,8 +20,9 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from concerto_fp import get_biosynfoni
-from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+sys.path.append('../../src/')
+from biosynfoni.concerto_fp import get_biosynfoni
+from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
 
 
 
