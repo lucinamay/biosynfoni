@@ -19,8 +19,6 @@ import typing as ty
 import plotly.express as px
 import matplotlib.pyplot as plt
 import pandas as pd
-from rdkit import Chem
-from rdkit.Chem.Draw import rdMolDraw2D
 
 def df_scatterplot(
     df: pd.DataFrame,

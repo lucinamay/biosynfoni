@@ -14,35 +14,35 @@ ____________________________________
 
 description: fingerprints and related functionality.
 """
+import sys
 import numpy as np
 from rdkit import Chem, DataStructs
 from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from concerto_fp import get_biosynfoni
-from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
-
+sys.path.append("../../src/")
+from biosynfoni.concerto_fp import get_biosynfoni
+from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
 
 
 # circular fingerprint -------------------------------------------------
 def morgan_getter(
     mol: Chem.Mol, useChirality: bool = False, radius: int = 2, nBits: int = 2048
-) -> DataStructs.ExplicitBitVect:
+) -> np.array:
     """returns explicit bit vector fp"""
-
     fingerprint = AllChem.GetMorganFingerprintAsBitVect(
         mol, useChirality=useChirality, radius=radius, nBits=nBits
     )
-    return fingerprint
+    return np.array(fingerprint)
 
 
 # topology path fingerprint ---------------------------------------------
-def rdk_fp_getter(mol: Chem.Mol, nbits: str = 2048) -> DataStructs.ExplicitBitVect:
+def rdk_fp_getter(mol: Chem.Mol, nbits: str = 2048) -> np.array:
     """returns explicit bit vector fp"""
 
     fingerprint = Chem.RDKFingerprint(mol, fpSize=nbits)
-    return fingerprint
+    return np.array(fingerprint)
 
 
 # substructure key fingerprints ------------------------------------------
@@ -50,13 +50,13 @@ def maccs_getter(mol: Chem.Mol) -> DataStructs.ExplicitBitVect:
     """returns explicit bit vector fp"""
 
     fingerprint = AllChem.GetMACCSKeysFingerprint(mol)
-    return fingerprint
+    return np.array(fingerprint)
 
 
 def biosynfoni_getter(mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION):
     """returns counted fingerprint list"""
     counted_fingerprint = get_biosynfoni(mol, version=version, return_matches=False)
-    return counted_fingerprint
+    return np.array(counted_fingerprint)
 
 
 def binosynfoni_getter(
@@ -72,23 +72,29 @@ def binosynfoni_getter(
             binary.append(0)
     assert len(binary) == len(counted), "error in obtaining binosynfoni"
 
-    binosynfoni = list_to_bitvect(binary)
-    return binosynfoni
+    # binosynfoni = list_to_bitvect(binary)
+    return np.array(binary)
 
 
 # ============================= distance, similarity =========================
 
 
-def tanimoto(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+def bitvect_to_tanimoto(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
     array = Metric.rdMetricMatrixCalc.GetTanimotoDistMat(expl_bitvectors)
     return array.tolist()[0]
 
 
-def euclidean(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+def bitvect_to_euclidean(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
     array = Metric.rdMetricMatrixCalc.GetEuclideanDistMat(expl_bitvectors)
     return array.tolist()[0]
 
 
+def bitvect_to_manhattan(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+    array = Metric.rdMetricMatrixCalc.GetManhattanDistMat(expl_bitvectors)
+    return array.tolist()[0]
+
+
+# ----------------------------- similarity -----------------------------------
 def counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
     nom = sum(np.minimum(fp1, fp2))  # overlap
     denom = float(sum(np.maximum(fp1, fp2)))  # all bits 'on'

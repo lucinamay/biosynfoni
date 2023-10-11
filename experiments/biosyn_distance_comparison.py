@@ -29,25 +29,31 @@ also supports various distance metrics:
 # ideally, do not have any metacyc-related things in here, but in metacyc_extract.py
 """
 # standard packages
-import sys
+import sys, os
 import typing as ty
 from enum import Enum, auto
 from sys import argv
 
 # packages requiring installing
-import pandas as pd
 import numpy as np
+import pandas as pd
 import plotly.express as px
 from rdkit import Chem
 
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
 
-sys.path.append("../src/")
+# sys.path.append(sys.path[0] + "/../src/")
+sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
+# for intra-biosynfoni-code running
+sys.path.append(
+    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
+)
 
 from biosynfoni import fingerprints as fp
-from biosynfoni import picklr, jaropener, outfile_namer, save_version
-from biosynfoni import entryfile_dictify as ann
+from biosynfoni import moldrawer
+from biosynfoni.inoutput import picklr, jaropener, outfile_namer, save_version
+from biosynfoni.inoutput import entryfile_dictify as ann
 from metacyc_better_taxonomy import BETTER_TAX
 from utils import figuremaking as fm
 
@@ -62,7 +68,7 @@ FP_FUNCTIONS = {
 
 SIM_FUNCTIONS = {
     "c_tanimoto": fp.countanimoto,
-    "manhattan": fp.manhattan,
+    "manhattan_dist": fp.bitvect_to_manhattan,
     "tanimoto_dist": fp.bitvect_to_tanimoto,
     "euclidean_dist": fp.bitvect_to_euclidean,
 }
@@ -291,7 +297,7 @@ def draw_molpair(
     pair: list[Chem.Mol], outfilename: str, highlighting: bool = True
 ) -> None:
     for i in range(len(pair)):
-        svg_text = fm.draw(pair[i], get_match_highlighting=highlighting)
+        svg_text = moldrawer.draw(pair[i], get_match_highlighting=highlighting)
         with open(f"{outfilename}_{i}.svg", "w") as f:
             f.write(svg_text)
     return None
@@ -319,19 +325,74 @@ def draw_squares(
     return None
 
 
+def loopsquares(df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=0.2):
+    for fp_type in ["rdkit", "maccs", "morgan"]:
+        min_val, max_val = 0.0, 1.0
+        min_border = 0.0 + size
+        max_border = 1.0 - size
+        left_bottom = get_square(
+            df,
+            "biosynfoni",
+            fp_type,
+            (min_val, min_border),
+            (min_val, min_border),
+        )
+        left_top = get_square(
+            df,
+            "biosynfoni",
+            fp_type,
+            (min_val, min_border),
+            (max_border, max_val),
+        )
+        right_bottom = get_square(
+            df,
+            "biosynfoni",
+            fp_type,
+            (max_border, max_val),
+            (min_val, min_border),
+        )
+        right_top = get_square(
+            df,
+            "biosynfoni",
+            fp_type,
+            (max_border, max_val),
+            (max_border, max_val),
+        )
+        draw_squares(left_bottom, squarename=f"{fp_type}_origin")
+        draw_squares(left_top, squarename=f"{fp_type}_left_top")
+        draw_squares(right_bottom, squarename=f"{fp_type}_right_bottom")
+        draw_squares(right_top, squarename=f"{fp_type}_right_top")
+    return None
+
+
 def main():
-    # struct_loc = argv[1]
-    struct_loc = "../../../scripts/0927_metacyc_reactions.tsv"
+    print("==========\nbiosyn distance\n==========")
+    # struct_loc = "../../../scripts/0927_metacyc_reactions.tsv"
+    struct_loc = argv[1]
     degree_of_sep = 1
-    pw_tax_file = "../../../metacyc/pathways_taxid.txt"
-    tax_text_file = "../../../metacyc/cleaner_classes.dat"
+
     biosynfoni_version = fp.DEFAULT_BIOSYNFONI_VERSION
+    blocking_principle = True
     metric = "c_tanimoto"
+    annotate_taxonomy = False
+
     # get all the reaction pairs
-    comparison_df = _get_comparison_df(struct_loc, max_steps=4)
-    annotated_df = annotate_pathways(comparison_df, pw_tax_file, tax_text_file)
+    if not os.path.exists(f"{outfile_namer('comparison_df')}.pickle"):
+        comparison_df = _get_comparison_df(struct_loc, max_steps=4, metric=metric)
+        picklr(comparison_df, outfile_namer("comparison_df"))
+    else:
+        print("reading from pickle file")
+        comparison_df = jaropener(f"{outfile_namer('comparison_df')}.pickle")
+    annotated_df = comparison_df
+
+    if annotate_taxonomy:
+        # pw_tax_file = "../../../metacyc/pathways_taxid.txt"
+        # tax_text_file = "../../../metacyc/cleaner_classes.dat"
+        annotated_df = annotate_pathways(comparison_df, pw_tax_file, tax_text_file)
 
     annotated_df["stepnum"] = annotated_df["reaction_steps"].apply(str)
+    """   
+    print("getting scatterplots...")
     fp_combs = get_fp_combinations()
     for com in fp_combs:
         fm.df_scatterplot(
@@ -340,29 +401,31 @@ def main():
             com[1],
             figtitle=f"{metric} for different reaction step numbers",
             filename=outfile_namer(f"{com[0]}_{com[1]}_{metric}"),
+            auto_open=False,
+            # kwargs
             color="stepnum",
             color_discrete_map=fm.COLOUR_DICT["stepnum"],
-            hover_data=["pathway_name", "taxonomic_range", "taxonomy"],
+            # hover_data=["pathway_name", "taxonomic_range", "taxonomy"],
             marginal_x="box",
             marginal_y="box",
         )
-    for fp_type in ["rdkit", "maccs", "morgan"]:
-        one_step = annotated_df[annotated_df["stepnum"] == "1"]
-        left_bottom = get_square(one_step, "biosynfoni", fp_type, (0, 0.2), (0, 0.2))
-        left_top = get_square(one_step, "biosynfoni", fp_type, (0, 0.2), (0.8, 1))
-        right_bottom = get_square(one_step, "biosynfoni", fp_type, (0.8, 1), (0, 0.2))
-        # right_top = get_square(one_step, "biosynfoni", fp_type, (0.8, 1), (0.8, 1))
-        draw_squares(left_bottom, squarename=f"{fp_type}_origin")
-        draw_squares(left_top, squarename=f"{fp_type}_left_top")
+    """
+
+    onestep = annotated_df[annotated_df["stepnum"] == "1"]
+
+    onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
+    print("getting squares...")
+    # loopsquares(onestep, "biosynfoni", ["rdkit", "maccs", "morgan"], size=0.2)
 
     # draw_squares(right_bottom, squarename='right_bottom')
     # draw_squares(right_top, squarename='right_top')
     # plot_two_cols(annotated_df,'biosynfoni', 'rdkit',symbol=None)
 
     # save the biosynfoni version for reference
+    print("saving current biosynfoni version...")
+    # save_version(biosynfoni_version, blocking_principle=blocking_principle)
 
-    save_version(biosynfoni_version)
-
+    print("done\nbyebye")
     #
     # annotate_pathways(df, pw_tax_file, tax_text_file)
     # plot_two_cols(df,col1,col2,colour_label='taxonomic_range',shape_label='',\
