@@ -31,27 +31,23 @@ SUBSTRUCTURES = {
     "d_phenylC3_9_1007": "c1ccccc1~[#6]~[#6]~[#6]",
     "d_phenylC2_8_1007": "c1ccccc1~[#6]~[#6]",
     "d_phenylC1_7_1007": "c1ccccc1~[#6]",
-    "d_phenylC3_9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#6]",
-    "d_phenylC2_8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]",
-    "d_phenylC1_7": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]",
+    "d_phenylC3_9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#6][!$([r6])]",  # last one should not be next to ring
+    "d_phenylC2_8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6][!$([r6])]",  # last one should not be next to ring
+    "d_phenylC1_7": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]",  # this one is allowed to be ring, to catch all
     # mevalonate/MEP
     "d_isoprene_5": "[#6]~[#6](~[#6])~[#6]~[#6]",
     # acetate, aromaticity ok
     "d_ethyl_2": "[#6]~[#6]",
-    "d_methyl_1": "[C;D1]",  # only end methyls
+    "d_methyl_1": "[C;D1;h3]",  # only end methyls
     # sugar-related --------------------------------------------------------
-    "s_pyranose_C5O4": "[#6]~1~[#8]~[#6]~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~1",
-    "s_furanose_C4O3": "[#6]~1~[#8]~[#6]~[#6](~[#8])~[#6](~[#8])~1",
-    "s_openpyr_C6O6": (
-        "[#6](~[#8])~[#6](~[#8])~[#6]" "(~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])"
-    ),
-    "s_openfur_C5O5": (
-        "[#6](~[#8])~[#6](~[#8])~[#6]" "(~[#8])~[#6](~[#8])~[#6](~[#8])"
-    ),
+    "s_pyranose_C5O4": "C]~1~[#8]~C~C(~[#8])~C(~[#8])~C(~[#8])~1",
+    "s_furanose_C4O3": "C~1~[#8]~C~C(~[#8])~C(~[#8])~1",
+    "s_openpyr_C6O6": ("C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])"),
+    "s_openfur_C5O5": ("C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])"),
     # additional from dewick -----------------------------------------------
     # acetate
     "d2_acetyl_C2O1": "[#6][#6]~[#8]",  # CC=O
-    "d2_methylmalonyl_C3": "[#6]~[#6][CH3]",  # check coverage
+    "d2_methylmalonyl_C3": "[#6]~[#6][C;D1;h3]",  # check coverage
     # halogens -------------------------------------------------------------
     "hal_f": "[#9]",
     "hal_cl": "[#17]",
@@ -64,9 +60,9 @@ SUBSTRUCTURES = {
     "sulfonate_5": "O~S(~O)(~O)~O",
     # additional
     "n_nitrate_1": "[N;D1]",
-    "o_epoxy_1": "[!H]1-O-[!H]1",  # take only oxygen
-    "o_ether_1": "[!H]-O-[!H]",  # check detection #+epoxy?
-    "o_hydroxyl_1": "[O;D1]",  # check detection
+    "o_epoxy_1": "[O;x2;r3]",  # counts only the oxygen (2ringbond,size3)
+    "o_ether_1": "[O;!h;!$(*C=O);X2;!R]",  # not ester,twoconn,noringbond,noH
+    "o_hydroxyl_1": "[O;D1;h,!v2;!$(C=O);!$(P);!$(S)]",  # OH, O-, no acid hydroxyls, no phosphate/sulfonate
     # Coenzymes, catalytic units etc ---------------------------------------
     "co_coa_pubchem": (
         "SCCNC(~O)CCNC(~O)C(C(C)(C)COP(=O)(~O)OP(=O)"
