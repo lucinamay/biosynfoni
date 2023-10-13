@@ -23,7 +23,7 @@ from rdkit import Chem
 
 # my imports
 import def_biosynfoni
-import rdkfnx
+from rdkfnx import get_supplier, get_subsset
 from inoutput import outfile_namer, csv_writr, save_version
 
 
@@ -90,10 +90,10 @@ def detect_substructures(
 
 def matches_to_vector(matches: list[tuple[tuple[int]]]) -> list[int]:
     """"""
-    vector = []
+    counted_vector = []
     for substructure_bit in matches:
-        vector.append(len(substructure_bit))
-    return vector
+        counted_vector.append(len(substructure_bit))
+    return counted_vector
 
 
 def get_biosynfoni(
@@ -110,7 +110,7 @@ def get_biosynfoni(
         version or substructure_set
     ), "please give either the version name or the substructure set"
     if not substructure_set:
-        substructure_set = def_biosynfoni.get_subsset(version)
+        substructure_set = get_subsset(version)
 
     matches = detect_substructures(mol, substructure_set)
     biosynfoni = matches_to_vector(matches)
@@ -124,13 +124,27 @@ def subs_assigned_atoms(matches: list[tuple[tuple[int]]]) -> list[list[int]]:
     """per substructure, gives a list of the atom numbers that have been
     assigned to that substructure"""
     atoms_per_sub = []
-    for sub in matches:
-        sub_atomcount = list(sum(sub, ()))
-        atoms_per_sub.append(sub_atomcount)
+    for matches_per_subs in matches:
+        if not matches_per_subs:
+            continue
+        this_subs_atoms = []
+        for match_in_subs in matches_per_subs:
+            print(match_in_subs)
+            if isinstance(match_in_subs, int):
+                # if the tuple tuple decides to unpack itself...
+                this_subs_atoms.append(match_in_subs)
+            elif len(match_in_subs) == 1:
+                this_subs_atoms.append(match_in_subs[0])
+            elif len(match_in_subs) > 1:
+                for atom in match_in_subs:
+                    this_subs_atoms.append(atom)
+        # sub_atomcount = list(sum(sub, ()))
+        atoms_per_sub.append(this_subs_atoms)
     return atoms_per_sub
 
 
 def coverage_per_subs(matches: list[tuple[tuple[int]]]) -> list[float]:
+    """returns number of atoms covered within molecule by each substructure"""
     coverage = []
     for sub in subs_assigned_atoms(matches):
         coverage.append(len(sub))
@@ -154,7 +168,7 @@ def count_listitems(nested_list: list) -> int:
 
 def get_coverage(mol: Chem.Mol, matches: list[tuple[tuple[int]]]) -> float:
     """gets non-h atom-based coverage of fingerprints over atoms"""
-    matched_atoms = count_listitems(subs_assigned_atoms(matches))
+    matched_atoms = count_listitems(matches)
     nonh_mol = Chem.rdmolops.RemoveHs(mol, implicitOnly=False, sanitize=True)
     mol_size = nonh_mol.GetNumAtoms()  # non-H atoms
     coverage = float(matched_atoms) / float(mol_size)
@@ -247,13 +261,13 @@ def main():
     if not coverage_info:
         biosynfonies = loop_over_supplier(
             supplier,
-            substructure_set=def_biosynfoni.get_subsset(fp_version),
+            substructure_set=get_subsset(fp_version),
             coverage_info=coverage_info,
         )
     else:
         biosynfonies, coverages = loop_over_supplier(
             supplier,
-            substructure_set=def_biosynfoni.get_subsset(fp_version),
+            substructure_set=get_subsset(fp_version),
             coverage_info=coverage_info,
         )
         csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")

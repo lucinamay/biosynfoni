@@ -16,9 +16,6 @@ Biosynfoni Definition. Can be converted into an sdf file per 'version'
 
 from enum import Enum
 
-
-
-
 DEFAULT_BIOSYNFONI_VERSION = "regular_1008"  # not used here, just for reference
 
 # ============================
@@ -392,8 +389,9 @@ def get_smarts(
     chosen_sub_names = fp_versions[fp_version_name]
     return [[x, subs_smarts[x]] for x in chosen_sub_names]
 
+
 def main():
-    get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
+    #get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
     # get_subsset(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
 
     # get_subsset('regular_1007')
