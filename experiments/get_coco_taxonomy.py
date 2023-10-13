@@ -11,8 +11,13 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-sys.path.append("../src")
-from biosynfoni import jaropener, get_biosynfoni
+sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
+# for intra-biosynfoni-code running
+sys.path.append(
+    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
+)
+from biosynfoni.inoutput import jaropener
+from biosynfoni.def_biosynfoni import get_biosynfoni
 from tsne import tsner
 from utils import figuremaking as fm
 

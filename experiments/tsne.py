@@ -5,7 +5,7 @@ Created on Sun Oct  1 21:53:10 2023
 @author: lucina-may
 """
 
-import sys
+import sys, os
 from sys import argv
 
 from sklearn.manifold import TSNE
@@ -13,8 +13,13 @@ from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 
-sys.path.append("../src/")
-from experiments.utils.figuremaking import df_scatterplot
+sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
+from utils.figuremaking import df_scatterplot
+
+# for intra-biosynfoni-code running
+sys.path.append(
+    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
+)
 from biosynfoni.inoutput import outfile_namer
 
 # parameters
@@ -78,7 +83,9 @@ def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
     return subset_df
 
 
-def pca_plot(arr, annotfile: str = "0914_COCONUT_DB_rdk_npcs.tsv", filename="pca_bsf""):
+def pca_plot(
+    arr, annotfile: str = "0914_COCONUT_DB_rdk_npcs.tsv", filename="pca_bsf"
+) -> None:
     # pca
     print("starting pca...")
     n_components = len(arr[0])
@@ -108,31 +115,31 @@ def pca_plot(arr, annotfile: str = "0914_COCONUT_DB_rdk_npcs.tsv", filename="pca
 
 def pcaed_tsne(
     arr: np.array,
-    annotfile:str="0914_COCONUT_DB_rdk_npcs.tsv",
-    initial_pca_components:int=10,
-    verbose:int=1,
-    filename:str="tsne_pcaed_bsf",
-    perplexity:int=50,
-    n_iter:int=500,
+    annotfile: str = "0914_COCONUT_DB_rdk_npcs.tsv",
+    initial_pca_components: int = 10,
+    verbose: int = 1,
+    filename: str = "tsne_pcaed_bsf",
+    perplexity: int = 50,
+    n_iter: int = 500,
     *args,
-    *kwargs
-):
-    #run initial pca to reduce computational time
+    **kwargs,
+) -> None:
+    # run initial pca to reduce computational time
     n_components = len(arr[0])
     n_components = 10
     pcaed, _ = pcaer(arr, n_components=n_components, random_state=333)
-    
+
     print("running tsne...")
     tsne_comp = tsner(
-        pcaed, 
-        n_components=2, 
-        perplexity=50, 
-        n_iter=500, 
-        verbose=verbose, 
-        *args, 
-        **kwargs
-        )
-    
+        pcaed,
+        n_components=2,
+        perplexity=50,
+        n_iter=500,
+        verbose=verbose,
+        *args,
+        **kwargs,
+    )
+
     df = annotate_df(
         tsne_comp, "npclassifier", get_first_ncps_est(annotfile)[: len(arr)]
     )
@@ -150,11 +157,17 @@ def pcaed_tsne(
     )
     return None
 
-def save_tsne_settings(dic: dict, filename: str = "tsne_settings"):
-    with open(filename, 'w') as s:
+
+def save_tsne_settings(
+    dic: dict, filename: str = "tsne_settings", extra: str = ""
+) -> None:
+    with open(f"{filename}.txt", "w") as s:
         for key, val in dic.items():
             s.write(f"{key}:\t{val}\n")
+        if extra:
+            s.write(f"extra:\t{extra}\n")
     return None
+
 
 def main():
     print("hello")
@@ -171,19 +184,20 @@ def main():
         "initial_pca_components": 10,
     }
 
-    save_tsne_settings(tsne_settings, filename=outfile_namer("tsne_settings"))
+    save_tsne_settings(
+        tsne_settings, filename=outfile_namer("tsne_settings"), extra=fingerprintfile
+    )
 
     pca_plot(arr, annotfile=annotfile, filename=outfile_namer("pca_bsf"))
     pcaed_tsne(
-        arr, 
-        annotfile=annotfile, 
+        arr,
+        annotfile=annotfile,
         initial_pca_components=tsne_settings["initial_pca_components"],
-        verbose=1, 
+        verbose=1,
         perplexity=tsne_settings["perplexity"],
         n_iter=tsne_settings["n_iter"],
-        filename=outfile_namer("tsne_pcaed_bsf")
-        )
-
+        filename=outfile_namer("tsne_pcaed_bsf"),
+    )
 
     print("done")
     sys.exit()

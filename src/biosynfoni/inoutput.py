@@ -42,8 +42,6 @@ import json
 from datetime import date
 from typing import Any
 
-# my imports
-import def_biosynfoni
 
 # ============================== input handling  ==============================
 
@@ -266,17 +264,3 @@ def csv_writr(lst: list[list], outfile: str, sep: str = ",") -> None:
 # ============================== recording ===================================
 
 
-def save_version(
-    fp_version: str, window_size=(1000, 1000), extra_text: str = ""
-) -> None:
-    outfilename = outfile_namer("version", f"{fp_version}_{extra_text}")
-
-    # svg_text = fm.drawfp(fp_version, window_size=window_size)
-    # with open(f'{outfilename}.svg', 'w') as f:
-    #    f.write(svg_text)
-
-    smarts = def_biosynfoni.get_smarts(fp_version)
-    with open(f"{outfilename}.smarts", "w") as f:
-        for smart in smarts:
-            f.write(f"{smart[0]}\t{smart[1]}\n")
-    return None

@@ -16,14 +16,14 @@ description: fingerprints and related functionality.
 """
 import sys
 import numpy as np
+
 from rdkit import Chem, DataStructs
 from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-sys.path.append("../../src/")
-from biosynfoni.concerto_fp import get_biosynfoni
-from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+from concerto_fp import get_biosynfoni
+from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
 
 
 # circular fingerprint -------------------------------------------------

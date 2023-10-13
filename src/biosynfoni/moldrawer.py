@@ -16,9 +16,7 @@ description: functions for figuremaking
 from enum import Enum
 import typing as ty
 
-import plotly.express as px
-import matplotlib.pyplot as plt
-import pandas as pd
+
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 
@@ -187,5 +185,3 @@ def drawfp(
     drawing.FinishDrawing()
     svg_str = drawing.GetDrawingText().replace("svg:", "")
     return svg_str
-
-

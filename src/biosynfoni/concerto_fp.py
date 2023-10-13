@@ -20,7 +20,6 @@ from sys import argv
 import argparse
 
 from rdkit import Chem
-import numpy as np
 
 # my imports
 import def_biosynfoni
@@ -157,7 +156,6 @@ def get_coverage(mol: Chem.Mol, matches: list[tuple[tuple[int]]]) -> float:
     """gets non-h atom-based coverage of fingerprints over atoms"""
     matched_atoms = count_listitems(subs_assigned_atoms(matches))
     nonh_mol = Chem.rdmolops.RemoveHs(mol, implicitOnly=False, sanitize=True)
-
     mol_size = nonh_mol.GetNumAtoms()  # non-H atoms
     coverage = float(matched_atoms) / float(mol_size)
     return coverage
@@ -209,7 +207,12 @@ def main():
     blocking = True  # default
 
     supplier_loc = argv[1]
+    assert supplier_loc.split(".")[-1] == "sdf", f"non-sdf file: {supplier_loc}"
     fp_version = argv[2]
+    assert (
+        fp_version in def_biosynfoni.FP_VERSIONS.keys()
+    ), f"invalid fp version: {fp_version}"
+
     if len(argv) >= 4:
         coverage_info_bool = argv[3]  # if want coverage: write True or T
         if coverage_info_bool in [
@@ -243,11 +246,15 @@ def main():
 
     if not coverage_info:
         biosynfonies = loop_over_supplier(
-            supplier, fp_version=fp_version, coverage_info=coverage_info
+            supplier,
+            substructure_set=def_biosynfoni.get_subsset(fp_version),
+            coverage_info=coverage_info,
         )
     else:
         biosynfonies, coverages = loop_over_supplier(
-            supplier, fp_version=fp_version, coverage_info=coverage_info
+            supplier,
+            substructure_set=def_biosynfoni.get_subsset(fp_version),
+            coverage_info=coverage_info,
         )
         csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
 

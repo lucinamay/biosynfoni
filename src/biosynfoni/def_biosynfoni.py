@@ -13,8 +13,11 @@ ____________________________________
 Biosynfoni Definition. Can be converted into an sdf file per 'version'
 
 """
-from rdkit import Chem
+
 from enum import Enum
+
+
+
 
 DEFAULT_BIOSYNFONI_VERSION = "regular_1008"  # not used here, just for reference
 
@@ -40,10 +43,10 @@ SUBSTRUCTURES = {
     "d_ethyl_2": "[#6]~[#6]",
     "d_methyl_1": "[C;D1;h3]",  # only end methyls
     # sugar-related --------------------------------------------------------
-    "s_pyranose_C5O4": "C]~1~[#8]~C~C(~[#8])~C(~[#8])~C(~[#8])~1",
+    "s_pyranose_C5O4": "C~1~[#8]~C~C(~[#8])~C(~[#8])~C(~[#8])~1",
     "s_furanose_C4O3": "C~1~[#8]~C~C(~[#8])~C(~[#8])~1",
-    "s_openpyr_C6O6": ("C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])"),
-    "s_openfur_C5O5": ("C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])"),
+    "s_openpyr_C6O6": "C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])",
+    "s_openfur_C5O5": "C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])",
     # additional from dewick -----------------------------------------------
     # acetate
     "d2_acetyl_C2O1": "[#6][#6]~[#8]",  # CC=O
@@ -61,7 +64,7 @@ SUBSTRUCTURES = {
     # additional
     "n_nitrate_1": "[N;D1]",
     "o_epoxy_1": "[O;x2;r3]",  # counts only the oxygen (2ringbond,size3)
-    "o_ether_1": "[O;!h;!$(*C=O);X2;!R]",  # not ester,twoconn,noringbond,noH
+    "o_ether_1": "[O;!h;!$(*C=O);X2;!R;!$(P);!$(S)]",  # not ester,twoconn,noringbond,noH
     "o_hydroxyl_1": "[O;D1;h,!v2;!$(C=O);!$(P);!$(S)]",  # OH, O-, no acid hydroxyls, no phosphate/sulfonate
     # Coenzymes, catalytic units etc ---------------------------------------
     "co_coa_pubchem": (
@@ -116,8 +119,8 @@ class Biosynfoni(Enum):
     o_ether_1 = 27
     o_hydroxyl_1 = 28
 
-    def as_fp(self):
-        return [Chem.Mol(SUBSTRUCTURES[x]) for x in self.keys]
+    def as_smarts(self):
+        return [SUBSTRUCTURES[x] for x in self.keys]
 
 
 SUBS_PATHWAYS = {
@@ -257,8 +260,8 @@ FP_VERSIONS = {
         "d_phenylC2_8",
         "d_phenylC1_7",
         "d_isoprene_5",
-        # 'd2_acetyl_C2O1',
-        # 'd2_methylmalonyl_C3',
+        "d2_acetyl_C2O1",
+        "d2_methylmalonyl_C3",
         "d_ethyl_2",
         "d_methyl_1",
         "phosphate_2",
@@ -276,105 +279,77 @@ FP_VERSIONS = {
 
 # --------------------------- substructure sets ---------------------------
 SUBSTRUCTURES_old = {
-    "fp1": Chem.MolFromSmarts("c1cccc2c1c(CCN)cn2"),
-    "fp1_2ar": Chem.MolFromSmarts("c1cccc2c1c([#6][#6][#7])cn2"),
-    "fp1_2": Chem.MolFromSmarts(
-        "[#6]1[#6][#6][#6][#6]2[#6]1[#6]([#6][#6][#7])[#6][#7]2"
-    ),
-    "fp1_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#6]~2~[#6]~1~[#6](~[#6]~[#6]~[#7])~[#6]~[#7]~2"
-    ),  # fp2  -- Phe.C2N --  shikimate
-    "fp2": Chem.MolFromSmarts("c1ccccc1CCN"),
-    "fp2_2ar": Chem.MolFromSmarts("c1ccccc1[#6][#6][#7]"),
-    "fp2_2": Chem.MolFromSmarts("[#6]1[#6][#6][#6][#6][#6]1[#6][#6][#7]"),
-    "fp2_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#7]"
-    ),  # fp3 -- cyclic C5N -- acetylCoA  (Krebs)
-    "fp3": Chem.MolFromSmarts("C1CCCCN1"),
-    "fp3_2": Chem.MolFromSmarts("[#6]1[#6][#6][#6][#6][#7]1"),
-    "fp3_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#7]~1"
-    ),  # fp4 -- cyclic C4N -- acetylCoA (Krebs)
-    "fp4": Chem.MolFromSmarts("C1CCCN1"),
-    "fp4_2": Chem.MolFromSmarts("[#6]1[#6][#6][#6][#7]1"),
-    "fp4_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#7]~1"
-    ),  # fp49-- c6C3 -- shikimate
-    "fp49": Chem.MolFromSmarts("c1ccccc1CCC"),
-    "fp49_2ar": Chem.MolFromSmarts("c1ccccc1[#6][#6][#6]"),
-    "fp49_2": Chem.MolFromSmarts("[#6]1[#6][#6][#6][#6][#6]1[#6][#6][#6]"),
-    "fp49_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#6]"
-    ),  # fp5 -- c6C2 -- shikimate
-    "fp5": Chem.MolFromSmarts("c1ccccc1CC"),
-    "fp5_2ar": Chem.MolFromSmarts("c1ccccc1[#6][#6]"),
-    "fp5_2": Chem.MolFromSmarts("[#6]1[#6][#6][#6][#6][#6]1[#6][#6]"),
-    "fp5_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]"
-    ),  # fp6 -- c6C1 -- shikimate
-    "fp6": Chem.MolFromSmarts("c1ccccc1C"),
-    "fp6_2ar": Chem.MolFromSmarts("c1ccccc1[#6]"),
-    "fp6_2": Chem.MolFromSmarts("[#6]1[#6][#6][#6][#6][#6]1[#6]"),
-    "fp6_3": Chem.MolFromSmarts(
-        "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]"
-    ),  # fp7 -- isoprene -- mevalonic/methylerythriol
-    "fp7": Chem.MolFromSmarts("CC(C)CC"),
-    "fp7_2": Chem.MolFromSmarts("[#6][#6]([#6])[#6][#6]"),
-    "fp7_3": Chem.MolFromSmarts("[#6]~[#6](~[#6])~[#6]~[#6]"),
-    "fp7_2_old": Chem.MolFromSmarts(
-        "[#6]~[#6]([#6])~[#6][#6]"
-    ),  # in the stats, biochemically correcter(?why)
+    "fp1": "c1cccc2c1c(CCN)cn2",
+    "fp1_2ar": "c1cccc2c1c([#6][#6][#7])cn2",
+    "fp1_2": "[#6]1[#6][#6][#6][#6]2[#6]1[#6]([#6][#6][#7])[#6][#7]2",
+    "fp1_3": "[#6]~1~[#6]~[#6]~[#6]~[#6]~2~[#6]~1~[#6](~[#6]~[#6]~[#7])~[#6]~[#7]~2",  # fp2  -- Phe.C2N --  shikimate
+    "fp2": "c1ccccc1CCN",
+    "fp2_2ar": "c1ccccc1[#6][#6][#7]",
+    "fp2_2": "[#6]1[#6][#6][#6][#6][#6]1[#6][#6][#7]",
+    "fp2_3": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#7]",  # fp3 -- cyclic C5N -- acetylCoA  (Krebs)
+    "fp3": "C1CCCCN1",
+    "fp3_2": "[#6]1[#6][#6][#6][#6][#7]1",
+    "fp3_3": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#7]~1",  # fp4 -- cyclic C4N -- acetylCoA (Krebs)
+    "fp4": "C1CCCN1",
+    "fp4_2": "[#6]1[#6][#6][#6][#7]1",
+    "fp4_3": "[#6]~1~[#6]~[#6]~[#6]~[#7]~1",  # fp49-- c6C3 -- shikimate
+    "fp49": "c1ccccc1CCC",
+    "fp49_2ar": "c1ccccc1[#6][#6][#6]",
+    "fp49_2": "[#6]1[#6][#6][#6][#6][#6]1[#6][#6][#6]",
+    "fp49_3": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#6]",  # fp5 -- c6C2 -- shikimate
+    "fp5": "c1ccccc1CC",
+    "fp5_2ar": "c1ccccc1[#6][#6]",
+    "fp5_2": "[#6]1[#6][#6][#6][#6][#6]1[#6][#6]",
+    "fp5_3": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]",  # fp6 -- c6C1 -- shikimate
+    "fp6": "c1ccccc1C",
+    "fp6_2ar": "c1ccccc1[#6]",
+    "fp6_2": "[#6]1[#6][#6][#6][#6][#6]1[#6]",
+    "fp6_3": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]",  # fp7 -- isoprene -- mevalonic/methylerythriol
+    "fp7": "CC(C)CC",
+    "fp7_2": "[#6][#6]([#6])[#6][#6]",
+    "fp7_3": "[#6]~[#6](~[#6])~[#6]~[#6]",
+    "fp7_2_old": "[#6]~[#6]([#6])~[#6][#6]",  # in the stats, biochemically correcter(?why)
     # fp98 -- C2 -- acetylCoA  *'acetyls also end up in aromatic systems', Dewick
-    "fp98": Chem.MolFromSmarts("CC"),
-    "fp98_2": Chem.MolFromSmarts("[#6][#6]"),
-    "fp98_3": Chem.MolFromSmarts(
-        "[#6]~[#6]"
-    ),  # fp99 -- C -- acetylCoA * methyl only (matches as 1 atom)
-    "fp99": Chem.MolFromSmarts("[CH3]"),
-    "fp99_2": Chem.MolFromSmarts("C"),
-    "" "fp99_3_old": Chem.MolFromSmarts("[#6]"),  # === personal additions
+    "fp98": "CC",
+    "fp98_2": "[#6][#6]",
+    "fp98_3": "[#6]~[#6]",  # fp99 -- C -- acetylCoA * methyl only (matches as 1 atom)
+    "fp99": "[CH3]",
+    "fp99_2": "C",
+    "" "fp99_3_old": "[#6]",  # === personal additions
     # phosphate
-    "fp8": Chem.MolFromSmarts("O~P(~O)(~O)~O"),
-    "fp8_2": Chem.MolFromSmarts("O~P(~O)~O"),
-    "fp8_3": Chem.MolFromSmarts("P~O"),  # sulfate group
-    "fp12": Chem.MolFromSmarts("O~S(~O)(~O)~O"),
-    "fp12_2": Chem.MolFromSmarts("O~S(~O)~O"),
-    "fp12_3": Chem.MolFromSmarts("S~O"),  # --- sugars
+    "fp8": "O~P(~O)(~O)~O",
+    "fp8_2": "O~P(~O)~O",
+    "fp8_3": "P~O",  # sulfate group
+    "fp12": "O~S(~O)(~O)~O",
+    "fp12_2": "O~S(~O)~O",
+    "fp12_3": "S~O",  # --- sugars
     # pyranose -- sugar
-    "fp9": Chem.MolFromSmarts("C1OCC(O)C(O)C(O)1"),
-    "fp9_2": Chem.MolFromSmarts("[#6]1[#8][#6][#6]([#8])[#6]([#8])[#6]([#8])1"),
-    "fp9_3": Chem.MolFromSmarts(
-        "[#6]~1~[#8]~[#6]~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~1"
-    ),  # furanose -- sugar
-    "fp10": Chem.MolFromSmarts("C1OCC(O)C(O)1"),
-    "fp10_2": Chem.MolFromSmarts("[#6]1[#8][#6][#6]([#8])[#6]([#8])1"),
-    "fp10_3": Chem.MolFromSmarts("[#6]~1~[#8]~[#6]~[#6](~[#8])~[#6](~[#8])~1"),
+    "fp9": "C1OCC(O)C(O)C(O)1",
+    "fp9_2": "[#6]1[#8][#6][#6]([#8])[#6]([#8])[#6]([#8])1",
+    "fp9_3": "[#6]~1~[#8]~[#6]~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~1",  # furanose -- sugar
+    "fp10": "C1OCC(O)C(O)1",
+    "fp10_2": "[#6]1[#8][#6][#6]([#8])[#6]([#8])1",
+    "fp10_3": "[#6]~1~[#8]~[#6]~[#6](~[#8])~[#6](~[#8])~1",
     # open pyranose -- sugar
-    "fp11": Chem.MolFromSmarts("C(O)C(O)C(O)C(O)C(O)C(O)"),
-    "fp11_2": Chem.MolFromSmarts(
-        "[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])"
-    ),
-    "fp11_3": Chem.MolFromSmarts(
-        "[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])"
-    ),
+    "fp11": "C(O)C(O)C(O)C(O)C(O)C(O)",
+    "fp11_2": "[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])",
+    "fp11_3": "[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])",
     # open furanose -- sugar
-    "fp13": Chem.MolFromSmarts("C(O)C(O)C(O)C(O)C(O)"),
-    "fp13_2": Chem.MolFromSmarts("[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])"),
-    "fp13_3": Chem.MolFromSmarts(
-        "[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])"
-    ),  # halogens
-    "hal1": Chem.MolFromSmarts("F"),
-    "hal1_2": Chem.MolFromSmarts("[#9]"),
-    "hal2": Chem.MolFromSmarts("Cl"),
-    "hal2_2": Chem.MolFromSmarts("[#17]"),
-    "hal3": Chem.MolFromSmarts("Br"),
-    "hal3_2": Chem.MolFromSmarts("[#35]"),
-    "hal4": Chem.MolFromSmarts("I"),
-    "hal4_2": Chem.MolFromSmarts("[#53]"),
+    "fp13": "C(O)C(O)C(O)C(O)C(O)",
+    "fp13_2": "[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])[#6]([#8])",
+    "fp13_3": "[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])~[#6](~[#8])",  # halogens
+    "hal1": "F",
+    "hal1_2": "[#9]",
+    "hal2": "Cl",
+    "hal2_2": "[#17]",
+    "hal3": "Br",
+    "hal3_2": "[#35]",
+    "hal4": "I",
+    "hal4_2": "[#53]",
     # additionals:
-    "acetylO": Chem.MolFromSmarts("CC=O"),
+    "acetylO": "CC=O",
     # double and single bond only ?
-    "acetylO_2": Chem.MolFromSmarts("[#6][#6]O"),
+    "acetylO_2": "[#6][#6]O",
 }
 
 
@@ -417,40 +392,12 @@ def get_smarts(
     chosen_sub_names = fp_versions[fp_version_name]
     return [[x, subs_smarts[x]] for x in chosen_sub_names]
 
+def main():
+    get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
+    # get_subsset(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
 
-def get_subsset(
-    fp_version_name: str,
-    subs_smarts: dict = SUBSTRUCTURES,
-    fp_versions: dict[list] = FP_VERSIONS,
-) -> list:
-    """gives list of rdkit.Chem.Mols of substructures of choice
-    input:   fp_version_name (str) -- name of the version
-             subs_smarts (dict)
-                         (key) substructure names (e.g. 'fp1')
-                         (val) substructure RDK molfiles (f/SMARTS)
-             fp_versions (dict)
-                         (key) version name (e.g. fps_full_2)
-                         (val) (list) substructure names (e.g. 'fp1')
-
-    output: (list) rdkit.Chem.rdchem.Mol files for substructure keys
-    """
-    # print(f"getting substructures from set {fp_version_name}")
-    if not fp_version_name:
-        raise "No version name provided to select substructure set"
-
-    substructures = []
-    # getting the list of the chosen version's substructures
-    chosen_version = fp_versions[fp_version_name]
-    for substructure_name in chosen_version:
-        if isinstance(subs_smarts[substructure_name], Chem.Mol):
-            substructures.append(subs_smarts[substructure_name])
-        elif isinstance(subs_smarts[substructure_name], str):
-            dirtymol = Chem.MolFromSmarts(subs_smarts[substructure_name])
-            substructures.append(dirtymol)
-    return substructures
+    # get_subsset('regular_1007')
 
 
-get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
-# get_subsset(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
-
-# get_subsset('regular_1007')
+if __name__ == "__main__":
+    main()

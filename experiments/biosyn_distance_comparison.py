@@ -43,19 +43,19 @@ from rdkit import Chem
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
 
+from metacyc_better_taxonomy import BETTER_TAX
+from utils import figuremaking as fm
+
 # sys.path.append(sys.path[0] + "/../src/")
 sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
 # for intra-biosynfoni-code running
 sys.path.append(
     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
 )
-
 from biosynfoni import fingerprints as fp
 from biosynfoni import moldrawer
-from biosynfoni.inoutput import picklr, jaropener, outfile_namer, save_version
-from biosynfoni.inoutput import entryfile_dictify as ann
-from metacyc_better_taxonomy import BETTER_TAX
-from utils import figuremaking as fm
+from biosynfoni import picklr, jaropener, outfile_namer, save_version
+from biosynfoni import entryfile_dictify as ann
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
