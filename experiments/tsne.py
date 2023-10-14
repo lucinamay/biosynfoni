@@ -152,7 +152,8 @@ def pcaed_tsne(
         marginal_y="box",
         color="npclassifier",
         filename=filename,
-        auto_open=False
+        auto_open=False,
+        hover_data=["npclassifier", "index"],
         # color_discrete_map = fm.COLOUR_DICT['pathways']
     )
     return None
@@ -180,7 +181,7 @@ def main():
 
     tsne_settings = {
         "perplexity": 50,
-        "n_iter": 1000,
+        "n_iter": 2000,
         "initial_pca_components": 10,
     }
 

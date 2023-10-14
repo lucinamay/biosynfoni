@@ -22,7 +22,7 @@ from rdkit.Chem.Draw import rdMolDraw2D
 
 from concerto_fp import get_biosynfoni
 from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
-from def_biosynfoni import get_subsset as gss
+from rdkfnx import get_subsset as gss
 
 # Based off of David's code ====================================================
 

@@ -52,10 +52,12 @@ sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
 sys.path.append(
     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
 )
+print("IS THIS EVEN SAVINGGGG")
 from biosynfoni import fingerprints as fp
 from biosynfoni import moldrawer
-from biosynfoni import picklr, jaropener, outfile_namer, save_version
-from biosynfoni import entryfile_dictify as ann
+from biosynfoni.rdkfnx import save_version
+from biosynfoni.inoutput import picklr, jaropener, outfile_namer
+from biosynfoni.inoutput import entryfile_dictify as ann
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
@@ -391,7 +393,7 @@ def main():
         annotated_df = annotate_pathways(comparison_df, pw_tax_file, tax_text_file)
 
     annotated_df["stepnum"] = annotated_df["reaction_steps"].apply(str)
-    """   
+
     print("getting scatterplots...")
     fp_combs = get_fp_combinations()
     for com in fp_combs:
@@ -409,21 +411,17 @@ def main():
             marginal_x="box",
             marginal_y="box",
         )
-    """
 
     onestep = annotated_df[annotated_df["stepnum"] == "1"]
 
     onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
     print("getting squares...")
-    # loopsquares(onestep, "biosynfoni", ["rdkit", "maccs", "morgan"], size=0.2)
-
-    # draw_squares(right_bottom, squarename='right_bottom')
-    # draw_squares(right_top, squarename='right_top')
-    # plot_two_cols(annotated_df,'biosynfoni', 'rdkit',symbol=None)
+    loopsquares(onestep, "biosynfoni", ["rdkit", "maccs", "morgan"], size=0.2)
 
     # save the biosynfoni version for reference
     print("saving current biosynfoni version...")
     # save_version(biosynfoni_version, blocking_principle=blocking_principle)
+    save_version(biosynfoni_version)
 
     print("done\nbyebye")
     #

@@ -391,10 +391,11 @@ def get_smarts(
 
 
 def main():
-    #get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
+    # get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
     # get_subsset(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
 
     # get_subsset('regular_1007')
+    return
 
 
 if __name__ == "__main__":

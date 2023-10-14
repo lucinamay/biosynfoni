@@ -50,7 +50,9 @@ def readr(filename: str, ignore_start="", encoding="UTF-8", errors="ignore") -> 
     """
     reads in file in ls of lines (stripped)
     input: (str) filename -- file to be read
-           (None / int) len_stop -- stop value for shorter reading
+              (str) ignore_start -- if lines start with this, ignore
+              (str) encoding -- encoding of file
+              (str) errors -- how to handle errors
     """
     # dev function:
     # len_stop = None
@@ -262,5 +264,3 @@ def csv_writr(lst: list[list], outfile: str, sep: str = ",") -> None:
 
 
 # ============================== recording ===================================
-
-

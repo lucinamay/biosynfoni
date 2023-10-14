@@ -22,8 +22,8 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from concerto_fp import get_biosynfoni
 from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+from concerto_fp import get_biosynfoni
 
 
 # circular fingerprint -------------------------------------------------
@@ -46,14 +46,16 @@ def rdk_fp_getter(mol: Chem.Mol, nbits: str = 2048) -> np.array:
 
 
 # substructure key fingerprints ------------------------------------------
-def maccs_getter(mol: Chem.Mol) -> DataStructs.ExplicitBitVect:
+def maccs_getter(mol: Chem.Mol) -> np.array:
     """returns explicit bit vector fp"""
 
     fingerprint = AllChem.GetMACCSKeysFingerprint(mol)
     return np.array(fingerprint)
 
 
-def biosynfoni_getter(mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION):
+def biosynfoni_getter(
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+) -> np.array:
     """returns counted fingerprint list"""
     counted_fingerprint = get_biosynfoni(mol, version=version, return_matches=False)
     return np.array(counted_fingerprint)
@@ -61,7 +63,7 @@ def biosynfoni_getter(mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION):
 
 def binosynfoni_getter(
     mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
-) -> DataStructs.ExplicitBitVect:
+) -> np.array:
     """returns explicit bit vector"""
     counted = get_biosynfoni(mol, version=version, return_matches=False)
     binary = []
@@ -77,6 +79,7 @@ def binosynfoni_getter(
 
 
 # ============================= distance, similarity =========================
+# ----------------------------- distance -------------------------------------
 
 
 def bitvect_to_tanimoto(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
@@ -91,6 +94,11 @@ def bitvect_to_euclidean(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> 
 
 def bitvect_to_manhattan(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
     array = Metric.rdMetricMatrixCalc.GetManhattanDistMat(expl_bitvectors)
+    return array.tolist()[0]
+
+
+def bitvect_to_cosine(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+    array = Metric.rdMetricMatrixCalc.GetCosineDistMat(expl_bitvectors)
     return array.tolist()[0]
 
 

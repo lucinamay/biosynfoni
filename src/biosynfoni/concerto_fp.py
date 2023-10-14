@@ -23,8 +23,8 @@ from rdkit import Chem
 
 # my imports
 import def_biosynfoni
-from rdkfnx import get_supplier, get_subsset
-from inoutput import outfile_namer, csv_writr, save_version
+from rdkfnx import get_supplier, get_subsset, save_version
+from inoutput import outfile_namer, csv_writr
 
 
 # not used, just for reference
