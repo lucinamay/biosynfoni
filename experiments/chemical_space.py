@@ -191,9 +191,13 @@ def main():
     zinc_toolarge = biosyfonis_to_array(fingerprintfile_zinc)
     # select random subset of zinc, with seed for reproducibility
     np.random.seed(333)
+    print(
+        "getting a random {} compound subset of synthetic compounds".format(len(coco))
+    )
     zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
     # now, we concatenate the list
     arr = np.concatenate((coco, zinc))
+    print(f"done concatenating, total of {len(arr)} compounds")
 
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[3]  # for natural products classification
