@@ -16,6 +16,8 @@ description: fingerprints and related functionality.
 """
 import sys
 import numpy as np
+from numpy import dot
+from numpy.linalg import norm
 
 from rdkit import Chem, DataStructs
 from rdkit.DataManip import Metric
@@ -54,11 +56,29 @@ def maccs_getter(mol: Chem.Mol) -> np.array:
 
 
 def biosynfoni_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+    mol: Chem.Mol,
+    version: str = DEFAULT_BIOSYNFONI_VERSION,
 ) -> np.array:
     """returns counted fingerprint list"""
     counted_fingerprint = get_biosynfoni(mol, version=version, return_matches=False)
     return np.array(counted_fingerprint)
+
+
+def maccsynfoni_getter(
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+) -> np.array:
+    """returns counted fingerprint list"""
+    counted_fingerprint = biosynfoni_getter(mol, version=version)
+    maccs = maccs_getter(mol)
+    return np.concatenate((counted_fingerprint, maccs))
+
+
+def bino_maccs_getter(
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+) -> np.array:
+    binosynfoni = binosynfoni_getter(mol, version=version)
+    maccs = maccs_getter(mol)
+    return np.concatenate((binosynfoni, maccs))
 
 
 def binosynfoni_getter(
@@ -111,6 +131,13 @@ def counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
 
 def countanimoto(pair: list) -> float:
     return counted_tanimoto_sim(np.array(pair[0]), np.array(pair[1]))
+
+
+def cosine_sim(pair: list[np.array]) -> float:
+    cos_sim = dot(np.array(pair[0]), np.array(pair[1])) / (
+        norm(np.array(pair[0])) * norm(np.array(pair[1]))
+    )
+    return cos_sim
 
 
 # ============================= formatting ===================================

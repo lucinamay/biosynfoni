@@ -194,7 +194,7 @@ def loop_over_supplier(
                 mol,
                 version=fp_version,
                 substructure_set=substructure_set,
-                return_matches=coverage_info,
+                return_matches=True,  # ==coverage_info
             )
             fingerprint_collection.append(fingerprint)
             coverage_collection.append(get_coverage(mol, matchlist))
@@ -255,7 +255,7 @@ def main():
         outname = outfile_namer(supplier_loc, "overlap_bsf")
 
     print("getting supplier...")
-    supplier = rdkfnx.get_supplier(supplier_loc)
+    supplier = get_supplier(supplier_loc)
     print("looping over supplier...")
 
     if not coverage_info:
@@ -270,6 +270,7 @@ def main():
             substructure_set=get_subsset(fp_version),
             coverage_info=coverage_info,
         )
+        print(coverages)
         csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
 
     print(f"writing {len(biosynfonies)} biosynfonies to file...")

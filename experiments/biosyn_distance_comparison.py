@@ -18,7 +18,7 @@ supports:
     - rdkit
     - maccs
     - biosynfoni
-    - binosynfoni
+    - binosynfoni  
 
 also supports various distance metrics:
     - countanimoto
@@ -56,7 +56,7 @@ print("IS THIS EVEN SAVINGGGG")
 from biosynfoni import fingerprints as fp
 from biosynfoni import moldrawer
 from biosynfoni.rdkfnx import save_version
-from biosynfoni.inoutput import picklr, jaropener, outfile_namer
+from biosynfoni.inoutput import picklr, jaropener, outfile_namer, output_direr
 from biosynfoni.inoutput import entryfile_dictify as ann
 
 # =========================== GLOBALS =========================
@@ -66,10 +66,13 @@ FP_FUNCTIONS = {
     "maccs": fp.maccs_getter,
     "morgan": fp.morgan_getter,
     "rdkit": fp.rdk_fp_getter,
+    "maccsynfoni": fp.maccsynfoni_getter,
+    "bino_maccs": fp.bino_maccs_getter,
 }
 
 SIM_FUNCTIONS = {
     "c_tanimoto": fp.countanimoto,
+    "cosine_sim": fp.cosine_sim,
     "manhattan_dist": fp.bitvect_to_manhattan,
     "tanimoto_dist": fp.bitvect_to_tanimoto,
     "euclidean_dist": fp.bitvect_to_euclidean,
@@ -202,9 +205,13 @@ def str_to_mol(repres: str, clean: bool = True) -> Chem.Mol:
 
 
 def get_pairs_dist_df(
-    labeled_pairs: list[tuple[str, list[str]]], metric="c_tanimoto"
+    labeled_pairs: list[tuple[str, list[str]]],
+    fingerprints: list[str] = FP_FUNCTIONS.keys(),
+    metric="c_tanimoto",
 ) -> pd.DataFrame:
-    """only supports inchi_pairs at the moment"""
+    """gets the distances between molecules, for the given fingerprints
+
+    only supports inchi_pairs at the moment"""
     prec_strings = [x[1][0] for x in labeled_pairs]
     prod_strings = [x[1][1] for x in labeled_pairs]
     pathways = [x[0] for x in labeled_pairs]
@@ -218,7 +225,7 @@ def get_pairs_dist_df(
     molpairs = [[prec_mols[i], prod_mols[i]] for i in range(len(prec_mols))]
 
     # find way to convert to mol only once instead of continuously
-    for fp_type in FP_FUNCTIONS.keys():
+    for fp_type in fingerprints:
         df[fp_type] = [
             similarity(
                 x[0], x[1], fingerprint=fp_type, metric=metric, check_moliness=False
@@ -271,7 +278,7 @@ def annotate_pathways(df, pw_tax_file: str, tax_text_file: str) -> pd.DataFrame:
     return ndf
 
 
-def get_fp_combinations() -> list[tuple[str]]:
+def get_fp_combinations() -> list[tuple[str, str]]:
     combinations = []
     for firstkey in FP_FUNCTIONS.keys():
         for secondkey in FP_FUNCTIONS.keys():
@@ -283,14 +290,18 @@ def get_fp_combinations() -> list[tuple[str]]:
 
 
 def get_square(
-    df: pd.DataFrame, col1: str, col2: str, range1: tuple[float], range2: tuple[float]
+    df: pd.DataFrame,
+    col1: str,
+    col2: str,
+    range1: tuple[float, float],
+    range2: tuple[float, float],
 ) -> pd.DataFrame:
     """returns the molecule pair's inchis for 'dots' in a given square of the scatter plot"""
     square = df[
-        (df[col1] > range1[0])
-        & (df[col1] < range1[1])
-        & (df[col2] > range2[0])
-        & (df[col2] < range2[1])
+        (df[col1] >= range1[0])
+        & (df[col1] <= range1[1])
+        & (df[col2] >= range2[0])
+        & (df[col2] <= range2[1])
     ]
     return square
 
@@ -307,7 +318,7 @@ def draw_molpair(
 
 def draw_squares(
     square_df: pd.DataFrame,
-    pair_columns: str = ("precursor", "product"),
+    pair_columns: tuple[str, str] = ("precursor", "product"),
     squarename: str = "origin",
     highlighting: bool = True,
 ) -> None:
@@ -375,16 +386,17 @@ def main():
 
     biosynfoni_version = fp.DEFAULT_BIOSYNFONI_VERSION
     blocking_principle = True
-    metric = "c_tanimoto"
+    metric = "cosine_sim"
     annotate_taxonomy = False
+    coverage_info = False
 
     # get all the reaction pairs
-    if not os.path.exists(f"{outfile_namer('comparison_df')}.pickle"):
+    if not os.path.exists(f"{outfile_namer(metric)}.pickle"):
         comparison_df = _get_comparison_df(struct_loc, max_steps=4, metric=metric)
-        picklr(comparison_df, outfile_namer("comparison_df"))
+        picklr(comparison_df, outfile_namer(metric))
     else:
         print("reading from pickle file")
-        comparison_df = jaropener(f"{outfile_namer('comparison_df')}.pickle")
+        comparison_df = jaropener(f"{outfile_namer(metric)}.pickle")
     annotated_df = comparison_df
 
     if annotate_taxonomy:
@@ -394,6 +406,7 @@ def main():
 
     annotated_df["stepnum"] = annotated_df["reaction_steps"].apply(str)
 
+    _, cwd = output_direr()  # move to outputdir
     print("getting scatterplots...")
     fp_combs = get_fp_combinations()
     for com in fp_combs:
@@ -416,13 +429,19 @@ def main():
 
     onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
     print("getting squares...")
-    loopsquares(onestep, "biosynfoni", ["rdkit", "maccs", "morgan"], size=0.2)
+    loopsquares(
+        onestep,
+        "biosynfoni",
+        ["rdkit", "maccs", "morgan", "maccsynfoni", "bino_maccs"],
+        size=0.2,
+    )
 
     # save the biosynfoni version for reference
     print("saving current biosynfoni version...")
     # save_version(biosynfoni_version, blocking_principle=blocking_principle)
-    save_version(biosynfoni_version)
+    save_version(biosynfoni_version, extra_text=metric)
 
+    os.chdir(cwd)
     print("done\nbyebye")
     #
     # annotate_pathways(df, pw_tax_file, tax_text_file)

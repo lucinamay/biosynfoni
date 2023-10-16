@@ -153,7 +153,7 @@ def pcaed_tsne(
         color="npclassifier",
         filename=filename,
         auto_open=False,
-        hover_data=["npclassifier", "index"],
+        hover_data={"index": ("|%B %d, %Y", df.index)},
         # color_discrete_map = fm.COLOUR_DICT['pathways']
     )
     return None
@@ -176,14 +176,16 @@ def main():
     # fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
     arr = biosyfonis_to_array(fingerprintfile)
 
-    # annotfile = '../arch/0914_COCONUT_DB_rdk_npcs.tsv'
+    # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[2]
 
+    # configuration for tsne:--------------------------
     tsne_settings = {
         "perplexity": 50,
         "n_iter": 2000,
         "initial_pca_components": 10,
     }
+    # -------------------------------------------------
 
     save_tsne_settings(
         tsne_settings, filename=outfile_namer("tsne_settings"), extra=fingerprintfile

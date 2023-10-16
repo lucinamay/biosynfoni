@@ -257,8 +257,10 @@ def csv_writr(lst: list[list], outfile: str, sep: str = ",") -> None:
                 of.write(sep.join([str(x) for x in np]))
             elif isinstance(np, str):
                 of.write(np)
-            elif isinstance(np, int):
+            elif isinstance(np, int) or isinstance(np, float):
                 of.write(str(np))
+            else:
+                of.write(np)
             of.write("\n")
     return None
 

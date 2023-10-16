@@ -31,9 +31,12 @@ SUBSTRUCTURES = {
     "d_phenylC3_9_1007": "c1ccccc1~[#6]~[#6]~[#6]",
     "d_phenylC2_8_1007": "c1ccccc1~[#6]~[#6]",
     "d_phenylC1_7_1007": "c1ccccc1~[#6]",
-    "d_phenylC3_9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6]~[#6][!$([r6])]",  # last one should not be next to ring
-    "d_phenylC2_8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6][!$([r6])]",  # last one should not be next to ring
+    "d_phenylC3_9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6;!$([r6])]~[#6;!$([r6])]",  # last two should not be next to ring
+    "d_phenylC2_8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6;!$([r6])]",  # last one should not be next to ring
     "d_phenylC1_7": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]",  # this one is allowed to be ring, to catch all
+    "d_phenylC3_9_strict": "[#6;r1]~1~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~1~[#6]~[#6;!$([r6])]~[#6;!$([r6])]",  # not allowed to be in fused rings
+    "d_phenylC2_8_strict": "[#6;r1]~1~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~1~[#6]~[#6;!$([r6])]",
+    "d_phenylC1_7_strict": "[#6;r1]~1~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~1~[#6]",
     # mevalonate/MEP
     "d_isoprene_5": "[#6]~[#6](~[#6])~[#6]~[#6]",
     # acetate, aromaticity ok
@@ -61,8 +64,8 @@ SUBSTRUCTURES = {
     # additional
     "n_nitrate_1": "[N;D1]",
     "o_epoxy_1": "[O;x2;r3]",  # counts only the oxygen (2ringbond,size3)
-    "o_ether_1": "[O;!h;!$(*C=O);X2;!R;!$(P);!$(S)]",  # not ester,twoconn,noringbond,noH
-    "o_hydroxyl_1": "[O;D1;h,!v2;!$(C=O);!$(P);!$(S)]",  # OH, O-, no acid hydroxyls, no phosphate/sulfonate
+    "o_ether_1": "[O;!h;!$(*C=O);X2;!R;!$(*P);!$(*S)]",  # not ester,twoconn,noringbond,noH
+    "o_hydroxyl_1": "[#8;D1;h,!v2;$(*[#6,#7]);!$(*C~O);!$(P);!$(S)]",  # OH, O-,  only attached to C/N, no acid hydroxyls, no phosphate/sulfonate,
     # Coenzymes, catalytic units etc ---------------------------------------
     "co_coa_pubchem": (
         "SCCNC(~O)CCNC(~O)C(C(C)(C)COP(=O)(~O)OP(=O)"
@@ -79,9 +82,15 @@ SUBSTRUCTURES = {
     "co_nadph": (
         "C1C=CN(C=C1C(=O)N)C2C(C(C(O2)COP(=O)(O)OP(=O)(O)"
         "OCC3C(C(C(O3)N4C=NC5=C(N=CN=C54)N)OP(=O)(O)O)O)O)O"
-    )
+    ),
     # maybe do a loop where we do substructure searches intra-fingerprint
     # any matches get a 'distance' of one
+    # additional, unsupported:
+    "r_c7": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
+    "r_c8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
+    "r_c9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
+    "r_c10": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
+    "sterol": "C1CCC2C1(CCC3C2CC=C4C3(CCC(C4)O)C)C",  # make fuzzy
 }
 
 
@@ -117,7 +126,7 @@ class Biosynfoni(Enum):
     o_hydroxyl_1 = 28
 
     def as_smarts(self):
-        return [SUBSTRUCTURES[x] for x in self.keys]
+        return [SUBSTRUCTURES[x] for x in self.name]
 
 
 SUBS_PATHWAYS = {
@@ -375,7 +384,7 @@ SUBS_PATHWAYS_old = {
 def get_smarts(
     fp_version_name: str,
     subs_smarts: dict = SUBSTRUCTURES,
-    fp_versions: dict[list] = FP_VERSIONS,
+    fp_versions: dict[str, list[str]] = FP_VERSIONS,
 ) -> list[list[str, str]]:
     """gives list of smarts of substructures of choice
     input:   fp_version_name (str) -- name of the version
