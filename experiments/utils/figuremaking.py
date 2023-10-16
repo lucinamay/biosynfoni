@@ -20,6 +20,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 def df_scatterplot(
     df: pd.DataFrame,
     col_x: str,
@@ -64,7 +65,7 @@ COLOUR_DICT = {
         "methylerythritol": px.colors.qualitative.Pastel[0],  # blue
         "sugar": px.colors.qualitative.T10[7],  # pink
     },
-    "NPClasses": {
+    "class": {
         "Terpenoids": px.colors.qualitative.Plotly[7],  # green
         "Alkaloids": "lightblue",  # purple
         "Shikimates and Phenylpropanoids": px.colors.qualitative.Plotly[3],
@@ -73,6 +74,8 @@ COLOUR_DICT = {
         "Polyketides": px.colors.qualitative.Prism[7],  # light red
         "Amino acids and Peptides": "bisque",
         "No NP-Classifier prediction": "grey",
+        "None": "grey",
+        "Synthetic": "black",
     },
 }
 
