@@ -84,10 +84,11 @@ def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
 
 def _get_combi_annot(arr_np, arr_syn, np_annotfile: str = "npcs.tsv"):
     annot = []
-    npcs = get_first_ncps_est(np_annotfile)[: len(arr_np)]
-    annot.append(x for x in npcs)
-    annot.append("synthetic" for x in range(len(arr_syn)))
-    return annot
+    npcs = get_first_ncps_est(np_annotfile)  # [: len(arr_np)]
+    syns = ["synthetic" for x in range(len(arr_syn))]
+    # annot.append(x for x in npcs)
+    # annot.append("synthetic" for x in range(len(arr_syn)))
+    return npcs + syns
 
 
 def pca_plot(
