@@ -130,7 +130,8 @@ def pcaed_tsne(
     filename: str = "tsne_pcaed_bsf",
     perplexity: int = 50,
     n_iter: int = 500,
-    randomseed=333 * args,
+    randomseed=333,
+    *args,
     **kwargs,
 ) -> None:
     """
@@ -185,18 +186,19 @@ def main():
     print("hello")
     fingerprintfile_coco = argv[1]  # natural products
     fingerprintfile_zinc = argv[2]  # synthetic compounds
-    # fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
-    coco = biosyfonis_to_array(fingerprintfile_coco)
-    zinc = biosyfonis_to_array(fingerprintfile_zinc)
     assert len(coco[0]) == len(zinc[0]), "fingerprint lengths not equal, check input"
+    coco = biosyfonis_to_array(fingerprintfile_coco)
+    zinc_toolarge = biosyfonis_to_array(fingerprintfile_zinc)
+    # select random subset of zinc, with seed for reproducibility
+    np.random.seed(333)
+    zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
+    # now, we concatenate the list
     arr = np.concatenate((coco, zinc))
 
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[3]  # for natural products classification
     annotation = _get_combi_annot(coco, zinc, annotfile)
-    assert len(annotation) == len(
-        arr
-    ), "annotation length not equal to fingerprint length"
+    assert len(annotation) == len(arr), "annotation number not equal to molecule number"
 
     # configuration for tsne:--------------------------
     tsne_settings = {
