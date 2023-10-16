@@ -84,10 +84,11 @@ def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
 
 def _get_combi_annot(arr_np, arr_syn, np_annotfile: str = "npcs.tsv"):
     annot = []
-    npcs = get_first_ncps_est(np_annotfile)[: len(arr_np)]
-    annot.append(x for x in npcs)
-    annot.append("synthetic" for x in range(len(arr_syn)))
-    return annot
+    npcs = get_first_ncps_est(np_annotfile)#[: len(arr_np)]
+    syns = ["synthetic" for x in range(len(arr_syn))]
+    #annot.append(x for x in npcs)
+    #annot.append("synthetic" for x in range(len(arr_syn)))
+    return npcs+syns
 
 
 def pca_plot(
@@ -186,12 +187,14 @@ def main():
     print("hello")
     fingerprintfile_coco = argv[1]  # natural products
     fingerprintfile_zinc = argv[2]  # synthetic compounds
-    assert len(coco[0]) == len(zinc[0]), "fingerprint lengths not equal, check input"
     coco = biosyfonis_to_array(fingerprintfile_coco)
     zinc_toolarge = biosyfonis_to_array(fingerprintfile_zinc)
     # select random subset of zinc, with seed for reproducibility
     np.random.seed(333)
-    zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
+    zinc = zinc_toolarge[np.random.choice(zinc_toolarge.shape[0], len(coco), replace=False)]
+    #zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
+    assert len(coco[0]) == len(zinc[0]), "fingerprint lengths not equal, check input"
+
     # now, we concatenate the list
     arr = np.concatenate((coco, zinc))
 
