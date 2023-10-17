@@ -129,7 +129,6 @@ def subs_assigned_atoms(matches: list[tuple[tuple[int]]]) -> list[list[int]]:
             continue
         this_subs_atoms = []
         for match_in_subs in matches_per_subs:
-            print(match_in_subs)
             if isinstance(match_in_subs, int):
                 # if the tuple tuple decides to unpack itself...
                 this_subs_atoms.append(match_in_subs)
@@ -270,7 +269,7 @@ def main():
             substructure_set=get_subsset(fp_version),
             coverage_info=coverage_info,
         )
-        print(coverages)
+        print("writing coverages...")
         csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
 
     print(f"writing {len(biosynfonies)} biosynfonies to file...")
