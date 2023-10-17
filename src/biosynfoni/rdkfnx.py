@@ -19,7 +19,12 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
 
-from def_biosynfoni import SUBSTRUCTURES, FP_VERSIONS, get_smarts, DEFAULT_BIOSYNFONI_VERSION
+from def_biosynfoni import (
+    SUBSTRUCTURES,
+    FP_VERSIONS,
+    get_smarts,
+    DEFAULT_BIOSYNFONI_VERSION,
+)
 from inoutput import outfile_namer
 
 
@@ -81,7 +86,7 @@ def get_subsset(
                 print(
                     f"substructure {substructure_name} could not be converted to mol: skipped"
                 )
-    print(f"added {','.join([x for x in successful_subs_names])} to substructure set")
+    # print(f"added {','.join([x for x in successful_subs_names])} to substructure set")
     return substructures
 
 
