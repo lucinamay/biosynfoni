@@ -16,7 +16,7 @@ Biosynfoni Definition. Can be converted into an sdf file per 'version'
 
 from enum import Enum
 
-DEFAULT_BIOSYNFONI_VERSION = "regular_1008"  # not used here, just for reference
+DEFAULT_BIOSYNFONI_VERSION = "strictphenyl_1016"  # not used here, just for reference
 
 # ============================
 SUBSTRUCTURES = {
@@ -49,7 +49,7 @@ SUBSTRUCTURES = {
     "s_openfur_C5O5": "C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])~C(~[#8])",
     # additional from dewick -----------------------------------------------
     # acetate
-    "d2_acetyl_C2O1": "[#6][#6]~[#8]",  # CC=O
+    "d2_acetyl_C2O1": "[#6]~[#6]~[#8]",  # CC=O
     "d2_methylmalonyl_C3": "[#6]~[#6][C;D1;h3]",  # check coverage
     # halogens -------------------------------------------------------------
     "hal_f": "[#9]",
@@ -265,6 +265,37 @@ FP_VERSIONS = {
         "d_phenylC3_9",
         "d_phenylC2_8",
         "d_phenylC1_7",
+        "d_isoprene_5",
+        "d2_acetyl_C2O1",
+        "d2_methylmalonyl_C3",
+        "d_ethyl_2",
+        "d_methyl_1",
+        "phosphate_2",
+        "sulfonate_2",
+        "hal_f",
+        "hal_cl",
+        "hal_br",
+        "hal_i",
+        "n_nitrate_1",
+        "o_epoxy_1",
+        "o_ether_1",
+        "o_hydroxyl_1",
+    ],
+    "strictphenyl_1016": [  # stricter version with d_phenylC1_7_strict (1016)
+        "co_coa",
+        "co_nadh",
+        "co_nadph",
+        "s_openpyr_C6O6", #open ones first 
+        "s_openfur_C5O5",
+        "s_pyranose_C5O4",
+        "s_furanose_C4O3",
+        "d_indoleC2N_12",
+        "d_phenylC2N_9",
+        "d_c5n_6",
+        "d_c4n_5",
+        "d_phenylC3_9_strict",
+        "d_phenylC2_8_strict",
+        "d_phenylC1_7_strict",
         "d_isoprene_5",
         "d2_acetyl_C2O1",
         "d2_methylmalonyl_C3",

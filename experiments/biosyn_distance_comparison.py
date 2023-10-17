@@ -386,7 +386,10 @@ def main():
 
     biosynfoni_version = fp.DEFAULT_BIOSYNFONI_VERSION
     blocking_principle = True
-    metric = "cosine_sim"
+    if len(argv) == 2 or argv[2] not in SIM_FUNCTIONS.keys():
+        metric = "cosine_sim"
+    else:
+        metric = argv[2]
     annotate_taxonomy = False
     coverage_info = False
 

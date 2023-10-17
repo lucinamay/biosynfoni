@@ -16,6 +16,7 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
 from utils import figuremaking as fm
 from utils.figuremaking import df_scatterplot
+from biosynfoni.inoutput import output_direr, outfile_namer, picklr, jaropener
 
 # for intra-biosynfoni-code running
 sys.path.append(
@@ -85,7 +86,7 @@ def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
 def _get_combi_annot(arr_np, arr_syn, np_annotfile: str = "npcs.tsv"):
     annot = []
     npcs = get_first_ncps_est(np_annotfile)  # [: len(arr_np)]
-    syns = ["synthetic" for x in range(len(arr_syn))]
+    syns = ["Synthetic" for x in range(len(arr_syn))]
     # annot.append(x for x in npcs)
     # annot.append("synthetic" for x in range(len(arr_syn)))
     return npcs + syns
@@ -106,7 +107,8 @@ def pca_plot(
     print("annotating dataframe...")
     df = annotate_df(
         pca_df, "class", annotation
-    )  # get_first_ncps_est(annotfile)[: len(arr)])
+    ) 
+
     print("plotting pca...")
     df_scatterplot(
         df,
@@ -144,18 +146,29 @@ def pcaed_tsne(
         initial_pca_components = len(arr[0])
     pcaed, _ = pcaer(arr, n_components=initial_pca_components, random_state=randomseed)
 
-    print("running tsne...")
-    tsne_comp = tsner(
-        pcaed,
-        n_components=2,
-        perplexity=50,
-        n_iter=500,
-        verbose=verbose,
-        *args,
-        **kwargs,
-    )
+    if os.path.exists("tsne.tmp.pickle"):
+       tsne_comp = jaropener("tsne.tmp.pickle")
+    else:
+        # run initial pca to reduce computational time
+        if initial_pca_components > len(arr[0]):
+            initial_pca_components = len(arr[0])
+        pcaed, _ = pcaer(arr, n_components=initial_pca_components, random_state=randomseed) 
+        print("running tsne...")
+        tsne_comp = tsner(
+            pcaed,
+            n_components=2,
+            perplexity=50,
+            n_iter=500,
+            verbose=verbose,
+            *args,
+            **kwargs,
+        )
+        print("saving tsne to pickle...")
+        picklr(tsne_comp, "tsne.tmp")
+
     if annot:
         df = annotate_df(tsne_comp, "class", annot)
+        df.to_csv("tsne.tmp.csv")
     df_scatterplot(
         df,
         df.columns[0],
@@ -169,6 +182,7 @@ def pcaed_tsne(
         hover_data={"index": ("|%B %d, %Y", df.index)},
         color_discrete_map=fm.COLOUR_DICT["class"],
     )
+    
     return None
 
 
@@ -187,24 +201,29 @@ def main():
     print("hello")
     fingerprintfile_coco = argv[1]  # natural products
     fingerprintfile_zinc = argv[2]  # synthetic compounds
-    assert len(coco[0]) == len(zinc[0]), "fingerprint lengths not equal, check input"
     coco = biosyfonis_to_array(fingerprintfile_coco)
     zinc_toolarge = biosyfonis_to_array(fingerprintfile_zinc)
+    
     # select random subset of zinc, with seed for reproducibility
     np.random.seed(333)
     print(
         "getting a random {} compound subset of synthetic compounds".format(len(coco))
     )
-    zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
+    zinc = zinc_toolarge[np.random.choice(zinc_toolarge.shape[0], len(coco), replace=False)]
+    #zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
+    assert len(coco[0]) == len(zinc[0]), "fingerprint lengths not equal, check input"
+    assert len(coco) == len(zinc), "something went wrong with random choice"
     # now, we concatenate the list
-    arr = np.concatenate((coco, zinc))
-    print(f"done concatenating, total of {len(arr)} compounds")
+    together = np.concatenate((coco, zinc))
+    print(f"done concatenating, total of {len(together)} compounds")
 
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[3]  # for natural products classification
     annotation = _get_combi_annot(coco, zinc, annotfile)
-    assert len(annotation) == len(arr), "annotation number not equal to molecule number"
-
+    assert len(annotation) == len(together), "annotation number not equal to molecule number"
+    #arr = annotate_df(together, "class", annotation)
+    arr = together
+    _, cwd = output_direr()
     # configuration for tsne:--------------------------
     tsne_settings = {
         "perplexity": 50,
@@ -240,6 +259,7 @@ def main():
     )
 
     print("done")
+    os.chdir(cwd)
     sys.exit()
     return None
 

@@ -19,7 +19,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
 
-from def_biosynfoni import SUBSTRUCTURES, FP_VERSIONS, get_smarts
+from def_biosynfoni import SUBSTRUCTURES, FP_VERSIONS, get_smarts, DEFAULT_BIOSYNFONI_VERSION
 from inoutput import outfile_namer
 
 

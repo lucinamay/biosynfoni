@@ -20,7 +20,7 @@ from utils.figuremaking import df_scatterplot
 sys.path.append(
     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
 )
-from biosynfoni.inoutput import outfile_namer
+from biosynfoni.inoutput import outfile_namer, picklr, jaropener
 
 # parameters
 
