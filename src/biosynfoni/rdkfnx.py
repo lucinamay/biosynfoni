@@ -51,6 +51,26 @@ def get_supplier(sdf_file: str, supplier_only: bool = True) -> list:
         return mols
 
 
+def get_leaf_substructures(json_loc: str = "leaf_subs_nod12.json") -> list[Chem.Mol]:
+    leaf_substructures = []
+    names = []
+    for subs_dict in open_json(json_loc):
+        mol = Chem.MolFromSmarts(subs_dict["smarts"])
+        if isinstance(mol, Chem.Mol):
+            leaf_substructures.append(mol)
+            names.append(subs_dict["name"])
+        else:
+            print(
+                f"substructure {subs_dict['name']} could not be converted to mol: skipped"
+            )
+
+    print("extracted:")
+    print("\n".join(names))
+    # with open(outfile_namer('json_saved.txt'),'w') as f:
+    #    f.write('\n'.join(names))
+    return leaf_substructures
+
+
 def get_subsset(
     fp_version_name: str,
     subs_smarts: dict = SUBSTRUCTURES,
@@ -68,8 +88,15 @@ def get_subsset(
     output: (list) rdkit.Chem.rdchem.Mol files for substructure keys
     """
     # print(f"getting substructures from set {fp_version_name}")
+
+    # ===========================================================================
+    # test for leaf:
+    if fp_version_name == "leaf":
+        return get_leaf_substructures("leaf_subs_nod12.json")
+
     if not fp_version_name:
         raise "No version name provided to select substructure set"
+    # ===========================================================================
 
     substructures = []
     successful_subs_names = []
@@ -89,26 +116,6 @@ def get_subsset(
                 )
     # print(f"added {','.join([x for x in successful_subs_names])} to substructure set")
     return substructures
-
-
-def get_leaf_substructures(json_loc: str = "leaf_subs_nod12.json") -> list[Chem.Mol]:
-    leaf_substructures = []
-    names = []
-    for subs_dict in open_json(json_loc):
-        mol = Chem.MolFromSmarts(subs_dict["smarts"])
-        if isinstance(mol, Chem.Mol):
-            leaf_substructures.append(mol)
-            names.append(subs_dict["name"])
-        else:
-            print(
-                f"substructure {subs_dict['name']} could not be converted to mol: skipped"
-            )
-
-    print("extracted:")
-    print("\n".join(names))
-    # with open(outfile_namer('json_saved.txt'),'w') as f:
-    #    f.write('\n'.join(names))
-    return leaf_substructures
 
 
 def save_version(
