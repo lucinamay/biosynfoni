@@ -1,19 +1,31 @@
+import sys, os
 from sys import argv
+
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
 
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 plt.ioff()
 
+sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
+# for intra-biosynfoni-code running
+sys.path.append(
+    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
+)
+from biosynfoni.inoutput import outfile_namer
 
-def fp_stats(fp_arr, set_name):
+
+def fp_stats(fp_arr: np.array, set_name: str) -> np.array:
     mean_fp = fp_arr.mean(axis=0)
-    outfile = f"outfile_namer('fp_avg', set_name).csv"
+    std_fp = fp_arr.std(axis=0)
+    outfile = f"{outfile_namer('fp_avg', set_name)}.csv"
     with open(outfile, "w") as f:
         f.write("\t".join([str(x) for x in mean_fp]))
         f.write("\n")
         f.write("\t".join([str(x) for x in std_fp]))
+    return mean_fp
 
 
 def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
@@ -33,7 +45,7 @@ def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
     )  # , fontsize=20)
     print("saving plot")
     plt.legend()
-    plt.savefig(f"mean_fp_both.svg")
+    plt.savefig(filename)
     plt.close()
     return None
 
@@ -58,7 +70,9 @@ def main():
     coco_name = fingerprintfile_coco.split("/")[-1].split(".")[0]
     zinc_name = fingerprintfile_zinc.split("/")[-1].split(".")[0]
 
-    fp_stats(coco, coco_name)
-    fp_stats(zinc, zinc_name)
+    coco_mean = fp_stats(coco, coco_name)
+    zinc_mean = fp_stats(zinc, zinc_name)
     fp_plots(coco, coco_name)
     fp_plots(zinc, zinc_name)
+
+    fp_means_plots(coco_mean, zinc_mean, outfile_namer(f"{coco_name}_{zinc_name}.svg"))
