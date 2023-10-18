@@ -253,8 +253,6 @@ def main():
     added = "_noblock" if blocking else ""
     outname_root = f"{inname_root}_{fp_version}{added}"
     outname = outfile_namer(outname_root)
-    if not blocking:
-        outname = outfile_namer(supplier_loc, "overlap_bsf")
 
     print("getting supplier...")
     supplier = get_supplier(supplier_loc)
