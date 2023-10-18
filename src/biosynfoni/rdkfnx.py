@@ -27,6 +27,7 @@ from def_biosynfoni import (
     DEFAULT_BIOSYNFONI_VERSION,
 )
 from inoutput import outfile_namer, open_json
+import leaf_subs_nod12 as leaffile
 
 
 def sdf_writr(mols: list, outfile: str) -> None:
@@ -51,10 +52,10 @@ def get_supplier(sdf_file: str, supplier_only: bool = True) -> list:
         return mols
 
 
-def get_leaf_substructures(json_loc: str = "leaf_subs_nod12.json") -> list[Chem.Mol]:
+def get_leaf_substructures(dict_list: list[dict[str, str]]) -> list[Chem.Mol]:
     leaf_substructures = []
     names = []
-    for subs_dict in open_json(json_loc):
+    for subs_dict in dict_list:
         mol = Chem.MolFromSmarts(subs_dict["smarts"])
         if isinstance(mol, Chem.Mol):
             leaf_substructures.append(mol)
@@ -92,7 +93,7 @@ def get_subsset(
     # ===========================================================================
     # test for leaf:
     if fp_version_name == "leaf":
-        return get_leaf_substructures("leaf_subs_nod12.json")
+        return get_leaf_substructures(leaffile.leaf)
 
     if not fp_version_name:
         raise "No version name provided to select substructure set"
