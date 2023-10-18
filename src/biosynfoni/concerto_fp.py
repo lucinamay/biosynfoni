@@ -249,7 +249,10 @@ def main():
                 "building blocks",
             )
 
-    outname = outfile_namer(supplier_loc, "bsf")
+    inname_root = supplier_loc.split("/")[-1].split(".")[0]
+    added = "_noblock" if blocking else ""
+    outname_root = f"{inname_root}_{fp_version}{added}"
+    outname = outfile_namer(outname_root)
     if not blocking:
         outname = outfile_namer(supplier_loc, "overlap_bsf")
 
