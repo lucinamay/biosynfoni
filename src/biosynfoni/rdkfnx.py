@@ -15,6 +15,7 @@ ____________________________________
 contains general reusable functionalities depending on RDKit packages,
 mainly supplier-handling
 """
+
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
@@ -25,7 +26,7 @@ from def_biosynfoni import (
     get_smarts,
     DEFAULT_BIOSYNFONI_VERSION,
 )
-from inoutput import outfile_namer
+from inoutput import outfile_namer, open_json
 
 
 def sdf_writr(mols: list, outfile: str) -> None:
@@ -88,6 +89,26 @@ def get_subsset(
                 )
     # print(f"added {','.join([x for x in successful_subs_names])} to substructure set")
     return substructures
+
+
+def get_leaf_substructures(json_loc: str = "leaf_subs_nod12.json") -> list[Chem.Mol]:
+    leaf_substructures = []
+    names = []
+    for subs_dict in open_json(json_loc):
+        mol = Chem.MolFromSmarts(subs_dict["smarts"])
+        if isinstance(mol, Chem.Mol):
+            leaf_substructures.append(mol)
+            names.append(subs_dict["name"])
+        else:
+            print(
+                f"substructure {subs_dict['name']} could not be converted to mol: skipped"
+            )
+
+    print("extracted:")
+    print("\n".join(names))
+    # with open(outfile_namer('json_saved.txt'),'w') as f:
+    #    f.write('\n'.join(names))
+    return leaf_substructures
 
 
 def save_version(
