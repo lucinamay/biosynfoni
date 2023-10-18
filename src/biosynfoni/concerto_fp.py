@@ -18,6 +18,7 @@ description: gets fp for given molecule, also shows which fp version was used
 """
 from sys import argv
 import argparse
+import time
 
 from rdkit import Chem
 
@@ -27,9 +28,129 @@ from rdkfnx import get_supplier, get_subsset, save_version
 from inoutput import outfile_namer, csv_writr
 
 
-# not used, just for reference
+# for the
 DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
 # =========================== per-mol functions ===============================
+
+
+def cli():
+    parser = argparse.ArgumentParser()
+
+    # required
+    parser.add_argument(
+        "input",
+        metavar="input: molecule(s) / molecule supplier",
+        type=str,
+        nargs="+",
+        help=(
+            "molecule representation to get biosynfoni of,"
+            "can be sdf file, smiles string(s), or InChI string(s)."
+            "will induce type, but recommended to add representation argument"
+        ),
+    )
+
+    # optional
+    parser.add_argument(
+        "-r",
+        "--repr",
+        type=str,
+        required=False,
+        action="store",
+        help="specify the input type of the molecule(s). If molsupplier, choose sdf",
+        choices=["sdf", "smiles", "inchi"],
+        default="induce",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--version",
+        type=str,
+        required=False,
+        action="store",
+        help="specify the fingerprint version to use. If not specified, will use default",
+        choices=def_biosynfoni.FP_VERSIONS.keys(),
+        default=def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION,
+    )
+
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=False,
+        action="store",
+        help="specify the output file name. If not specified, will use outfile_namer",
+        default=None,
+    )
+
+    # flags
+    parser.add_argument(
+        "-l",
+        "--interoverlap",
+        "--lessblocking",
+        required=False,
+        action="store_true",
+        help="allows overlap between different substructures",
+        default=False,
+    )
+    parser.add_argument(
+        "-n",
+        "--intraoverlap",
+        "--noblocking",
+        "--noblockingstrong",
+        required=False,
+        action="store_true",
+        help="allows all overlap: between different substructures and between same substructures",
+        default=False,
+    )
+
+    parser.add_argument(
+        "-c",
+        "--coverage",
+        required=False,
+        action="store_true",
+        help="pass if you want a file with the coverage data",
+        default=False,
+    )
+
+    parser.add_argument(
+        "-p",
+        "--printonly",
+        required=False,
+        action="store_true",
+        help=(
+            "pass if you want to print the fingerprint to stdout."
+            "will only print fingerprint, no extra data"
+            "default for more than 1 molecule: False"
+        ),
+        default="false for more than 1 molecule, true for 1 molecule",
+    )
+    parser.add_argument(
+        "-s",
+        "--save",
+        required=False,
+        action="store_true",
+        help=("pass if you want to overwrite standard printonly for 1 mol"),
+        default=None,
+    )
+
+    args = vars(parser.parse_args())
+
+    # induce input type
+    if args["repr"] == "induce":
+        if args["input"][0].endswith(".sdf"):
+            args["repr"] = "sdf"
+        elif args["input"][0].startswith("InChI="):
+            args["repr"] = "inchi"
+        elif "." not in str(args["input"][0]):
+            args["repr"] = "smiles"
+        else:
+            args["repr"] = "sdf"
+
+    # overwrite for 1 mol if not specified save
+    if (len(args["input"]) == 1) and (not args["save"]) and (not args["repr"] == "sdf"):
+        args["printonly"] = True
+
+    return args
 
 
 def detect_substructures(
@@ -49,6 +170,10 @@ def detect_substructures(
             substructure
 
     """
+    # error handling
+    if not mol:
+        return []
+
     # output init.
     all_unique_matches = []  # empty at start
 
@@ -101,6 +226,8 @@ def get_biosynfoni(
     version: str = "",
     substructure_set: list = [],
     return_matches: bool = False,
+    blocking_intersub: bool = True,
+    blocking_intrasub: bool = True,
 ) -> list[int]:
     """given a name of the fp version, uses get_subsset to get
     the set of substructures, passing them todetect_substructures
@@ -112,7 +239,12 @@ def get_biosynfoni(
     if not substructure_set:
         substructure_set = get_subsset(version)
 
-    matches = detect_substructures(mol, substructure_set)
+    matches = detect_substructures(
+        mol,
+        substructure_set,
+        blocking_intersub=blocking_intersub,
+        blocking_intrasub=blocking_intrasub,
+    )
     biosynfoni = matches_to_vector(matches)
     if return_matches:
         return biosynfoni, matches
@@ -175,15 +307,14 @@ def get_coverage(mol: Chem.Mol, matches: list[tuple[tuple[int]]]) -> float:
 
 
 def loop_over_supplier(
-    supplier: Chem.SDMolSupplier,
+    supplier: Chem.SDMolSupplier,  # or list of mols
     fp_version: str = "",
     substructure_set: list = [],
     coverage_info=False,
-):
+    blocking_intersub=True,
+    blocking_intrasub=True,
+) -> list[list[int]]:
     """gets the fingerprint of the entire set"""
-
-    print("looping over supplier, coverage info provided:", coverage_info)
-
     # main functionality
     fingerprint_collection = []
     if coverage_info:
@@ -194,6 +325,8 @@ def loop_over_supplier(
                 version=fp_version,
                 substructure_set=substructure_set,
                 return_matches=True,  # ==coverage_info
+                blocking_intersub=blocking_intersub,
+                blocking_intrasub=blocking_intrasub,
             )
             fingerprint_collection.append(fingerprint)
             coverage_collection.append(get_coverage(mol, matchlist))
@@ -205,78 +338,109 @@ def loop_over_supplier(
                 version=fp_version,
                 substructure_set=substructure_set,
                 return_matches=coverage_info,
+                blocking_intersub=blocking_intersub,
+                blocking_intrasub=blocking_intrasub,
             )
             fingerprint_collection.append(fingerprint)
         return fingerprint_collection
+
+
+def handle_outnames(settings: dict) -> str:
+    if not settings["output"]:
+        if settings["repr"] == "sdf":
+            inname_root = settings["input"][0].split("/")[-1].split(".")[0]
+        else:
+            inname_root = f"{settings['repr']}s"
+        if settings["intraoverlap"]:
+            added = "_noblock"
+        elif settings["interoverlap"]:
+            added = "_lessblock"
+        else:
+            added = ""
+        outname_root = f"{inname_root}_{settings['version']}{added}"
+        outname = outfile_namer(outname_root)
+    else:
+        if "." in settings["output"]:
+            outname = settings["output"]
+        else:
+            outname = f"{settings['output']}.bsf"
+
+    return outname
 
 
 # ==========================  main ============================================
 
 
 def main():
-    print(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
+    settings = cli()
+    inputlist = settings["input"]
+    input_type = settings["repr"]
+    fp_version = settings["version"]
+    coverage_info = settings["coverage"]  # default False
+    blocking_intersub = not settings["interoverlap"]  # default blocking == True
+    blocking_intrasub = not settings["intraoverlap"]  # default blocking == True
+    print_fp_only = settings["printonly"]  # default False
 
-    coverage_info = False  # default
-    blocking = True  # default
+    if not print_fp_only:
+        print(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
+        print(settings)
 
-    supplier_loc = argv[1]
-    assert supplier_loc.split(".")[-1] == "sdf", f"non-sdf file: {supplier_loc}"
-    fp_version = argv[2]
-    assert (
-        fp_version in def_biosynfoni.FP_VERSIONS.keys()
-    ), f"invalid fp version: {fp_version}"
+    if input_type == "smiles":
+        unchecked = [Chem.MolFromSmiles(mol) for mol in inputlist]
+        inputs = [x for x in unchecked if x]
+        errors = [inputlist[i] for i in range(len(unchecked)) if not unchecked[i]]
+    elif input_type == "inchi":
+        unchecked = [Chem.MolFromInchi(mol) for mol in inputlist]
+        inputs = [x for x in unchecked if x]
+        errors = [inputlist[i] for i in range(len(unchecked)) if not unchecked[i]]
+    elif input_type == "sdf":
+        if not print_fp_only:
+            print("getting supplier...")
+        inputs = get_supplier(input[0])  # no error check due to time constraints
+        errors = []
+    if not print_fp_only:
+        if len(inputs) == 0:
+            print("no valid molecules found")
+        print("looping over molecules...")
 
-    if len(argv) >= 4:
-        coverage_info_bool = argv[3]  # if want coverage: write True or T
-        if coverage_info_bool in [
-            "True",
-            "true",
-            "T",
-            "t",
-            "coverage",
-            "y",
-            "yes",
-            "Y",
-            "Yes",
-        ]:
-            coverage_info = True
-    if len(argv) >= 5:
-        blocking = argv[5]  # if want coverage: write True or T
-        if blocking in ["no", "NO", "N", "n", "false", "f", "No", "False", "noblock"]:
-            blocking = False
-            print(
-                "Blocking out set to False, will detect all overlapping",
-                "building blocks",
-            )
+    # to prevent not knowing which result is which, include 'None' type
+    if print_fp_only and input_type != "sdf":
+        inputs = unchecked
 
-    inname_root = supplier_loc.split("/")[-1].split(".")[0]
-    added = "_noblock" if blocking else ""
-    outname_root = f"{inname_root}_{fp_version}{added}"
-    outname = outfile_namer(outname_root)
-
-    print("getting supplier...")
-    supplier = get_supplier(supplier_loc)
-    print("looping over supplier...")
-
-    if not coverage_info:
-        biosynfonies = loop_over_supplier(
-            supplier,
-            substructure_set=get_subsset(fp_version),
-            coverage_info=coverage_info,
-        )
+    loopres = loop_over_supplier(
+        inputs,
+        substructure_set=get_subsset(fp_version),
+        coverage_info=coverage_info,
+        blocking_intersub=blocking_intersub,
+        blocking_intrasub=blocking_intrasub,
+    )
+    if coverage_info:
+        biosynfonies, coverages = loopres
+        if not print_fp_only:
+            print("writing coverages...")
+            csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
     else:
-        biosynfonies, coverages = loop_over_supplier(
-            supplier,
-            substructure_set=get_subsset(fp_version),
-            coverage_info=coverage_info,
-        )
-        print("writing coverages...")
-        csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
+        biosynfonies = loopres
 
-    print(f"writing {len(biosynfonies)} biosynfonies to file...")
-    csv_writr(biosynfonies, f"{outname}.bsf", sep=",")
-    save_version(fp_version, extra_text="inbsf")
-    print("done")
+    outname = handle_outnames(settings)
+
+    if print_fp_only:
+        # print("==============")  # for parsing
+        # print(f"{fp_version}")
+        # print("--------------")  # for parsing
+        for row in biosynfonies:
+            if not row:
+                print("None")
+            else:
+                print(*row, sep=",")
+    else:
+        print(f"writing {len(biosynfonies)} biosynfonies to file...")
+        csv_writr(biosynfonies, outname, sep=",")
+        if input_type != "sdf":
+            with open(f"{outname}_input.txt", "w") as f:
+                f.write("\n".join([x for x in inputlist if x not in errors]))
+        save_version(fp_version, extra_text="extracted")
+        print("done")
 
     return None
 
