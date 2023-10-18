@@ -12,6 +12,12 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+plt.ioff()
 
 sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
 from utils import figuremaking as fm
@@ -26,12 +32,7 @@ from biosynfoni.inoutput import outfile_namer
 
 
 def biosyfonis_to_array(fingerprint_file: str) -> np.array:
-    data = []
-    with open(fingerprint_file, "r") as f:
-        for line in f:
-            data.append([int(x) for x in line.strip().split(",")])
-    data = np.array(data)
-    return data
+    return np.loadtxt(fingerprint_file, dtype=int, delimiter=",")
 
 
 def pcaer(data: np.array, n_components: int = 50, random_state=1):
@@ -83,7 +84,7 @@ def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
     return subset_df
 
 
-def _get_combi_annot(arr_np, arr_syn, np_annotfile: str = "npcs.tsv"):
+def _get_combi_annot(arr_np, arr_syn, np_annotfile: str = "npcs.tsv") -> list[str]:
     annot = []
     npcs = get_first_ncps_est(np_annotfile)  # [: len(arr_np)]
     syns = ["Synthetic" for x in range(len(arr_syn))]
@@ -105,9 +106,7 @@ def pca_plot(
     pca_df = pd.DataFrame(pcaed)
     pca_df.columns = [f"{_a} ({_b})" for _a, _b in zip(pca_df.columns, var)]
     print("annotating dataframe...")
-    df = annotate_df(
-        pca_df, "class", annotation
-    ) 
+    df = annotate_df(pca_df, "class", annotation)
 
     print("plotting pca...")
     df_scatterplot(
@@ -147,12 +146,14 @@ def pcaed_tsne(
     pcaed, _ = pcaer(arr, n_components=initial_pca_components, random_state=randomseed)
 
     if os.path.exists("tsne.tmp.pickle"):
-       tsne_comp = jaropener("tsne.tmp.pickle")
+        tsne_comp = jaropener("tsne.tmp.pickle")
     else:
         # run initial pca to reduce computational time
         if initial_pca_components > len(arr[0]):
             initial_pca_components = len(arr[0])
-        pcaed, _ = pcaer(arr, n_components=initial_pca_components, random_state=randomseed) 
+        pcaed, _ = pcaer(
+            arr, n_components=initial_pca_components, random_state=randomseed
+        )
         print("running tsne...")
         tsne_comp = tsner(
             pcaed,
@@ -182,7 +183,7 @@ def pcaed_tsne(
         hover_data={"index": ("|%B %d, %Y", df.index)},
         color_discrete_map=fm.COLOUR_DICT["class"],
     )
-    
+
     return None
 
 
@@ -203,14 +204,16 @@ def main():
     fingerprintfile_zinc = argv[2]  # synthetic compounds
     coco = biosyfonis_to_array(fingerprintfile_coco)
     zinc_toolarge = biosyfonis_to_array(fingerprintfile_zinc)
-    
+
     # select random subset of zinc, with seed for reproducibility
     np.random.seed(333)
     print(
         "getting a random {} compound subset of synthetic compounds".format(len(coco))
     )
-    zinc = zinc_toolarge[np.random.choice(zinc_toolarge.shape[0], len(coco), replace=False)]
-    #zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
+    zinc = zinc_toolarge[
+        np.random.choice(zinc_toolarge.shape[0], len(coco), replace=False)
+    ]
+    # zinc = np.random.choice(zinc_toolarge, size=len(coco), replace=False)
     assert len(coco[0]) == len(zinc[0]), "fingerprint lengths not equal, check input"
     assert len(coco) == len(zinc), "something went wrong with random choice"
     # now, we concatenate the list
@@ -220,8 +223,10 @@ def main():
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[3]  # for natural products classification
     annotation = _get_combi_annot(coco, zinc, annotfile)
-    assert len(annotation) == len(together), "annotation number not equal to molecule number"
-    #arr = annotate_df(together, "class", annotation)
+    assert len(annotation) == len(
+        together
+    ), "annotation number not equal to molecule number"
+    # arr = annotate_df(together, "class", annotation)
     arr = together
     _, cwd = output_direr()
     # configuration for tsne:--------------------------
@@ -266,4 +271,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
