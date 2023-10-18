@@ -92,3 +92,19 @@ def scatter_3d(df, col1, col2, col3, m="o"):
 
     plt.show()
     return None
+
+
+def violins(df):
+    df = px.data.tips()
+    fig = px.violin(
+        df,
+        y="count",
+        x="fingerprint",
+        color="class",
+        box=True,
+        points="all",
+        hover_data=df.columns,
+    )
+    fig.show()
+
+    return None
