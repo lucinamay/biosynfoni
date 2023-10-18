@@ -50,11 +50,11 @@ def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
     return None
 
 
-def fp_plots(fp_arr, set_name):
+def fp_plots(fp_arr, bsf_name):
     plt.ioff()
     plt.figure().set_figwidth(15)
     print("making plot")
-    plt.violinplot(dataset=arr, showmeans=True)
+    plt.violinplot(dataset=fp_arr, showmeans=True)
     print("saving plot")
     plt.savefig(f"fp_avg_{bsf_name}.svg")
     plt.close()
@@ -76,3 +76,7 @@ def main():
     fp_plots(zinc, zinc_name)
 
     fp_means_plots(coco_mean, zinc_mean, outfile_namer(f"{coco_name}_{zinc_name}.svg"))
+
+
+if __name__ == "__main__":
+    main()

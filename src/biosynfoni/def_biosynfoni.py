@@ -365,6 +365,7 @@ FP_VERSIONS = {
         "o_ether_1",
         "o_hydroxyl_1",
     ],
+    "leaf": [" should get from file"],
 }
 
 # --------------------------- substructure sets ---------------------------
