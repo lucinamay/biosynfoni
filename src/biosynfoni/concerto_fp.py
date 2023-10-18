@@ -358,13 +358,13 @@ def handle_outnames(settings: dict) -> str:
         else:
             added = ""
         outname_root = f"{inname_root}_{settings['version']}{added}"
-        outname = outfile_namer(outname_root)
+        outname = f"{outfile_namer(outname_root)}.bsf"
+
     else:
         if "." in settings["output"]:
             outname = settings["output"]
         else:
             outname = f"{settings['output']}.bsf"
-
     return outname
 
 
@@ -420,7 +420,9 @@ def main():
         biosynfonies, coverages = loopres
         if not print_fp_only:
             print("writing coverages...")
-            csv_writr(coverages, f"{outname}_coverages.tsv", sep="\t")
+            csv_writr(
+                coverages, f"{outname.replace('.bsf','')}_coverages.tsv", sep="\t"
+            )
     else:
         biosynfonies = loopres
 
