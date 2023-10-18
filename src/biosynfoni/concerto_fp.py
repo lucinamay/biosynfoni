@@ -121,8 +121,9 @@ def cli():
             "pass if you want to print the fingerprint to stdout."
             "will only print fingerprint, no extra data"
             "default for more than 1 molecule: False"
+            "for 1 molecule will be overwritten to True, unless specified save"
         ),
-        default="false for more than 1 molecule, true for 1 molecule",
+        default=False,
     )
     parser.add_argument(
         "-s",
@@ -149,7 +150,6 @@ def cli():
     # overwrite for 1 mol if not specified save
     if (len(args["input"]) == 1) and (not args["save"]) and (not args["repr"] == "sdf"):
         args["printonly"] = True
-
     return args
 
 
