@@ -396,7 +396,9 @@ def main():
     elif input_type == "sdf":
         if not print_fp_only:
             print("getting supplier...")
-        inputs = get_supplier(input[0])  # no error check due to time constraints
+        inputs = get_supplier(
+            settings["input"][0]
+        )  # no error check due to time constraints
         errors = []
     if not print_fp_only:
         if len(inputs) == 0:
