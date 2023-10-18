@@ -34,9 +34,9 @@ SUBSTRUCTURES = {
     "d_phenylC3_9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6;!$([r6])]~[#6;!$([r6])]",  # last two should not be next to ring
     "d_phenylC2_8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]~[#6;!$([r6])]",  # last one should not be next to ring
     "d_phenylC1_7": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1~[#6]",  # this one is allowed to be ring, to catch all
-    "d_phenylC3_9_strict": "[#6;r1]~1~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~1~[#6]~[#6;!$([r6])]~[#6;!$([r6])]",  # not allowed to be in fused rings
-    "d_phenylC2_8_strict": "[#6;r1]~1~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~1~[#6]~[#6;!$([r6])]",
-    "d_phenylC1_7_strict": "[#6;r1]~1~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~[#6;r1]~1~[#6]",
+    "d_phenylC3_9_strict": "[#6;R1]~1~[#6;R1]~[#6;R1]~[#6;R1]~[#6;R1]~[#6;R1]~1~[#6]~[#6;!$([r6])]~[#6;!$([r6])]",  # not allowed to be in fused rings
+    "d_phenylC2_8_strict": "[#6;R1]~1~[#6;R1]~[#6;R1]~[#6;R1]~[#6;R1]~[#6;R1]~1~[#6]~[#6;!$([r6])]",
+    "d_phenylC1_7_strict": "[#6;R1]~1~[#6;R1]~[#6;R1]~[#6;R1]~[#6;R1]~[#6;R1]~1~[#6]",  # no fused rings at all
     # mevalonate/MEP
     "d_isoprene_5": "[#6]~[#6](~[#6])~[#6]~[#6]",
     # acetate, aromaticity ok
@@ -64,7 +64,7 @@ SUBSTRUCTURES = {
     # additional
     "n_nitrate_1": "[N;D1]",
     "o_epoxy_1": "[O;x2;r3]",  # counts only the oxygen (2ringbond,size3)
-    "o_ether_1": "[O;!h;!$(*C=O);X2;!R;!$(*P);!$(*S)]",  # not ester,twoconn,noringbond,noH
+    "o_ether_1": "[O;D2;!h;!$(*C=O);X2;!R;!$(*P);!$(*S)]",  # not ester,twoconn,noringbond,noH
     "o_hydroxyl_1": "[#8;D1;h,!v2;$(*[#6,#7]);!$(*C~O);!$(P);!$(S)]",  # OH, O-,  only attached to C/N, no acid hydroxyls, no phosphate/sulfonate,
     # Coenzymes, catalytic units etc ---------------------------------------
     "co_coa_pubchem": (
@@ -83,6 +83,39 @@ SUBSTRUCTURES = {
         "C1C=CN(C=C1C(=O)N)C2C(C(C(O2)COP(=O)(O)OP(=O)(O)"
         "OCC3C(C(C(O3)N4C=NC5=C(N=CN=C54)N)OP(=O)(O)O)O)O)O"
     ),
+    # amino acids:
+    "allstnd_aminos": (
+        "[$([$([NX3H,NX4H2+]),$([NX3](C)(C)(C))]1[CX4H]([CH2][CH2][CH2]1)[CX3](=[OX1])[OX2H,OX1-,N]),"
+        "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H2][CX3](=[OX1])[OX2H,OX1-,N]),$([$([NX3H2,NX4H3+]),"
+        "$([NX3H](C)(C))][CX4H]([*])[CX3](=[OX1])[OX2H,OX1-,N])]"  # from daylight.com A.A. Template for 20 standard a.a.s
+    ),
+    "nonstnd_aminos": (
+        "[$([NX3,NX4+][CX4H]([*])[CX3](=[OX1])[O,N]);"
+        "!$([$([$([NX3H,NX4H2+]),"
+        "$([NX3](C)(C)(C))]1[CX4H]([CH2][CH2][CH2]1)[CX3](=[OX1])[OX2H,OX1-,N]),"
+        "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H2][CX3](=[OX1])[OX2H,OX1-,N]),"
+        "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H]([$([CH3X4]),"
+        "$([CH2X4][CH2X4][CH2X4][NHX3][CH0X3](=[NH2X3+,NHX2+0])[NH2X3]),"
+        "$([CH2X4][CX3](=[OX1])[NX3H2]),$([CH2X4][CX3](=[OX1])[OH0-,OH]),"
+        "$([CH2X4][SX2H,SX1H0-]),$([CH2X4][CH2X4][CX3](=[OX1])[OH0-,OH]),"
+        "$([CH2X4][#6X3]1:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),"
+        "$([#7X3H])]:[#6X3H]:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),"
+        "$([#7X3H])]:[#6X3H]1),$([CHX4]([CH3X4])[CH2X4][CH3X4]),"
+        "$([CH2X4][CHX4]([CH3X4])[CH3X4]),"
+        "$([CH2X4][CH2X4][CH2X4][CH2X4][NX4+,NX3+0]),"
+        "$([CH2X4][CH2X4][SX2][CH3X4]),"
+        "$([CH2X4][cX3]1[cX3H][cX3H][cX3H][cX3H][cX3H]1),"
+        "$([CH2X4][OX2H]),$([CHX4]([CH3X4])[OX2H]),"
+        "$([CH2X4][cX3]1[cX3H][nX3H][cX3]2[cX3H][cX3H][cX3H][cX3H][cX3]12),"
+        "$([CH2X4][cX3]1[cX3H][cX3H][cX3]([OHX2,OH0X1-])[cX3H][cX3H]1),"
+        "$([CHX4]([CH3X4])[CH3X4])])[CX3](=[OX1])[OX2H,OX1-,N])])]"
+        # "Generic amino acid but not a "standard" amino acid
+        # ("standard" refers to the 20 normal side chains).
+        # Won't hit amino acids that are non-standard due solely to the fact
+        # that groups are terminally-appended to the polypeptide chain (N or C term).
+        # format is [$(generic a.a.); !$(not a standard one)]
+        # Hits single a.a.s and specific residues w/in polypeptides (internal, or terminal)."
+    ),
     # maybe do a loop where we do substructure searches intra-fingerprint
     # any matches get a 'distance' of one
     # additional, unsupported:
@@ -94,6 +127,7 @@ SUBSTRUCTURES = {
 }
 
 
+# test
 class Biosynfoni(Enum):
     co_coa = 0
     co_nadh = 1
@@ -107,23 +141,6 @@ class Biosynfoni(Enum):
     d_c5n_6 = 9
     d_c4n_5 = 10
     d_phenylC3_9 = 11
-    d_phenylC2_8 = 12
-    d_phenylC1_7 = 13
-    d_isoprene_5 = 14
-    d2_acetyl_C2O1 = 15
-    d2_methylmalonyl_C3 = 16
-    d_ethyl_2 = 17
-    d_methyl_1 = 18
-    phosphate_2 = 19
-    sulfonate_2 = 20
-    hal_f = 21
-    hal_cl = 22
-    hal_br = 23
-    hal_i = 24
-    n_nitrate_1 = 25
-    o_epoxy_1 = 26
-    o_ether_1 = 27
-    o_hydroxyl_1 = 28
 
     def as_smarts(self):
         return [SUBSTRUCTURES[x] for x in self.name]
@@ -153,6 +170,9 @@ SUBS_PATHWAYS = {
     # acetate
     "d2_acetyl_C2O1": ["acetate"],
     "d2_methylmalonyl_C3": ["acetate"],
+    # amino acids
+    "allstnd_aminos": ["amino acids"],  # can be pathway-specific later on
+    "nonstnd_aminos": ["amino acids"],  # can be pathway-specific later on
 }
 
 FP_VERSIONS = {
@@ -285,7 +305,40 @@ FP_VERSIONS = {
         "co_coa",
         "co_nadh",
         "co_nadph",
-        "s_openpyr_C6O6", #open ones first 
+        "s_openpyr_C6O6",  # open ones first
+        "s_openfur_C5O5",
+        "s_pyranose_C5O4",
+        "s_furanose_C4O3",
+        "d_indoleC2N_12",
+        "d_phenylC2N_9",
+        "d_c5n_6",
+        "d_c4n_5",
+        "d_phenylC3_9_strict",
+        "d_phenylC2_8_strict",
+        "d_phenylC1_7_strict",
+        "d_isoprene_5",
+        "d2_acetyl_C2O1",
+        "d2_methylmalonyl_C3",
+        "d_ethyl_2",
+        "d_methyl_1",
+        "phosphate_2",
+        "sulfonate_2",
+        "hal_f",
+        "hal_cl",
+        "hal_br",
+        "hal_i",
+        "n_nitrate_1",
+        "o_epoxy_1",
+        "o_ether_1",
+        "o_hydroxyl_1",
+    ],
+    "aa_1018": [  # includes 'full' amino acids
+        "co_coa",
+        "co_nadh",
+        "co_nadph",
+        "allstnd_aminos",
+        "nonstnd_aminos",
+        "s_openpyr_C6O6",  # open ones first
         "s_openfur_C5O5",
         "s_pyranose_C5O4",
         "s_furanose_C4O3",
