@@ -25,9 +25,9 @@ install the package by downloading the repository and in it run "pip install ."
 then it's ready to use!
 you can call the biosynfoni by name as a stand-alone command-line program or import it as a package in your python scripts.
 most basic command line usage example:
-- biosynfoni "<SMILES>" -> prints default biosynfoni version of the molecule
-- biosynfoni "<INCHI>" -> prints default biosynfoni version of the molecule
-- biosynfoni "<path_to_molecule_supplier>" -> writes the biosynfonies of all the supplier's molecule to csv file
+- biosynfoni "\<SMILES\>" -> prints default biosynfoni version of the molecule
+- biosynfoni "\<InChI\>" -> prints default biosynfoni version of the molecule
+- biosynfoni <molecule_supplier.sdf> -> writes the biosynfonies of all the supplier's molecule to csv file
 
 \________________________________________________________________________________
 
