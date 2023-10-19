@@ -24,8 +24,8 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
-from concerto_fp import get_biosynfoni
+from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.concerto_fp import get_biosynfoni
 
 
 # circular fingerprint -------------------------------------------------

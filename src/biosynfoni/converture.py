@@ -39,8 +39,8 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
 
-from inoutput import readr, csv_writr, sdf_writr
-from inoutput import outfile_namer, output_direr
+from biosynfoni.inoutput import readr, csv_writr, sdf_writr
+from biosynfoni.inoutput import outfile_namer, output_direr
 
 
 # ================================ FUNCTIONS ===================================

@@ -20,14 +20,14 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
 
-from def_biosynfoni import (
+from biosynfoni.def_biosynfoni import (
     SUBSTRUCTURES,
     FP_VERSIONS,
     get_smarts,
     DEFAULT_BIOSYNFONI_VERSION,
 )
-from inoutput import outfile_namer, open_json
-import leaf_subs_nod12 as leaffile
+from biosynfoni.inoutput import outfile_namer, open_json
+import biosynfoni.leaf_subs_nod12 as leaffile
 
 
 def sdf_writr(mols: list, outfile: str) -> None:

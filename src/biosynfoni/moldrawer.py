@@ -20,9 +20,9 @@ import typing as ty
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from concerto_fp import get_biosynfoni
-from def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
-from rdkfnx import get_subsset as gss
+from biosynfoni.concerto_fp import get_biosynfoni
+from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.rdkfnx import get_subsset as gss
 
 # Based off of David's code ====================================================
 

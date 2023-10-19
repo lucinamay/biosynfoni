@@ -23,9 +23,9 @@ import time
 from rdkit import Chem
 
 # my imports
-import def_biosynfoni
-from rdkfnx import get_supplier, get_subsset, save_version
-from inoutput import outfile_namer, csv_writr
+from biosynfoni import def_biosynfoni
+from biosynfoni.rdkfnx import get_supplier, get_subsset, save_version
+from biosynfoni.inoutput import outfile_namer, csv_writr
 
 
 # for the
