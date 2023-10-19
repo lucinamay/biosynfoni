@@ -11,7 +11,7 @@
 
   describes methods of retrieval and analysis of (bio)chemical information of\
   substances produced by living organisms, using biosynthetic information.\
-  a concatenation of  *biosynthetic* and *bioinformatics*
+  as a concatenation of  *biosynthetic* and *bioinformatics*, it was coined for the creation of BioSynFoni
 
 \________________________________________________________________________________
  
@@ -34,14 +34,14 @@ most basic command line usage example:
 
 _____ overview of package files ____________________________________________________________________
 
-converture.py | (c)O(n)VERTure | converts file of InChI's or SMILES into a RDKit Chem.Mol object sdf file
-concerto_fp.py 	--  Converconverts RDKit Chem.Mol objects into their respective Biosynfoni fingerprints
-def_biosynfoni 	--  contains the definitions of Biosynfoni (versions of each substructure key, 
-                	versions of collections of substructure keys) as dictionaries
-inoutput.py 	--	collection of input and output handling functions that are reused between codes
+converture.py | (c)O(n)VERTure | converts file of InChI's or SMILES into a RDKit Chem.Mol object sdf file\
+concerto_fp.py 	--  Converconverts RDKit Chem.Mol objects into their respective Biosynfoni fingerprints\
+def_biosynfoni 	--  contains the definitions of Biosynfoni (versions of each substructure key, \
+                	versions of collections of substructure keys) as dictionaries\
+inoutput.py 	--	collection of input and output handling functions that are reused between codes\
 
 
-Other files were used in collection and curation of data, and are written specifically for their data formats. Reuse at own risk.
+Other files (e.g. in 'experiments') were used in collection and curation of data, and are written specifically for their data formats. Reuse at own discretion.
 \____________________________________________________________________________________________________
 
 
