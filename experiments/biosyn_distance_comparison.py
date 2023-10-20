@@ -110,7 +110,10 @@ def similarity(
     fingerprint: str,
     metric: str = "c_tanimoto",
     check_moliness: bool = True,
+    *args,
+    **kwargs
 ) -> float:
+    """args and kwargs are passed to get_biosynfoni"""
     fingerprint = fingerprint.lower()
     metric = metric.lower()
 
@@ -127,8 +130,13 @@ def similarity(
         return np.nan
 
     fp1, fp2 = np.array([]), np.array([])  # init.
-    fp1 = FP_FUNCTIONS[fingerprint](mol1)
-    fp2 = FP_FUNCTIONS[fingerprint](mol2)
+
+    if fingerprint in ["biosynfoni", "binosynfoni", "maccsynfoni","bino_maccs"]:
+         fp1 = FP_FUNCTIONS[fingerprint](mol1, *args, **kwargs)
+         fp2 = FP_FUNCTIONS[fingerprint](mol2, *args, **kwargs)
+    else:
+        fp1 = FP_FUNCTIONS[fingerprint](mol1)
+        fp2 = FP_FUNCTIONS[fingerprint](mol2)
 
     return _fps_to_distance(fp1, fp2, metric=metric)
 
@@ -150,7 +158,7 @@ def get_step_pairs(chain_mols: list, degree_of_sep: int = 1) -> list:
     return pairs
 
 
-def yield_row_from_file(struct_loc: str):
+def yield_row_from_file(struct_loc: str) -> list[str]:
     """yields rows from csv, cleaning up the rows in the process"""
     struct = pd.read_csv(struct_loc, sep="\t", header=None)
     # get headers
@@ -208,9 +216,11 @@ def get_pairs_dist_df(
     labeled_pairs: list[tuple[str, list[str]]],
     fingerprints: list[str] = FP_FUNCTIONS.keys(),
     metric="c_tanimoto",
+    *args,
+    **kwargs
 ) -> pd.DataFrame:
     """gets the distances between molecules, for the given fingerprints
-
+    passes any other args and kwargs to biosynfoni-derived fp functions in similarity 
     only supports inchi_pairs at the moment"""
     prec_strings = [x[1][0] for x in labeled_pairs]
     prod_strings = [x[1][1] for x in labeled_pairs]
@@ -228,14 +238,15 @@ def get_pairs_dist_df(
     for fp_type in fingerprints:
         df[fp_type] = [
             similarity(
-                x[0], x[1], fingerprint=fp_type, metric=metric, check_moliness=False
+                x[0], x[1], fingerprint=fp_type, metric=metric, check_moliness=False,
+                *args, **kwargs
             )
             for x in molpairs
         ]
     return df
 
 
-def _get_comparison_df(struct_loc, max_steps=4, metric="c_tanimoto"):
+def _get_comparison_df(struct_loc, max_steps=4, metric="c_tanimoto", *args, **kwargs):
     current_df = pd.DataFrame()
     for i in range(1, (max_steps + 1), 1):
         previous_df = current_df.copy()
@@ -243,7 +254,7 @@ def _get_comparison_df(struct_loc, max_steps=4, metric="c_tanimoto"):
         dictionary = dictify_pw_pairs(struct_loc, degree_of_sep=degree_of_sep)
         labeled_pairs = _label_pairs(dictionary)
         # labeled_pairs = _label_pairs(dictionary)[:100]
-        current_df = get_pairs_dist_df(labeled_pairs, metric=metric)
+        current_df = get_pairs_dist_df(labeled_pairs, metric=metric, *args, **kwargs)
         current_df["reaction_steps"] = i
         current_df = pd.concat([previous_df, current_df], axis=0)
     return current_df
@@ -321,6 +332,7 @@ def draw_squares(
     pair_columns: tuple[str, str] = ("precursor", "product"),
     squarename: str = "origin",
     highlighting: bool = True,
+    add_text: str = ""
 ) -> None:
     """draws the molecules in the squares
     input: (pd.DataFrame) square_df -- the dataframe containing the squares
@@ -333,12 +345,12 @@ def draw_squares(
             str_to_mol(square_df[pair_columns[1]][i]),
         ]
         pathway = square_df["pathway"][i]
-        outfilename = outfile_namer(f"{squarename}_{pathway}")
+        outfilename = outfile_namer(f"{squarename}_{pathway}", add_text)
         draw_molpair(pair, outfilename, highlighting=highlighting)
     return None
 
 
-def loopsquares(df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=0.2):
+def loopsquares(df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=0.2, add_text=""):
     for fp_type in ["rdkit", "maccs", "morgan"]:
         min_val, max_val = 0.0, 1.0
         min_border = 0.0 + size
@@ -371,10 +383,10 @@ def loopsquares(df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=
             (max_border, max_val),
             (max_border, max_val),
         )
-        draw_squares(left_bottom, squarename=f"{fp_type}_origin")
-        draw_squares(left_top, squarename=f"{fp_type}_left_top")
-        draw_squares(right_bottom, squarename=f"{fp_type}_right_bottom")
-        draw_squares(right_top, squarename=f"{fp_type}_right_top")
+        draw_squares(left_bottom, squarename=f"{fp_type}_origin", add_text=add_text)
+        draw_squares(left_top, squarename=f"{fp_type}_left_top", add_text=add_text)
+        draw_squares(right_bottom, squarename=f"{fp_type}_right_bottom", add_text=add_text)
+        draw_squares(right_top, squarename=f"{fp_type}_right_top", add_text=add_text)
     return None
 
 
@@ -391,15 +403,23 @@ def main():
     else:
         metric = argv[2]
     annotate_taxonomy = False
-    coverage_info = False
+    coverage_info = True
+    blocking_intersub= False
+    blocking_intrasub= False
+    add_text = ""
+    if not blocking_intersub: 
+        add_text = "lessblock"
+        if not blocking_intrasub:
+            add_text = "noblock"
 
     # get all the reaction pairs
-    if not os.path.exists(f"{outfile_namer(metric)}.pickle"):
-        comparison_df = _get_comparison_df(struct_loc, max_steps=4, metric=metric)
+    if not os.path.exists(f"{outfile_namer(metric, add_text)}.pickle"):
+        comparison_df = _get_comparison_df(struct_loc, max_steps=4, metric=metric, 
+                blocking_intersub=blocking_intersub, blocking_intrasub=blocking_intrasub)
         picklr(comparison_df, outfile_namer(metric))
     else:
         print("reading from pickle file")
-        comparison_df = jaropener(f"{outfile_namer(metric)}.pickle")
+        comparison_df = jaropener(f"{outfile_namer(metric, add_text)}.pickle")
     annotated_df = comparison_df
 
     if annotate_taxonomy:
@@ -417,7 +437,7 @@ def main():
             annotated_df,
             com[0],
             com[1],
-            figtitle=f"{metric} for different reaction step numbers",
+            figtitle=f"{metric} for different reaction step numbers {add_text}",
             filename=outfile_namer(f"{com[0]}_{com[1]}_{metric}"),
             auto_open=False,
             # kwargs
@@ -430,7 +450,7 @@ def main():
 
     onestep = annotated_df[annotated_df["stepnum"] == "1"]
 
-    onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
+    onestep.to_csv(f'{outfile_namer("onestep", add_text)}.tsv', sep="\t", index=False)
     print("getting squares...")
     loopsquares(
         onestep,

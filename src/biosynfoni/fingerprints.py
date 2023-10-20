@@ -58,34 +58,36 @@ def maccs_getter(mol: Chem.Mol) -> np.array:
 def biosynfoni_getter(
     mol: Chem.Mol,
     version: str = DEFAULT_BIOSYNFONI_VERSION,
+    *args,
+    **kwargs
 ) -> np.array:
     """returns counted fingerprint list"""
-    counted_fingerprint = get_biosynfoni(mol, version=version, return_matches=False)
+    counted_fingerprint = get_biosynfoni(mol, version=version, return_matches=False, *args, **kwargs)
     return np.array(counted_fingerprint)
 
 
 def maccsynfoni_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
     """returns counted fingerprint list"""
-    counted_fingerprint = biosynfoni_getter(mol, version=version)
+    counted_fingerprint = biosynfoni_getter(mol, version=version, *args, **kwargs)
     maccs = maccs_getter(mol)
     return np.concatenate((counted_fingerprint, maccs))
 
 
 def bino_maccs_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
-    binosynfoni = binosynfoni_getter(mol, version=version)
+    binosynfoni = binosynfoni_getter(mol, version=version, *args, **kwargs)
     maccs = maccs_getter(mol)
     return np.concatenate((binosynfoni, maccs))
 
 
 def binosynfoni_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
     """returns explicit bit vector"""
-    counted = get_biosynfoni(mol, version=version, return_matches=False)
+    counted = get_biosynfoni(mol, version=version, return_matches=False, *args, **kwargs)
     binary = []
     for i in counted:
         if i > 0:
