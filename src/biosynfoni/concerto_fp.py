@@ -23,7 +23,7 @@ import time
 from rdkit import Chem
 
 # my imports
-from biosynfoni import def_biosynfoni
+import biosynfoni.def_biosynfoni
 from biosynfoni.rdkfnx import get_supplier, get_subsset, save_version
 from biosynfoni.inoutput import outfile_namer, csv_writr
 
@@ -231,7 +231,8 @@ def get_biosynfoni(
 ) -> list[int]:
     """given a name of the fp version, uses get_subsset to get
     the set of substructures, passing them todetect_substructures
-    to get the fingerprint. can also pass a substructure set directly"""
+    to get the fingerprint. can also pass a substructure set directly,
+    making it faster if repeated"""
 
     assert (
         version or substructure_set
