@@ -347,6 +347,7 @@ def loop_over_supplier(
 
 
 def handle_outnames(settings: dict) -> str:
+    outname, inname_root, added = "", "", ""  # init
     if not settings["output"]:
         if settings["repr"] == "sdf":
             inname_root = settings["input"][0].split("/")[-1].split(".")[0]
@@ -381,6 +382,7 @@ def main():
     blocking_intersub = not settings["interoverlap"]  # default blocking == True
     blocking_intrasub = not settings["intraoverlap"]  # default blocking == True
     print_fp_only = settings["printonly"]  # default False
+    outname = handle_outnames(settings)
 
     if not print_fp_only:
         print(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
@@ -417,6 +419,7 @@ def main():
         blocking_intersub=blocking_intersub,
         blocking_intrasub=blocking_intrasub,
     )
+
     if coverage_info:
         biosynfonies, coverages = loopres
         if not print_fp_only:
@@ -426,8 +429,6 @@ def main():
             )
     else:
         biosynfonies = loopres
-
-    outname = handle_outnames(settings)
 
     if print_fp_only:
         # print("==============")  # for parsing
