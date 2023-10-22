@@ -175,6 +175,7 @@ def main():
     fingerprintfile = argv[1]
     # fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
     arr = biosyfonis_to_array(fingerprintfile)
+    fpname = fingerprintfile.split("/")[-1].split(".")[0].split("_")[1:]
 
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[2]
@@ -191,7 +192,7 @@ def main():
         tsne_settings, filename=outfile_namer("tsne_settings"), extra=fingerprintfile
     )
 
-    pca_plot(arr, annotfile=annotfile, filename=outfile_namer("pca_bsf"))
+    pca_plot(arr, annotfile=annotfile, filename=outfile_namer(f"{fpname}pca_bsf"))
     pcaed_tsne(
         arr,
         annotfile=annotfile,
@@ -199,7 +200,7 @@ def main():
         verbose=1,
         perplexity=tsne_settings["perplexity"],
         n_iter=tsne_settings["n_iter"],
-        filename=outfile_namer("tsne_pcaed_bsf"),
+        filename=outfile_namer(f"{fpname}_tsne_pcaed_bsf"),
     )
 
     print("done")
