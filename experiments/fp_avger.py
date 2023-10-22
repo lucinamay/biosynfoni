@@ -77,6 +77,7 @@ def fp_heatmap(
     subsnames: list = [],
     bsfname: str = "",
 ):
+    print("saving heatmap")
     height = fp_arr.shape[0]
     fig, ax = plt.subplots()
     if not subsnames:
@@ -90,7 +91,7 @@ def fp_heatmap(
         cbarlabel="number of compounds",
     )
     # texts = annotate_heatmap(im, valfmt="{x:.1f}")
-    texts = annotate_heatmap(im, valfmt="{x:.0e)")
+    texts = annotate_heatmap(im, valfmt="{x:.0e}")
     # plt.figure(figsize=(10,6))
     fig.tight_layout()
     # plt.show()
@@ -115,8 +116,8 @@ def main():
 
     coco_mean = fp_stats(coco, coco_name)
     zinc_mean = fp_stats(zinc, zinc_name)
-    fp_plots(coco, coco_name)
-    fp_plots(zinc, zinc_name)
+    # fp_plots(coco, coco_name)
+    # fp_plots(zinc, zinc_name)
     fp_heatmap(
         heatmap_array(coco, max_height=30),
         coco_name,
