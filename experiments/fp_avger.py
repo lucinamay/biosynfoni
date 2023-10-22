@@ -96,7 +96,7 @@ def fp_heatmap(
     fig.tight_layout()
     # plt.show()
     # for filename, using collection name is nice
-    plt.savefig(f"{outfile_namer(filename, bsfname)}_heatmap.sgv")
+    plt.savefig(f"{outfile_namer(filename, bsfname)}_heatmap.svg")
     return None
 
 
@@ -114,8 +114,8 @@ def main():
     if FP_VERSIONS[bsf_name]:
         substructure_names = FP_VERSIONS[bsf_name]
 
-    coco_mean = fp_stats(coco, coco_name)
-    zinc_mean = fp_stats(zinc, zinc_name)
+    # coco_mean = fp_stats(coco, coco_name)
+    # zinc_mean = fp_stats(zinc, zinc_name)
     # fp_plots(coco, coco_name)
     # fp_plots(zinc, zinc_name)
     fp_heatmap(
@@ -131,7 +131,7 @@ def main():
         bsfname=bsf_name,
     )
 
-    fp_means_plots(coco_mean, zinc_mean, outfile_namer(f"{coco_name}_{zinc_name}.svg"))
+    # fp_means_plots(coco_mean, zinc_mean, outfile_namer(f"{coco_name}_{zinc_name}.svg"))
 
 
 if __name__ == "__main__":
