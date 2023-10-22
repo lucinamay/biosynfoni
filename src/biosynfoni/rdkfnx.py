@@ -93,6 +93,7 @@ def get_subsset(
     # ===========================================================================
     # test for leaf:
     if fp_version_name == "leaf":
+        print("getting leaf substructures")
         return get_leaf_substructures(leaffile.leaf)
 
     if not fp_version_name:
@@ -127,6 +128,11 @@ def save_version(
     # svg_text = fm.drawfp(fp_version, window_size=window_size)
     # with open(f'{outfilename}.svg', 'w') as f:
     #    f.write(svg_text)
+    if fp_version == "leaf":
+        with open(f"{outfilename}.smarts", "w") as f:
+            for leaf in leaffile.leaf:
+                f.write(f"{leaf['name']}\t{leaf['smarts']}\n")
+        return None
 
     smarts = get_smarts(fp_version)
     with open(f"{outfilename}.smarts", "w") as f:

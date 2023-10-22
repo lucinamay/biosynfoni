@@ -1,8 +1,6 @@
 from sys import argv
+import numpy as np
 
-lines = []
-with open(argv[1], "r") as f:
-    for line in f:
-        lines.append(float(line.strip()))
+lines = np.loadtxt(argv[1], dtype=float, delimiter=",")
 
-print(sum(lines) / len(lines))
+print(np.sum(lines) / len(lines))
