@@ -14,10 +14,10 @@
 \_________________________________________________________________________________________
 
 
-\
-_____ usage ____________________________________________________________________
+### usage 🌿
 
 install the package by downloading the repository and in it run `pip install .`\
+(you can do this inside your desired conda environment if you want)\
 then it's ready to use!\
 you can call the biosynfoni by name as a stand-alone command-line program or import it as a package in your python scripts.\
 most basic command line usage example:
@@ -27,21 +27,26 @@ most basic command line usage example:
 
 to explore other options, type `biosynfoni -h` or `biosynfoni --help`
 
-\________________________________________________________________________________
+
+\* for imports into jupyter notebook from a conda environment, you might need to additionally run\
+  `%pip install biosynfoni` in the notebook before it can import biosynfoni.\
+  if it does not work like that either, you might want to check your notebook's `sys.path` and\
+   add `<path>/<to>/condaenv/<path>/<to>/<site-packages>`
 
 
-_____ overview of package files ____________________________________________________________________
 
-converture.py | (c)O(n)VERTure | converts file of `InChI`'s or `SMILES` into a `RDKit Chem.Mol` object `sdf` file\
-concerto_fp.py  |  Convert Chemical E-Representation TO fingerprint | converts `RDKit Chem.Mol` objects into their respective biosynfoni fingerprints\
+
+### overview of package modules 🌿
+
+converture | (c)O(n)VERTure | converts file of `InChI`'s or `SMILES` into a `RDKit Chem.Mol` object `sdf` file\
+concerto_fp  |  Convert Chemical E-Representation TO fingerprint | converts `RDKit Chem.Mol` objects into their respective biosynfoni fingerprints\
 def_biosynfoni 	| contains the definitions of biosynfoni (versions of each substructure key, \
                 	versions of collections of substructure keys) as dictionaries\
-inoutput.py 	|	collection of input and output handling functions that are reused between codes\
+inoutput 	|	collection of input and output handling functions that are reused between codes\
 
 
-other files (e.g. in 'experiments') were used in collection and curation of data, and are written specifically for their data formats. Reuse at own discretion.
+other files (e.g. in 'experiments') were used in collection and curation of data, and are written for specific scopes.\
+reuse at own discretion.
 
-
-\____________________________________________________________________________________________________
 
 
