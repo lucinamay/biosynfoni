@@ -175,7 +175,7 @@ def main():
     fingerprintfile = argv[1]
     # fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
     arr = biosyfonis_to_array(fingerprintfile)
-    fpname = fingerprintfile.split("/")[-1].split(".")[0].split("_")[1:]
+    fpname = '_'.join(fingerprintfile.split("/")[-1].split(".")[0].split("_")[1:])
 
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[2]

@@ -27,8 +27,8 @@ from biosynfoni.def_biosynfoni import (
     DEFAULT_BIOSYNFONI_VERSION,
 )
 from biosynfoni.inoutput import outfile_namer, open_json
-import biosynfoni.leaf_subs_nod12 as leaffile
-
+#import biosynfoni.leaf_subs_nod12 as leaffile
+import biosynfoni.new_leaf as leaffile
 
 def sdf_writr(mols: list, outfile: str) -> None:
     """writes sdf of mols,

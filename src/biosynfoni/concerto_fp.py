@@ -21,6 +21,7 @@ import argparse
 import time
 
 from rdkit import Chem
+import numpy as np
 
 # my imports
 from biosynfoni import def_biosynfoni
@@ -441,7 +442,8 @@ def main():
                 print(*row, sep=",")
     else:
         print(f"writing {len(biosynfonies)} biosynfonies to file...")
-        csv_writr(biosynfonies, outname, sep=",")
+        biosynfonies_array = np.array(biosynfonies)
+        np.savetxt(biosynfonies_array, outname,fmt="%i", delimiter=",")
         if input_type != "sdf":
             with open(f"{outname}_input.txt", "w") as f:
                 f.write("\n".join([x for x in inputlist if x not in errors]))
