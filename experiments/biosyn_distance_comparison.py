@@ -432,7 +432,7 @@ def main():
             blocking_intersub=blocking_intersub,
             blocking_intrasub=blocking_intrasub,
         )
-        picklr(comparison_df, outfile_namer(metric))
+        picklr(comparison_df, outfile_namer(metric, add_text))
     else:
         print("reading from pickle file")
         comparison_df = jaropener(f"{outfile_namer(metric, add_text)}.pickle")
