@@ -111,7 +111,7 @@ def similarity(
     metric: str = "c_tanimoto",
     check_moliness: bool = True,
     *args,
-    **kwargs
+    **kwargs,
 ) -> float:
     """args and kwargs are passed to get_biosynfoni"""
     fingerprint = fingerprint.lower()
@@ -131,9 +131,9 @@ def similarity(
 
     fp1, fp2 = np.array([]), np.array([])  # init.
 
-    if fingerprint in ["biosynfoni", "binosynfoni", "maccsynfoni","bino_maccs"]:
-         fp1 = FP_FUNCTIONS[fingerprint](mol1, *args, **kwargs)
-         fp2 = FP_FUNCTIONS[fingerprint](mol2, *args, **kwargs)
+    if fingerprint in ["biosynfoni", "binosynfoni", "maccsynfoni", "bino_maccs"]:
+        fp1 = FP_FUNCTIONS[fingerprint](mol1, *args, **kwargs)
+        fp2 = FP_FUNCTIONS[fingerprint](mol2, *args, **kwargs)
     else:
         fp1 = FP_FUNCTIONS[fingerprint](mol1)
         fp2 = FP_FUNCTIONS[fingerprint](mol2)
@@ -217,10 +217,10 @@ def get_pairs_dist_df(
     fingerprints: list[str] = FP_FUNCTIONS.keys(),
     metric="c_tanimoto",
     *args,
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """gets the distances between molecules, for the given fingerprints
-    passes any other args and kwargs to biosynfoni-derived fp functions in similarity 
+    passes any other args and kwargs to biosynfoni-derived fp functions in similarity
     only supports inchi_pairs at the moment"""
     prec_strings = [x[1][0] for x in labeled_pairs]
     prod_strings = [x[1][1] for x in labeled_pairs]
@@ -238,8 +238,13 @@ def get_pairs_dist_df(
     for fp_type in fingerprints:
         df[fp_type] = [
             similarity(
-                x[0], x[1], fingerprint=fp_type, metric=metric, check_moliness=False,
-                *args, **kwargs
+                x[0],
+                x[1],
+                fingerprint=fp_type,
+                metric=metric,
+                check_moliness=False,
+                *args,
+                **kwargs,
             )
             for x in molpairs
         ]
@@ -332,7 +337,7 @@ def draw_squares(
     pair_columns: tuple[str, str] = ("precursor", "product"),
     squarename: str = "origin",
     highlighting: bool = True,
-    add_text: str = ""
+    add_text: str = "",
 ) -> None:
     """draws the molecules in the squares
     input: (pd.DataFrame) square_df -- the dataframe containing the squares
@@ -350,7 +355,9 @@ def draw_squares(
     return None
 
 
-def loopsquares(df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=0.2, add_text=""):
+def loopsquares(
+    df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=0.2, add_text=""
+):
     for fp_type in ["rdkit", "maccs", "morgan"]:
         min_val, max_val = 0.0, 1.0
         min_border = 0.0 + size
@@ -385,7 +392,9 @@ def loopsquares(df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=
         )
         draw_squares(left_bottom, squarename=f"{fp_type}_origin", add_text=add_text)
         draw_squares(left_top, squarename=f"{fp_type}_left_top", add_text=add_text)
-        draw_squares(right_bottom, squarename=f"{fp_type}_right_bottom", add_text=add_text)
+        draw_squares(
+            right_bottom, squarename=f"{fp_type}_right_bottom", add_text=add_text
+        )
         draw_squares(right_top, squarename=f"{fp_type}_right_top", add_text=add_text)
     return None
 
@@ -404,18 +413,25 @@ def main():
         metric = argv[2]
     annotate_taxonomy = False
     coverage_info = True
-    blocking_intersub= False
-    blocking_intrasub= False
+    blocking_intersub = False
+    blocking_intrasub = False
     add_text = ""
-    if not blocking_intersub: 
+    if not blocking_intersub:
         add_text = "lessblock"
         if not blocking_intrasub:
             add_text = "noblock"
+    if blocking_intersub and blocking_intrasub:
+        add_text = "block"
 
     # get all the reaction pairs
     if not os.path.exists(f"{outfile_namer(metric, add_text)}.pickle"):
-        comparison_df = _get_comparison_df(struct_loc, max_steps=4, metric=metric, 
-                blocking_intersub=blocking_intersub, blocking_intrasub=blocking_intrasub)
+        comparison_df = _get_comparison_df(
+            struct_loc,
+            max_steps=4,
+            metric=metric,
+            blocking_intersub=blocking_intersub,
+            blocking_intrasub=blocking_intrasub,
+        )
         picklr(comparison_df, outfile_namer(metric))
     else:
         print("reading from pickle file")

@@ -21,7 +21,7 @@ from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 
 from biosynfoni.concerto_fp import get_biosynfoni
-from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION, FP_VERSIONS
 from biosynfoni.rdkfnx import get_subsset as gss
 
 # Based off of David's code ====================================================
@@ -132,7 +132,7 @@ class Palette(Enum):
 def draw(
     mol: Chem.Mol,
     subs: ty.List[ty.List[tuple[tuple[int]]]] = [],
-    subs_names: ty.List[str] = DEFAULT_BIOSYNFONI_VERSION,
+    subs_names: ty.List[str] = FP_VERSIONS[DEFAULT_BIOSYNFONI_VERSION],
     window_size: ty.Tuple[int, int] = (800, 800),
     background_color: ty.Optional[str] = None,
     get_match_highlighting: bool = False,
