@@ -26,6 +26,41 @@ from biosynfoni.rdkfnx import get_subsset as gss
 
 # Based off of David's code ====================================================
 
+coloured_subs = {
+    "d_indoleC2N_12": (0.65, 0.51, 0.71),
+    "d_phenylC2N_9": (0.65, 0.51, 0.71),
+    # acetate
+    "d_c5n_6": (1, 0.55, 0.38),
+    "d_c4n_5": (1, 0.55, 0.38),
+    # shikimate
+    "d_phenylC3_9_1007": (0.65, 0.51, 0.71),
+    "d_phenylC2_8_1007": (0.65, 0.51, 0.71),
+    "d_phenylC1_7_1007": (0.65, 0.51, 0.71),
+    "d_phenylC3_9": (0.65, 0.51, 0.71),
+    "d_phenylC2_8": (0.65, 0.51, 0.71),
+    "d_phenylC1_7": (0.65, 0.51, 0.71),
+    "d_phenylC3_9_strict": (0.65, 0.51, 0.71),
+    "d_phenylC2_8_strict": (0.65, 0.51, 0.71),
+    "d_phenylC1_7_strict": (0.65, 0.51, 0.71),
+    # mevalonate/MEP
+    "d_isoprene_5": (0.61, 0.76, 0.73),
+    # acetate, aromaticity ok
+    "d_ethyl_2": (1, 0.55, 0.38),
+    "d_methyl_1": (1, 0.55, 0.38),
+    # sugar-related --------------------------------------------------------
+    "s_pyranose_C5O4": (1, 0.77, 0.81),
+    "s_furanose_C4O3": (1, 0.77, 0.81),
+    "s_openpyr_C6O6": (1, 0.77, 0.81),
+    "s_openfur_C5O5": (1, 0.77, 0.81),
+    # additional from dewick -----------------------------------------------
+    # acetate
+    "d2_acetyl_C2O1": (1, 0.55, 0.38),
+    "d2_methylmalonyl_C3": (1, 0.55, 0.38),
+    # amino acids:
+    "allstnd_aminos": (1, 0.92, 0.63),
+    "nonstnd_aminos": (1, 0.92, 0.63),
+}
+
 
 class Palette(Enum):
     """
@@ -97,6 +132,7 @@ class Palette(Enum):
 def draw(
     mol: Chem.Mol,
     subs: ty.List[ty.List[tuple[tuple[int]]]] = [],
+    subs_names: ty.List[str] = DEFAULT_BIOSYNFONI_VERSION,
     window_size: ty.Tuple[int, int] = (800, 800),
     background_color: ty.Optional[str] = None,
     get_match_highlighting: bool = False,
@@ -128,7 +164,10 @@ def draw(
 
     for i, sub in enumerate(subs):
         atom_indices = []
-        color = palette[i % len(palette)]
+        if subs_names[i] not in coloured_subs.keys():
+            color = palette[i % len(palette)]
+        else:
+            color = coloured_subs[subs_names[i]]
 
         for match in sub:
             # individual substructure-match indices
