@@ -34,6 +34,11 @@ to explore other options, type `biosynfoni -h` or `biosynfoni --help`
    add `<path>/<to>/condaenv/<path>/<to>/<site-packages>`
 
 
+### biosynfoni versions / options / substructure descriptions
+current 'default version' == 'strictphenyl_1016' | no amino acids, no >6C rings\
+default setting for blocking : block (change with flags: see `biosynfoni -h` or `biosynfoni --help` for more info\
+newer versions not yet set as default version\
+rest of info: under construction...\
 
 
 ### overview of package modules 🌿
