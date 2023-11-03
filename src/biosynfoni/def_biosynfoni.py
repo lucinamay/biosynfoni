@@ -119,6 +119,10 @@ SUBSTRUCTURES = {
     # maybe do a loop where we do substructure searches intra-fingerprint
     # any matches get a 'distance' of one
     # additional, unsupported:
+    "r_c3": "[#6]~1~[#6]~[#6]~1",
+    "r_c4": "[#6]~1~[#6]~[#6]~[#6]~1",
+    "r_c5": "[#6]~1~[#6]~[#6]~[#6]~[#6]~1",
+    "r_c6": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~1",
     "r_c7": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
     "r_c8": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
     "r_c9": "[#6]~1~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~[#6]~1",
@@ -397,6 +401,10 @@ FP_VERSIONS = {
         "o_epoxy_1",
         "o_ether_1",
         "o_hydroxyl_1",
+        "r_c3",
+        "r_c4",
+        "r_c5",
+        "r_c6",
         "r_c7",
         "r_c8",
         "r_c9",
