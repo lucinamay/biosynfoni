@@ -16,7 +16,7 @@
 
 ### usage 🌿
 
-install the package by downloading the repository and in it run `pip install .`\
+install the package by downloading the repository and in it run `pip install .` (requires `python > 3.9 `)\
 (you can do this inside your desired conda environment if you want)\
 then it's ready to use!\
 you can call the biosynfoni by name as a stand-alone command-line program or import it as a package in your python scripts.\
@@ -34,6 +34,11 @@ to explore other options, type `biosynfoni -h` or `biosynfoni --help`
    add `<path>/<to>/condaenv/<path>/<to>/<site-packages>`
 
 
+### biosynfoni versions / options / substructure descriptions
+current 'default version' == 'strictphenyl_1016' | no amino acids, no >6C rings\
+default setting for blocking : block (change with flags: see `biosynfoni -h` or `biosynfoni --help` for more info\
+newer versions not yet set as default version\
+rest of info: under construction...\
 
 
 ### overview of package modules 🌿
