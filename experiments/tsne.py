@@ -21,17 +21,13 @@ sys.path.append(
     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
 )
 from biosynfoni.inoutput import outfile_namer, picklr, jaropener
+from biosynfoni.fingerprints import countanimoto
 
 # parameters
 
 
 def biosyfonis_to_array(fingerprint_file: str) -> np.array:
-    data = []
-    with open(fingerprint_file, "r") as f:
-        for line in f:
-            data.append([int(x) for x in line.strip().split(",")])
-    data = np.array(data)
-    return data
+    return np.loadtxt(fingerprint_file, delimiter=",", dtype=int)
 
 
 def pcaer(data: np.array, n_components: int = 50, random_state=1):
@@ -41,6 +37,18 @@ def pcaer(data: np.array, n_components: int = 50, random_state=1):
     pcaed = pca.transform(data)
     var = pca.explained_variance_
     return pcaed, var
+
+
+def distance_matrix(arr: np.array, metric: str = "euclidean") -> np.array:
+    """returns distance matrix of array"""
+    if metric == "euclidean":
+        return np.array([[np.linalg.norm(i - j) for j in arr] for i in arr])
+    if metric == "tanimoto":
+        return np.array([[1.0 - countanimoto([i, j]) for j in arr] for i in arr])
+    if metric == "manhattan":
+        # not checked!!!!!!!!!!!!
+        print("warning: not checked!! check formula for manhattan distance")
+        return np.array([[np.linalg.norm(i - j, ord=1) for j in arr] for i in arr])
 
 
 def tsner(
@@ -127,15 +135,22 @@ def pcaed_tsne(
     # run initial pca to reduce computational time
     n_components = len(arr[0])
     n_components = 10
-    pcaed, _ = pcaer(arr, n_components=n_components, random_state=333)
 
-    print("running tsne...")
+    # print("running pca for initialisation...")
+    # pcaed, _ = pcaer(arr, n_components=n_components, random_state=333)
+
+    # start with array:
+    pcaed = arr
+
+    print("running tsne on precomputed distance matrix...")
     tsne_comp = tsner(
         pcaed,
         n_components=2,
         perplexity=50,
         n_iter=500,
         verbose=verbose,
+        metric="precomputed",
+        init="random",  # pca init cannot be used with precomputed distance matrices
         *args,
         **kwargs,
     )
@@ -175,7 +190,7 @@ def main():
     fingerprintfile = argv[1]
     # fingerprintfile = '1008_coconut_bsf/1008_0814_COCONUT_DB_rdk_bsf.bsf'
     arr = biosyfonis_to_array(fingerprintfile)
-    fpname = '_'.join(fingerprintfile.split("/")[-1].split(".")[0].split("_")[1:])
+    fpname = "_".join(fingerprintfile.split("/")[-1].split(".")[0].split("_")[1:])
 
     # annotfile: the npcs.tsv or other classification infromation for colour
     annotfile = argv[2]
@@ -194,13 +209,14 @@ def main():
 
     pca_plot(arr, annotfile=annotfile, filename=outfile_namer(f"{fpname}pca_bsf"))
     pcaed_tsne(
-        arr,
+        # arr,
+        distance_matrix(arr, metric="tanimoto"),
         annotfile=annotfile,
         initial_pca_components=tsne_settings["initial_pca_components"],
         verbose=1,
         perplexity=tsne_settings["perplexity"],
         n_iter=tsne_settings["n_iter"],
-        filename=outfile_namer(f"{fpname}_tsne_pcaed_bsf"),
+        filename=outfile_namer(f"{fpname}_tsne_tanimoto_bsf"),
     )
 
     print("done")
