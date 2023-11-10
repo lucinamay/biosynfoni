@@ -443,7 +443,7 @@ def main():
     else:
         print(f"writing {len(biosynfonies)} biosynfonies to file...")
         biosynfonies_array = np.array(biosynfonies)
-        np.savetxt(biosynfonies_array, outname,fmt="%i", delimiter=",")
+        np.savetxt(fname=outname, X=biosynfonies_array, fmt="%i", delimiter=",")
         if input_type != "sdf":
             with open(f"{outname}_input.txt", "w") as f:
                 f.write("\n".join([x for x in inputlist if x not in errors]))
