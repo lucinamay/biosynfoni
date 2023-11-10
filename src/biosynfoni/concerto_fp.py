@@ -441,7 +441,7 @@ def main():
             else:
                 print(*row, sep=",")
     else:
-        print(f"writing {len(biosynfonies)} biosynfonies to file...")
+        print(f"writing {len(biosynfonies)} biosynfonies to {outname}...")
         biosynfonies_array = np.array(biosynfonies)
         np.savetxt(fname=outname, X=biosynfonies_array, fmt="%i", delimiter=",")
         if input_type != "sdf":
