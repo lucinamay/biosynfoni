@@ -31,7 +31,8 @@ from biosynfoni.inoutput import outfile_namer, csv_writr
 
 # for the
 DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
-# =========================== per-mol functions ===============================
+
+# ============================= INPUT HANDLING =================================
 
 
 def cli():
@@ -152,6 +153,10 @@ def cli():
     if (len(args["input"]) == 1) and (not args["save"]) and (not args["repr"] == "sdf"):
         args["printonly"] = True
     return args
+
+
+# ============================= MAIN FUNCTIONS  =================================
+# -------------------------- per-mol functions ---------------------------------
 
 
 def detect_substructures(
@@ -308,6 +313,9 @@ def get_coverage(mol: Chem.Mol, matches: list[tuple[tuple[int]]]) -> float:
     return coverage
 
 
+# ------------------------------ multiple mols ----------------------------------
+
+
 def loop_over_supplier(
     supplier: Chem.SDMolSupplier,  # or list of mols
     fp_version: str = "",
@@ -347,6 +355,9 @@ def loop_over_supplier(
         return fingerprint_collection
 
 
+# ============================= OUTPUT HANDLING =================================
+
+
 def handle_outnames(settings: dict) -> str:
     outname, inname_root, added = "", "", ""  # init
     if not settings["output"]:
@@ -371,7 +382,7 @@ def handle_outnames(settings: dict) -> str:
     return outname
 
 
-# ==========================  main ============================================
+# ==============================  MAIN =======================================
 
 
 def main():
