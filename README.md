@@ -53,8 +53,17 @@ inoutput 	|	collection of input and output handling functions that are reused be
 other files (e.g. in 'experiments') were used in collection and curation of data, and are written for specific scopes.\
 reuse at own discretion.
 
-### repository url
-https://github.com/lucinamay/biosynfoni
+### FAIR principle-advised information
+findability & accessability:\
+-URL to the repository/code: https://github.com/lucinamay/biosynfoni\
+interoperability:\
+-dependencies: rdkit, numpy, python>=3.9\ 
+-related data: 
+	- natural product database https://coconut.naturalproducts.net | https://doi.org/10.1186/s13321-020-00478-9, 
+	-synthetic products were filtered out from zinc.: https://zinc.docking.org | https://pubs.acs.org/doi/10.1021/acs.jcim.0c00675 \
+-related software: n.a.\
+reusability
+-licence: MIT (see LICENCE file)
 
 
 
