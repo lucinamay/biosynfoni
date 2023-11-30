@@ -53,5 +53,8 @@ inoutput 	|	collection of input and output handling functions that are reused be
 other files (e.g. in 'experiments') were used in collection and curation of data, and are written for specific scopes.\
 reuse at own discretion.
 
+### repository url
+https://github.com/lucinamay/biosynfoni
+
 
 
