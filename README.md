@@ -57,7 +57,7 @@ reuse at own discretion.
 findability & accessability:\
 -URL to the repository/code: https://github.com/lucinamay/biosynfoni\
 interoperability:\
--dependencies: rdkit, numpy, python>=3.9\ 
+-dependencies: rdkit, numpy,tqdm, python>=3.9\ 
 -related data: 
 	- natural product database https://coconut.naturalproducts.net | https://doi.org/10.1186/s13321-020-00478-9, 
 	-synthetic products were filtered out from zinc.: https://zinc.docking.org | https://pubs.acs.org/doi/10.1021/acs.jcim.0c00675 \
