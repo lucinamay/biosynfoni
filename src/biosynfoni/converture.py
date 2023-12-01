@@ -13,134 +13,137 @@ ____________________________________
 
 description:    parses (COCONUT) CDK-style sdf's for its CNP-ID, SMILEs,
                 InChi and molecular formula, returning 
-                [0] a sdf of mol objects
-                [1] a tsv with related info for further use in fingerprinter 
-                    program
-                    [0] CNP-ID
-                    [1] InChi
-                    [2] SMILES
-                    [3] molecular formula
-                    [4] NPLS
-                [2] a csv with stats on errors
-                    [0] (str) -- CNP-ID of entry causing InChi2mol errors
-                    [1] (str) -- CNP-ID of entry causing SMILES2mol errors
-                    [2] (list) -- CNP-ID of entries causing errors in both
-                    [3] (int)  -- total number of entries
-
-style:          attempting to follow PEP8 styleguide
 
 """
 # --------------------------------- IMPORTS-------------------------------------
-from sys import argv
+import argparse
 from datetime import date
 import os
+from Enum import enum
 
+from tqdm import tqdm
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger  # for muting warnings
 
-from biosynfoni.inoutput import readr, csv_writr, sdf_writr
-from biosynfoni.inoutput import outfile_namer, output_direr
+from biosynfoni.inoutput import readr
 
 
 # ================================ FUNCTIONS ===================================
 
+def cli() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i","--input", type=str, required=True, help="Path to SDF file containing molecules.")
+    parser.add_argument("-o","--output", type=str, required=True, help="Path to SDF file containing rdkit-loadable molecular represenations in the properties.")
+    parser.add_argument("-x", "--exclusive", type=str, default=None, choices= [None, "smiles", "inchi"],
+        help="Represenation of intererst. Default chooses inchi and smiles, with preference of inchi")
+    return parser.parse_args()
+
 # ================================ converter ====================================
 
 
-def propertifier(sdf_entries):  # 22 sec
+def propertifier(sdf_entries)->dict[int,str]:  # 22 sec
     """lst of properties in entry as follows:
     every entry is [[coconut_id],[inchi],[smiles],[molecular_formula],[NPLS]]
     #for later:     [molecular weight], [name],]
     """
-    entries_properties = []
-    for entry in sdf_entries:
-        # print(entry)
+    entries_properties = {}
+    for ind, entry in tqdm(enumerate(sdf_entries)):
+        entries_properties[ind]={}
         i = 0
-        coconut_id, inchi, smiles, molecular_formula = "", "", "", ""
-        NPLS = ""
+        #coconut_id, inchi, smiles, molecular_formula = "", "", "", ""
+        #NPLS = ""
         for i in range(len(entry)):
-            if entry[i] == "> <coconut_id>":
-                coconut_id = entry[i + 1]
-            elif entry[i] == "> <inchi>":
-                inchi = entry[i + 1]
-            elif entry[i] == "> <SMILES>":
-                smiles = entry[i + 1]
-            elif entry[i] == "> <molecular_formula>":
-                molecular_formula = entry[i + 1]
-            elif entry[i] == "> <NPL_score>":
-                NPLS = entry[i + 1]
-        entries_properties.append([coconut_id, inchi, smiles, molecular_formula, NPLS])
-
+            if entry[i].startswith("> <"):
+                key = entry[i].split('<')[-1].strip(">")
+                entries_properties[ind][key] = entry[i+1]
     return entries_properties
 
 
-def molifier(NP_property_list, representation_info=False, stats_out=True):
-    """makes mol class out of the NPs from database, using InChi formula,
-    if InChi formula is not correct, it tries the SMILES. Keeps track of errors
-    in InChi and SMILES, by adding the error-causing entries to the respective
-    error-collection
-    input:  (list) NP_property_list -- list of entries where
-                    [0] CNP-ID
-                    [1] InChi
-                    [2] SMILES
-                    [3] molecular formula
-                    [4] NPLS (NaPLeS)
-            (bool) stats_out = True -- yes or no return stats
-
-    returns:    (list) all_mols -- mol classes of all successful inchi/smiles
-                (list) prop_list --
-                    [0] CNP-ID
-                    [1] InChi
-                    [2] SMILES
-                    [3] molecular formula
-                    [4] NPLS (NaPLeS)
-                (list) stats -- if set to true, returns
-                    [0] (str) -- entry CNP causing InChi2mol errors
-                    [1] (str) -- entry CNP causing SMILES2mol errors
-                    [2] (list) -- entries causing errors in both
-                    [3] (int)  -- total number of entries
+def molify_lists(entries_properties:dict)-> tuple[list]:
+    """converts molecule representations to Chem.Mol objects.
+    using this function keeps all mols in memory so repr_to_annotated_sdf is 
+    recommended over this+sdf_writer
+    input:  (dict) entries_properties -- dict of annotations per entry
+                                        should contain 'inchi' and 'SMILES'
+                                        in keys
+    returns:    (list) all_mols -- mol list of all successful mols in either
+                                inchi or smiles
+                (list) inchi_mols -- mol list of all successful inchi mols
+                (list) smiles_mols -- mol list of all successful smiles mols
     """
-    inchiNone = []
-    smilesNone = []
-    bothNone = []
-    all_mols = []
-    prop_list = []
+    any_mols = []
+    inchi_mols = []
+    smiles_mols = []
 
-    for entry in NP_property_list:
-        smiles_mol = Chem.MolFromSmiles(entry[2])
-        inchi_mol = Chem.MolFromInchi(entry[1])
+    for ind, properties in entries_properties.items():
+        inchi_mol = Chem.MolFromInchi(properties['inchi'])
+        smiles_mol = Chem.MolFromSmiles(properties['SMILES'])
         if inchi_mol is not None:
-            all_mols.append(inchi_mol)
-            if not representation_info:
-                prop_list.append([entry[0]] + entry[3:])
-                # avoiding faulty represent.
-            elif representation_info:
-                prop_list.append(entry)
-        elif smiles_mol is not None:
-            all_mols.append(smiles_mol)
-            if not representation_info:
-                prop_list.append([entry[0]] + entry[3:])
-                # avoiding faulty represent.
-            elif representation_info:
-                prop_list.append(entry)
+            for key, val in properties.items():
+                inchi_mol.SetProp(key, str(val))
+            inchi_mol.SetProp('rec_inchi', Chem.MolToInchi(inchi_mol))
+            inchi_mol.SetProp('rec_smiles', Chem.MolToSmiles(inchi_mol))
+            inchi_mol.SetProp('rec_inchikey', Chem.MolToInchiKey(inchi_mol))
+            inchi_mol.SetProp('coco_index', ind)
+            inchi_mols.append(inchi_mol)
+        if smiles_mol is not None:
+            for key, val in properties.items():
+                smiles_mol.SetProp(key, str(val))
+            smiles_mol.SetProp('rec_inchi', Chem.MolToInchi(smiles_mol))
+            smiles_mol.SetProp('rec_smiles', Chem.MolToSmiles(smiles_mol))
+            smiles_mol.SetProp('rec_inchikey', Chem.MolToInchiKey(smiles_mol))
+            smiles_mol.SetProp('coco_index', ind)
+            smiles_mols.append(smiles_mol)
         else:  # these do not end up in the mol collection
-            print("{} not successfully molified".format(entry[0]))
-        # stats
-        if stats_out:
-            if inchi_mol is None:
-                inchiNone.append(entry[0])
-            if smiles_mol is None:
-                smilesNone.append(entry[0])
-            if (smiles_mol is None) and (inchi_mol is None):
-                bothNone.append(entry[0])
-    print("done with molifying  all entries")
+            with open('converture.err', 'a') as errors:
+                errors.write(ind, properties)
+        if inchi_mol:
+            all_mols.append(inchi_mol)
+        elif smiles_mol:
+            all_mols.append(smiles_mol)
     # output (yes or no stats)
-    if stats_out:
-        stats = [inchiNone, smilesNone, bothNone, len(NP_property_list)]
-        return all_mols, prop_list, stats
-    else:
-        return all_mols, prop_list
+    return all_mols, inchi_mols, smiles_mols
+
+def repr_to_annotated_sdf(
+        entries_properties:dict, 
+        new_sdf_name:str
+        exclusive_repr:str = None):
+    
+    wr = Chem.SDWriter(new_sdf_name)
+
+    for ind, properties in tqdm(entries_properties.items()):
+        mol = None #init.
+        
+        if not exclusive_repr == 'inchi':
+            smiles_mol = Chem.MolFromSmiles(properties['SMILES'])
+        if not exclusive_repr == 'SMILES':
+            inchi_mol = Chem.MolFromInchi(properties['inchi'])
+        
+        #get any properly converted version of the molecule
+        if inchi_mol is not None:
+            mol = inchi_mol
+        elif smiles_mol is not None:
+            mol = smiles_mol
+        
+        #add properties
+        if mol:
+            for key, val in properties.items():
+                mol.SetProp(key, str(val))
+            mol.SetProp('rec_inchi', Chem.MolToInchi(mol))
+            mol.SetProp('rec_smiles', Chem.MolToSmiles(mol))
+            mol.SetProp('rec_inchikey', Chem.MolToInchiKey(mol))
+            mol.SetProp('coco_index', ind)
+            wr.write(mol)
+        else:  
+            # write unconverted mol properties to error file
+            with open('converture.err', 'a') as errors:
+                errors.write(ind, properties)
+
+    wr.close()
+    return None
+    
+
+
 
 
 # ================================= output =====================================
@@ -153,33 +156,22 @@ def sdf_writr(mols, outfile):
         writer.write(mol)
 
 
+
+
 # ++++++++++++++++++++++++++++++++++ main ++++++++++++++++++++++++++++++++++++++
 
 
 def main():
     # input
-    cdk_sdf = argv[1]
-
+    args = cli()
     print("\n", 10 * "=", "\n", "cOnVERTURE", "\n", 10 * "=", "\n")
     # handling
-    lines = readr(cdk_sdf)
+    lines = readr(args.input)
     sdf_entries = entry_parser(lines)
     properties = propertifier(sdf_entries)
-    all_mols, ids_props, stats = molifier(properties, representation_info=True)
-
-    # output
-    actual_name = cdk_sdf.strip(".sdf").split("/")[-1]
-    outfile_name = outfile_namer(actual_name)  # str
-
-    out_rdk_sdf_name = "".join(outfile_name + "_rdk.sdf")
-    out_info_name = "".join(outfile_name + "_info.tsv")
-    out_stats_name = "".join(outfile_name + "_stats.csv")
-
-    output_direr("./output")
-
-    sdf_writr(all_mols, out_rdk_sdf_name)
-    csv_writr(ids_props, out_info_name, sep="\t")
-    csv_writr(stats, out_stats_name)
+    #all_mols, ids_props, stats = molifier(properties, representation_info=True)
+    repr_to_annotated_sdf(properties,args.output,exclusive_repr=args.exclusive)
+    print("~~~done~~~")
 
     return None
 
