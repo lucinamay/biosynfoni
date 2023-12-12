@@ -56,13 +56,12 @@ def maccs_getter(mol: Chem.Mol) -> np.array:
 
 
 def biosynfoni_getter(
-    mol: Chem.Mol,
-    version: str = DEFAULT_BIOSYNFONI_VERSION,
-    *args,
-    **kwargs
+    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
     """returns counted fingerprint list"""
-    counted_fingerprint = get_biosynfoni(mol, version=version, return_matches=False, *args, **kwargs)
+    counted_fingerprint = get_biosynfoni(
+        mol, version=version, return_matches=False, *args, **kwargs
+    )
     return np.array(counted_fingerprint)
 
 
@@ -87,7 +86,9 @@ def binosynfoni_getter(
     mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
     """returns explicit bit vector"""
-    counted = get_biosynfoni(mol, version=version, return_matches=False, *args, **kwargs)
+    counted = get_biosynfoni(
+        mol, version=version, return_matches=False, *args, **kwargs
+    )
     binary = []
     for i in counted:
         if i > 0:
@@ -127,8 +128,11 @@ def bitvect_to_cosine(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> flo
 # ----------------------------- similarity -----------------------------------
 def counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
     nom = sum(np.minimum(fp1, fp2))  # overlap
-    denom = float(sum(np.maximum(fp1, fp2)))  # all bits 'on'
-    return nom / denom
+    denom = float(sum(np.maximum(fp1, fp2)))  # all bits that are 'on'
+    if denom == 0:
+        return -1  # fingerprint does not describe either molecule
+    else:
+        return nom / denom
 
 
 def countanimoto(pair: list) -> float:
