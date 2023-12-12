@@ -7,6 +7,7 @@ setuptools.setup(
     install_requires=[
         "numpy",
         "rdkit",
+        "tqdm",
         ],
     package_dir={"": "src"},
     packages=["biosynfoni"],
