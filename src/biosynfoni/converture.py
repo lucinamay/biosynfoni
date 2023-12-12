@@ -19,13 +19,13 @@ description:    parses (COCONUT) CDK-style sdf's for its CNP-ID, SMILEs,
 import argparse
 from datetime import date
 import os
-from Enum import enum
+from enum import Enum
 
 from tqdm import tqdm
 from rdkit import Chem
 from rdkit import RDLogger  # for muting warnings
 
-from biosynfoni.inoutput import readr
+from biosynfoni.inoutput import readr, entry_parser
 
 
 # ================================ FUNCTIONS ===================================
@@ -84,7 +84,7 @@ def molify_lists(entries_properties:dict)-> tuple[list]:
             inchi_mol.SetProp('rec_inchi', Chem.MolToInchi(inchi_mol))
             inchi_mol.SetProp('rec_smiles', Chem.MolToSmiles(inchi_mol))
             inchi_mol.SetProp('rec_inchikey', Chem.MolToInchiKey(inchi_mol))
-            inchi_mol.SetProp('coco_index', ind)
+            inchi_mol.SetProp('coco_index', str(ind))
             inchi_mols.append(inchi_mol)
         if smiles_mol is not None:
             for key, val in properties.items():
@@ -92,7 +92,7 @@ def molify_lists(entries_properties:dict)-> tuple[list]:
             smiles_mol.SetProp('rec_inchi', Chem.MolToInchi(smiles_mol))
             smiles_mol.SetProp('rec_smiles', Chem.MolToSmiles(smiles_mol))
             smiles_mol.SetProp('rec_inchikey', Chem.MolToInchiKey(smiles_mol))
-            smiles_mol.SetProp('coco_index', ind)
+            smiles_mol.SetProp('coco_index', str(ind))
             smiles_mols.append(smiles_mol)
         else:  # these do not end up in the mol collection
             with open('converture.err', 'a') as errors:
@@ -106,11 +106,15 @@ def molify_lists(entries_properties:dict)-> tuple[list]:
 
 def repr_to_annotated_sdf(
         entries_properties:dict, 
-        new_sdf_name:str
+        new_sdf_name:str,
         exclusive_repr:str = None):
     
     wr = Chem.SDWriter(new_sdf_name)
+    #start new file
+    with open(new_sdf_name.replace('.sdf','.err'), 'w') as errors:
+        errors.write("ind\tproperties")
 
+    count =0
     for ind, properties in tqdm(entries_properties.items()):
         mol = None #init.
         
@@ -129,18 +133,27 @@ def repr_to_annotated_sdf(
         if mol:
             for key, val in properties.items():
                 mol.SetProp(key, str(val))
-            mol.SetProp('rec_inchi', Chem.MolToInchi(mol))
-            mol.SetProp('rec_smiles', Chem.MolToSmiles(mol))
-            mol.SetProp('rec_inchikey', Chem.MolToInchiKey(mol))
-            mol.SetProp('coco_index', ind)
+
+            #see if rdkit reading changes representations
+            recalculations = {
+                    'inchi': Chem.MolToInchi(mol),
+                    'SMILES': Chem.MolToSmiles(mol),
+                    'inchikey': Chem.MolToInchiKey(mol),
+                    }
+            for key,val in recalculations.items():
+                if recalculations[key] != properties[key]:
+                    mol.SetProp(f'rdk_{key}', val)
+            #add corresponding entry index from input sdf
+            mol.SetProp('input_sdf_index', str(ind))
             wr.write(mol)
+            count +=1
         else:  
             # write unconverted mol properties to error file
-            with open('converture.err', 'a') as errors:
-                errors.write(ind, properties)
+            with open(new_sdf_name.replace('.sdf','.err'), 'a') as errors:
+                errors.write(f"{ind}\t{properties}")
 
     wr.close()
-    return None
+    return count
     
 
 
@@ -162,16 +175,20 @@ def sdf_writr(mols, outfile):
 
 
 def main():
+    #mute RDKit warnings
+    RDLogger.DisableLog('rdApp.*')
     # input
     args = cli()
     print("\n", 10 * "=", "\n", "cOnVERTURE", "\n", 10 * "=", "\n")
+    print(args)
     # handling
     lines = readr(args.input)
     sdf_entries = entry_parser(lines)
     properties = propertifier(sdf_entries)
     #all_mols, ids_props, stats = molifier(properties, representation_info=True)
-    repr_to_annotated_sdf(properties,args.output,exclusive_repr=args.exclusive)
-    print("~~~done~~~")
+    count = repr_to_annotated_sdf(properties,args.output,exclusive_repr=args.exclusive)
+    print(f"wrote {count} mols to {args.output}")
+    print("~~~bye~~~")
 
     return None
 
