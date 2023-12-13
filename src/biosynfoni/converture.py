@@ -11,8 +11,10 @@ ____________________________________
 
 ||||||||||||  ()()()  |||||||||||||||
 
-description:    parses (COCONUT) CDK-style sdf's for its CNP-ID, SMILEs,
-                InChi and molecular formula, returning 
+description:    parses SDF files that have more errors in their Mol objects 
+                compared to their annotation's InChI and SMILES representations.
+                This script uses rdkit to convert the representations to mol objects
+                and writes them to a new SDF file. InChI is preferred over SMILES.
 
 """
 # --------------------------------- IMPORTS-------------------------------------
@@ -32,7 +34,9 @@ from biosynfoni.inoutput import readr, entry_parser
 
 
 def cli() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Converts SDF files' annotation's molecular representations to SDF files with rdkit-readable mol objects."
+    )
     parser.add_argument(
         "-i",
         "--input",
@@ -69,9 +73,11 @@ def cli() -> argparse.Namespace:
 
 
 def propertifier(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
-    """lst of properties in entry as follows:
-    every entry is [[coconut_id],[inchi],[smiles],[molecular_formula],[NPLS]]
-    #for later:     [molecular weight], [name],]
+    """converts sdf entries to a dictionary of properties per entry
+    input:  (list) sdf_entries -- list of sdf entries as parsed by biosynfoni.inoutput.entry_parser
+    returns:    (dict) entries_properties -- dict
+                    [key] (int) entry index
+                    [val] (dict) dictionary of properties
     """
     entries_properties = {}
     for ind, entry in tqdm(enumerate(sdf_entries)):
@@ -89,7 +95,7 @@ def propertifier(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
 def name_change(
     entries_properties: dict[int, dict[str, str]], pre: str, post: str
 ) -> dict[int, dict[str, str]]:
-    """changes names of keys in dictionary if present, usable for typos in sdf annotations"""
+    """changes names of keys in entry-property dictionary if present, usable for typos in sdf annotations"""
     for ind, property_dict in entries_properties.items():
         if key in property_dict.keys():
             property_dict[post] = property_dict.pop(pre)
@@ -148,6 +154,7 @@ def repr_to_annotated_sdf(
     exclusive_repr: str = None,
     rem_chir: bool = False,
 ):
+    """converts molecule representations to Chem.Mol objects and writes them to a new sdf file"""
     wr = Chem.SDWriter(new_sdf_name)
     # start new file
     with open(new_sdf_name.replace(".sdf", ".err"), "w") as errors:
@@ -204,14 +211,14 @@ def repr_to_annotated_sdf(
     return count
 
 
-# ================================= output =====================================
+# # ================================= output =====================================
 
 
-def sdf_writr(mols, outfile):
-    """writes sdf of mols"""
-    writer = Chem.SDWriter(outfile)
-    for mol in mols:
-        writer.write(mol)
+# def sdf_writr(mols, outfile):
+#     """writes sdf of mols"""
+#     writer = Chem.SDWriter(outfile)
+#     for mol in mols:
+#         writer.write(mol)
 
 
 # ++++++++++++++++++++++++++++++++++ main ++++++++++++++++++++++++++++++++++++++
