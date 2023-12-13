@@ -7,7 +7,6 @@ import numpy as np
 
 # import umap
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from sklearn.metrics import (
     confusion_matrix,
     classification_report,
