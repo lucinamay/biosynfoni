@@ -61,7 +61,7 @@ def cli() -> argparse.Namespace:
 # ================================ converter ====================================
 
 
-def propertifier(sdf_entries) -> dict[int, str]:  # 22 sec
+def propertifier(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
     """lst of properties in entry as follows:
     every entry is [[coconut_id],[inchi],[smiles],[molecular_formula],[NPLS]]
     #for later:     [molecular weight], [name],]
@@ -79,50 +79,60 @@ def propertifier(sdf_entries) -> dict[int, str]:  # 22 sec
     return entries_properties
 
 
-def molify_lists(entries_properties: dict) -> tuple[list]:
-    """converts molecule representations to Chem.Mol objects.
-    using this function keeps all mols in memory so repr_to_annotated_sdf is
-    recommended over this+sdf_writer
-    input:  (dict) entries_properties -- dict of annotations per entry
-                                        should contain 'inchi' and 'SMILES'
-                                        in keys
-    returns:    (list) all_mols -- mol list of all successful mols in either
-                                inchi or smiles
-                (list) inchi_mols -- mol list of all successful inchi mols
-                (list) smiles_mols -- mol list of all successful smiles mols
-    """
-    any_mols = []
-    inchi_mols = []
-    smiles_mols = []
+def name_change(
+    entries_properties: dict[int, dict[str, str]], pre: str, post: str
+) -> dict[int, dict[str, str]]:
+    """changes names of keys in dictionary if present, usable for typos in sdf annotations"""
+    for ind, property_dict in entries_properties.items():
+        if key in property_dict.keys():
+            property_dict[post] = property_dict.pop(pre)
+    return entries_properties
 
-    for ind, properties in entries_properties.items():
-        inchi_mol = Chem.MolFromInchi(properties["inchi"])
-        smiles_mol = Chem.MolFromSmiles(properties["SMILES"])
-        if inchi_mol is not None:
-            for key, val in properties.items():
-                inchi_mol.SetProp(key, str(val))
-            inchi_mol.SetProp("rec_inchi", Chem.MolToInchi(inchi_mol))
-            inchi_mol.SetProp("rec_smiles", Chem.MolToSmiles(inchi_mol))
-            inchi_mol.SetProp("rec_inchikey", Chem.MolToInchiKey(inchi_mol))
-            inchi_mol.SetProp("coco_index", str(ind))
-            inchi_mols.append(inchi_mol)
-        if smiles_mol is not None:
-            for key, val in properties.items():
-                smiles_mol.SetProp(key, str(val))
-            smiles_mol.SetProp("rec_inchi", Chem.MolToInchi(smiles_mol))
-            smiles_mol.SetProp("rec_smiles", Chem.MolToSmiles(smiles_mol))
-            smiles_mol.SetProp("rec_inchikey", Chem.MolToInchiKey(smiles_mol))
-            smiles_mol.SetProp("coco_index", str(ind))
-            smiles_mols.append(smiles_mol)
-        else:  # these do not end up in the mol collection
-            with open("converture.err", "a") as errors:
-                errors.write(ind, properties)
-        if inchi_mol:
-            all_mols.append(inchi_mol)
-        elif smiles_mol:
-            all_mols.append(smiles_mol)
-    # output (yes or no stats)
-    return all_mols, inchi_mols, smiles_mols
+
+# def molify_lists(entries_properties: dict) -> tuple[list]:
+#     """converts molecule representations to Chem.Mol objects.
+#     using this function keeps all mols in memory so repr_to_annotated_sdf is
+#     recommended over this+sdf_writer
+#     input:  (dict) entries_properties -- dict of annotations per entry
+#                                         should contain 'inchi' and 'SMILES'
+#                                         in keys
+#     returns:    (list) all_mols -- mol list of all successful mols in either
+#                                 inchi or smiles
+#                 (list) inchi_mols -- mol list of all successful inchi mols
+#                 (list) smiles_mols -- mol list of all successful smiles mols
+#     """
+#     any_mols = []
+#     inchi_mols = []
+#     smiles_mols = []
+
+#     for ind, properties in entries_properties.items():
+#         inchi_mol = Chem.MolFromInchi(properties["inchi"])
+#         smiles_mol = Chem.MolFromSmiles(properties["SMILES"])
+#         if inchi_mol is not None:
+#             for key, val in properties.items():
+#                 inchi_mol.SetProp(key, str(val))
+#             inchi_mol.SetProp("rec_inchi", Chem.MolToInchi(inchi_mol))
+#             inchi_mol.SetProp("rec_smiles", Chem.MolToSmiles(inchi_mol))
+#             inchi_mol.SetProp("rec_inchikey", Chem.MolToInchiKey(inchi_mol))
+#             inchi_mol.SetProp("coco_index", str(ind))
+#             inchi_mols.append(inchi_mol)
+#         if smiles_mol is not None:
+#             for key, val in properties.items():
+#                 smiles_mol.SetProp(key, str(val))
+#             smiles_mol.SetProp("rec_inchi", Chem.MolToInchi(smiles_mol))
+#             smiles_mol.SetProp("rec_smiles", Chem.MolToSmiles(smiles_mol))
+#             smiles_mol.SetProp("rec_inchikey", Chem.MolToInchiKey(smiles_mol))
+#             smiles_mol.SetProp("coco_index", str(ind))
+#             smiles_mols.append(smiles_mol)
+#         else:  # these do not end up in the mol collection
+#             with open("converture.err", "a") as errors:
+#                 errors.write(ind, properties)
+#         if inchi_mol:
+#             all_mols.append(inchi_mol)
+#         elif smiles_mol:
+#             all_mols.append(smiles_mol)
+#     # output (yes or no stats)
+#     return all_mols, inchi_mols, smiles_mols
 
 
 def repr_to_annotated_sdf(
@@ -200,9 +210,13 @@ def main():
     lines = readr(args.input)
     sdf_entries = entry_parser(lines)
     properties = propertifier(sdf_entries)
+    # change murko_framework to murcko_framework
+    properties_spellchecked = name_change(
+        properties, "murko_framework", "murcko_framework"
+    )
     # all_mols, ids_props, stats = molifier(properties, representation_info=True)
     count = repr_to_annotated_sdf(
-        properties, args.output, exclusive_repr=args.exclusive
+        properties_spellchecked, args.output, exclusive_repr=args.exclusive
     )
     print(f"wrote {count} mols to {args.output}")
     print("~~~bye~~~")
