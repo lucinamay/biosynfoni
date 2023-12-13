@@ -55,6 +55,13 @@ def cli() -> argparse.Namespace:
         choices=[None, "smiles", "inchi"],
         help="Represenation of intererst. Default chooses inchi and smiles, with preference of inchi",
     )
+    parser.add_argument(
+        "-r",
+        "--remove_chirality",
+        "--nonchiral",
+        action="store_true",
+        help="Remove chirality from molecules. Default is False.",
+    )
     return parser.parse_args()
 
 
@@ -136,7 +143,10 @@ def name_change(
 
 
 def repr_to_annotated_sdf(
-    entries_properties: dict, new_sdf_name: str, exclusive_repr: str = None
+    entries_properties: dict,
+    new_sdf_name: str,
+    exclusive_repr: str = None,
+    rem_chir: bool = False,
 ):
     wr = Chem.SDWriter(new_sdf_name)
     # start new file
@@ -158,8 +168,13 @@ def repr_to_annotated_sdf(
         elif smiles_mol is not None:
             mol = smiles_mol
 
-        # add properties
         if mol:
+            # remove chirality
+            if rem_chir:
+                mol = Chem.RemoveStereochemistry(mol)
+                # clean mol
+                Chem.SanitizeMol(mol)
+            # add properties
             for key, val in properties.items():
                 mol.SetProp(key, str(val))
 
@@ -171,7 +186,10 @@ def repr_to_annotated_sdf(
             }
             for key, val in recalculations.items():
                 if recalculations[key] != properties[key]:
-                    mol.SetProp(f"rdk_{key}", val)
+                    if rem_chir:
+                        mol.SetProp(f"nonchir_{key}", val)
+                    else:
+                        mol.SetProp(f"rdk_{key}", val)
             # add corresponding entry index from input sdf
             mol.SetProp("input_sdf_index", str(ind))
             wr.write(mol)
@@ -216,7 +234,10 @@ def main():
     )
     # all_mols, ids_props, stats = molifier(properties, representation_info=True)
     count = repr_to_annotated_sdf(
-        properties_spellchecked, args.output, exclusive_repr=args.exclusive
+        properties_spellchecked,
+        args.output,
+        exclusive_repr=args.exclusive,
+        rem_chir=args.remove_chirality,
     )
     print(f"wrote {count} mols to {args.output}")
     print("~~~bye~~~")
