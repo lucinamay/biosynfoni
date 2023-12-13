@@ -68,6 +68,17 @@ def cli() -> argparse.Namespace:
         default=0.5,
         help="Cutoff for classification. Default: 0.5",
     )
+    parser.add_argument(
+        "--include_none",
+        action="store_true",
+        default=False,
+        help=(
+            "If set, will include None class in classification training."
+            "Default: False -- will exclude compounds with no classification from the training set, "
+            "and will instead use them only as test set for wrong_prediction output"
+            "(not for k-fold cross validation))"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -87,6 +98,8 @@ def get_classification_types(classifications_path: str) -> list:
             classification_types[classification] += 1
 
     class_index = {cl: i for i, cl in enumerate(sorted(classification_types.keys()))}
+    if "" in class_index.keys():
+        class_index["None"] = class_index.pop("")
     return labels_names, class_index
 
 
@@ -106,6 +119,8 @@ def get_multilabels(classifications_path: str) -> list:
                 classification_types[classification] += 1
             labels_names.append(classifications)
     class_index = {cl: i for i, cl in enumerate(sorted(classification_types.keys()))}
+    if "" in class_index.keys():
+        class_index["None"] = class_index.pop("")
     return labels_names, class_index
 
 
@@ -389,6 +404,7 @@ def main() -> None:
     if args.unilabel:
         # Parse labels from input file.
         label_names, class_index = get_classification_types(args.classifications)
+        # change empty key to "None"
         # Labels.
         # Assign every key from classification type to an integer.
         y = unilabel_to_numeric(label_names, class_index)
@@ -404,7 +420,24 @@ def main() -> None:
         ids = np.loadtxt(args.names, dtype=str, delimiter="\t", usecols=0)
 
     else:
-        ids = np.array([])
+        ids = np.array(range(X.shape[0]))
+
+    # if not args.include_none:
+    #     print("removing compounds with no classification")
+    #     # remove compounds with no classification
+    #     # get indices of compounds with no classification
+    #     indices = np.where(y == "")
+    #     # add to separate test set:
+    #     X_test_none = X[indices]
+    #     y_test_none = y[indices]
+    #     y_test_none = np.array(["None" for i in range(y_test_none.shape[0])])
+    #     ids_test_none = ids[indices]
+    #     # remove compounds with no classification
+    #     X = np.delete(X, indices, axis=0)
+    #     y = np.delete(y, indices, axis=0)
+    #     ids = np.delete(ids, indices, axis=0)
+
+    #     print(X.shape, y.shape)
 
     # Subsample 10.000 randomly from X and y.
     if isinstance(args.subsample, int):
@@ -446,6 +479,24 @@ def main() -> None:
             y_proba,
             cutoff=args.cutoff,
         )
+
+        # if not args.include_none:
+        #     y_none_proba = rf_proba(
+        #         X_train,
+        #         X_test_none,
+        #         y_train,
+        #         y_test_none,
+        #         n_estimators=n_estimators,
+        #         max_depth=max_depth,
+        #     )
+        #     y_none_pred = cutoff(
+        #         y_none_proba,
+        #         cutoff=args.cutoff,
+        #     )
+        #     y_pred = np.concatenate((y_pred, y_none_pred))
+        #     y_test = np.concatenate((y_test, y_test_none))
+        #     ids_test = np.concatenate((ids_test, ids_test_none))
+
         print(y_test.shape, y_pred.shape)
         cm = multilabel_confusion_matrix(y_test, y_pred)
 
