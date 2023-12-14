@@ -383,6 +383,10 @@ def main() -> None:
 
     # get absolute path from relative path
     fp_path = os.path.abspath(args.fingerprints)
+    args.classifications = os.path.abspath(args.classifications)
+    if args.names:
+        args.names = os.path.abspath(args.names)
+
     folder = os.path.basename(os.path.dirname(fp_path))
     # get fingerprint name
     fp_name = fp_path.split("/")[-1].split(".")[0]
