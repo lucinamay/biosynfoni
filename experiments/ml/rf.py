@@ -401,7 +401,7 @@ def main() -> None:
 
     # Parse fingerprints from input file.
     delimiter = "\t" if args.fingerprints.endswith(".tsv") else ","
-    X = np.loadtxt(args.fingerprints, delimiter=delimiter, dtype=int)
+    X = np.loadtxt(fp_path, delimiter=delimiter, dtype=int)
     print(X.shape)
 
     if args.unilabel:
