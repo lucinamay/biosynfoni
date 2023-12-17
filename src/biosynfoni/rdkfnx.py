@@ -24,11 +24,12 @@ from biosynfoni.def_biosynfoni import (
     SUBSTRUCTURES,
     FP_VERSIONS,
     get_smarts,
-    DEFAULT_BIOSYNFONI_VERSION,
 )
-from biosynfoni.inoutput import outfile_namer, open_json
-#import biosynfoni.leaf_subs_nod12 as leaffile
+from biosynfoni.inoutput import outfile_namer
+
+# import biosynfoni.leaf_subs_nod12 as leaffile
 import biosynfoni.new_leaf as leaffile
+
 
 def sdf_writr(mols: list, outfile: str) -> None:
     """writes sdf of mols,
@@ -74,17 +75,18 @@ def get_leaf_substructures(dict_list: list[dict[str, str]]) -> list[Chem.Mol]:
 
 def get_subsset(
     fp_version_name: str,
-    subs_smarts: dict = SUBSTRUCTURES,
+    subs_smarts: dict[dict] = SUBSTRUCTURES,
     fp_versions: dict[list] = FP_VERSIONS,
 ) -> list[Chem.Mol]:
     """gives list of rdkit.Chem.Mols of substructures of choice
     input:   fp_version_name (str) -- name of the version
              subs_smarts (dict)
                          (key) substructure names (e.g. 'fp1')
-                         (val) substructure RDK molfiles (f/SMARTS)
+                         (val) (dict)
+                            'smarts': substructure RDK molfiles (from SMARTS)
              fp_versions (dict)
                          (key) version name (e.g. fps_full_2)
-                         (val) (list) substructure names (e.g. 'fp1')
+                         (val) (list) substructure names (e.g. 'd_isoprene')
 
     output: (list) rdkit.Chem.rdchem.Mol files for substructure keys
     """
@@ -105,10 +107,11 @@ def get_subsset(
     # getting the list of the chosen version's substructures
     chosen_version = fp_versions[fp_version_name]
     for substructure_name in chosen_version:
-        if isinstance(subs_smarts[substructure_name], Chem.Mol):
+        smarts = subs_smarts[substructure_name]["smarts"]
+        if isinstance(smarts, Chem.Mol):  # depracated
             substructures.append(subs_smarts[substructure_name])
-        elif isinstance(subs_smarts[substructure_name], str):
-            dirtymol = Chem.MolFromSmarts(subs_smarts[substructure_name])
+        elif isinstance(smarts, str):
+            dirtymol = Chem.MolFromSmarts(subs_smarts[substructure_name]["smarts"])
             if isinstance(dirtymol, Chem.Mol):
                 substructures.append(dirtymol)
                 successful_subs_names.append(substructure_name)

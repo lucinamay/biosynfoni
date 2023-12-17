@@ -97,7 +97,7 @@ def name_change(
 ) -> dict[int, dict[str, str]]:
     """changes names of keys in entry-property dictionary if present, usable for typos in sdf annotations"""
     for ind, property_dict in entries_properties.items():
-        if key in property_dict.keys():
+        if pre in property_dict.keys():
             property_dict[post] = property_dict.pop(pre)
     return entries_properties
 
