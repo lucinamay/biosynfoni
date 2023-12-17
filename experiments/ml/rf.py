@@ -81,7 +81,7 @@ def cli() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_classification_types(classifications_path: str) -> list:
+def get_unilabels(classifications_path: str) -> tuple[list, dict]:
     """returns list of classification types"""
     # parse labels from input file
     classification_types = Counter()
@@ -90,6 +90,8 @@ def get_classification_types(classifications_path: str) -> list:
         for line in tqdm(fo):
             line = line.strip().split("\t")  # if more than one type of class
             classification = line[0]
+            if classification == "":
+                classification = "None"
             if isinstance(classification, list):
                 classification = classification.split(",").sort()
                 classification = ",".join(classification)
@@ -99,10 +101,13 @@ def get_classification_types(classifications_path: str) -> list:
     class_index = {cl: i for i, cl in enumerate(sorted(classification_types.keys()))}
     if "" in class_index.keys():
         class_index["None"] = class_index.pop("")
+    for j in range(len(labels_names)):
+        if labels_names[j] == "":
+            labels_names[j] = "None"
     return labels_names, class_index
 
 
-def get_multilabels(classifications_path: str) -> list:
+def get_multilabels(classifications_path: str) -> tuple[list, dict]:
     """from the file, parse the classifications for the first tab-separated field,
     and extract the individual labels separated by commas, putting them in a multilabel
     classification table
@@ -113,13 +118,14 @@ def get_multilabels(classifications_path: str) -> list:
         for line in tqdm(fo):
             line = line.strip().split("\t")  # if more than one type of class
             classifications = line[0]
+            if classifications == "":
+                classifications = "None"
             classifications = classifications.split(",")
             for classification in classifications:
                 classification_types[classification] += 1
             labels_names.append(classifications)
+
     class_index = {cl: i for i, cl in enumerate(sorted(classification_types.keys()))}
-    if "" in class_index.keys():
-        class_index["None"] = class_index.pop("")
     return labels_names, class_index
 
 
@@ -402,22 +408,18 @@ def main() -> None:
     # Parse fingerprints from input file.
     delimiter = "\t" if args.fingerprints.endswith(".tsv") else ","
     X = np.loadtxt(fp_path, delimiter=delimiter, dtype=int)
-    print(X.shape)
 
     if args.unilabel:
         # Parse labels from input file.
-        label_names, class_index = get_classification_types(args.classifications)
+        label_names, class_index = get_unilabels(args.classifications)
         # change empty key to "None"
         # Labels.
         # Assign every key from classification type to an integer.
         y = unilabel_to_numeric(label_names, class_index)
-        print(X.shape, y.shape)
     else:
         label_names, class_index = get_multilabels(args.classifications)
         y = multilabels_to_binary(label_names, class_index)
-        print(X.shape, y.shape)
-
-    classes = list(class_index.keys())
+    print("X, y:", X.shape, y.shape)
 
     if args.names:
         ids = np.loadtxt(args.names, dtype=str, delimiter="\t", usecols=0)
@@ -425,22 +427,28 @@ def main() -> None:
     else:
         ids = np.array(range(X.shape[0]))
 
-    # if not args.include_none:
-    #     print("removing compounds with no classification")
-    #     # remove compounds with no classification
-    #     # get indices of compounds with no classification
-    #     indices = np.where(y == "")
-    #     # add to separate test set:
-    #     X_test_none = X[indices]
-    #     y_test_none = y[indices]
-    #     y_test_none = np.array(["None" for i in range(y_test_none.shape[0])])
-    #     ids_test_none = ids[indices]
-    #     # remove compounds with no classification
-    #     X = np.delete(X, indices, axis=0)
-    #     y = np.delete(y, indices, axis=0)
-    #     ids = np.delete(ids, indices, axis=0)
+    # print(label_names[:100])
+    # exit()
 
-    #     print(X.shape, y.shape)
+    none_indices = []
+    if not args.include_none:
+        for i, name in enumerate(label_names):
+            if name == ["None"]:
+                none_indices.append(int(i))
+        if "None" in class_index.keys():
+            none_index = class_index.pop("None")
+            if not args.unilabel:
+                y = np.delete(y, none_index, 1)  # drop column
+        print(f'separating {len(none_indices)} "nones" from training/testing set')
+
+    none_indices = np.array(none_indices, dtype=int)
+    nones_X, nones_y, nones_ids = X[none_indices], y[none_indices], ids[none_indices]
+
+    X = np.delete(X, none_indices, 0)
+    y = np.delete(y, none_indices, 0)
+    ids = np.delete(ids, none_indices, 0)
+
+    classes = list(class_index.keys())
 
     # Subsample 10.000 randomly from X and y.
     if isinstance(args.subsample, int):
@@ -455,6 +463,9 @@ def main() -> None:
     )
     # print(y_train, y_test)
 
+    print(
+        "starting one RF to get importances, wrong predictions and/or predictions for Nones"
+    )
     if args.unilabel:
         y_pred, _ = random_forester(
             X_train,
@@ -465,6 +476,18 @@ def main() -> None:
             max_depth=max_depth,
         )
         cm = confusion_matrix(y_test, y_pred)
+
+        if len(nones_X) > 0:
+            # get prediction for the "Nones"
+            ny_pred, _ = random_forester(
+                X,
+                nones_X,
+                y,
+                nones_y,
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+            )
+
     else:
         # multilabel, consider cutoff, no feature importances
         y_proba = rf_proba(
@@ -482,26 +505,32 @@ def main() -> None:
             y_proba,
             cutoff=args.cutoff,
         )
-
-        # if not args.include_none:
-        #     y_none_proba = rf_proba(
-        #         X_train,
-        #         X_test_none,
-        #         y_train,
-        #         y_test_none,
-        #         n_estimators=n_estimators,
-        #         max_depth=max_depth,
-        #     )
-        #     y_none_pred = cutoff(
-        #         y_none_proba,
-        #         cutoff=args.cutoff,
-        #     )
-        #     y_pred = np.concatenate((y_pred, y_none_pred))
-        #     y_test = np.concatenate((y_test, y_test_none))
-        #     ids_test = np.concatenate((ids_test, ids_test_none))
+        if len(nones_X) > 0:
+            print('get prediction for the "Nones"')
+            ny_proba = rf_proba(
+                X,
+                nones_X,
+                y,
+                nones_y,
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+            )
+            ny_pred = cutoff(
+                ny_proba,
+                cutoff=args.cutoff,
+            )
 
         print(y_test.shape, y_pred.shape)
         cm = multilabel_confusion_matrix(y_test, y_pred)
+
+    if len(nones_X) > 0:
+        ny_pred = [class_array[np.where(i == 1)] for i in ny_pred]
+        ny_pred = [",".join(i) for i in ny_pred]
+        nones_preds = np.concatenate([nones_ids, ny_pred], axis=1)
+        np.savetxt("nones_predictions.tsv", nones_preds, delimiter="\t")
+
+        nones_probas = np.concatenate([nones_ids, ny_proba], axis=1)
+        np.savetxt("nones_probas.tsv", nones_probas, delimiter="\t")
 
     try:
         wrong_ids, wrongs_test, wrongs_pred = get_wrong_predictions(
@@ -579,15 +608,12 @@ def main() -> None:
         "importances.tsv", np.array(importances), delimiter="\t", fmt="%s"
     )  # graph @ fp_avger
 
-    # Write arguments as yaml:
+    # get argument dictionary
+    args_dict = vars(args)
+    # Write arguments as yaml.
     with open("arguments.yaml", "w") as fo:
-        fo.write(f"fingerprints: {args.fingerprints}\n")
-        fo.write(f"classifications: {args.classifications}\n")
-        fo.write(f"names: {args.names}\n")
-        fo.write(f"subsample: {args.subsample}\n")
-        fo.write(f"random_seed: {args.random_seed}\n")
-        fo.write(f"unilabel: {args.unilabel}\n")
-        fo.write(f"cutoff: {args.cutoff}\n")
+        for key, value in args_dict.items():
+            fo.write(f"{key}: {value}\n")
 
     # Write decision tree.
     # export_graphviz(clf.estimators_[0], out_file="tree.dot", feature_names=classes)
