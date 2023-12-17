@@ -53,6 +53,24 @@ inoutput 	|	collection of input and output handling functions that are reused be
 other files (e.g. in 'experiments') were used in collection and curation of data, and are written for specific scopes.\
 reuse at own discretion.
 
+### For feedback:
+We welcome your feedback. For a streamlined feedback process, please open a new issue on github.com/biosynfoni if you cannot find your issue among existing ones. Please also make sure to add the appropriate subject in the title for clarity as follows, for easier understanding and faster help:
+
+- **SMARTS representation** of a specific existing substructure
+    - [SMARTS] `<issue title>`
+- **adding/removing/merging substructures** within current biosynfoni 
+    - [SUBSTRUCTURE] `<issue title>`
+- **new substructure collection** for specific application 
+    - [COLLECTION] `<issue title>`
+- **detection algorithm** of the substructures within the molecule 
+    - [DETECTION] `<issue title>`
+- **output options** 
+    - [OUTPUT] `<issue title>`
+- **other feedback**  
+    - [<1-keyword summary of feedback topic>] `<issue title>`
+
+In addition, please explain any reasoning behind your feedback to help us speed up decisions on if and how to implement changes within the biosynfoni tool.
+
 ### FAIR principle-advised information
 findability & accessability:\
 -URL to the repository/code: https://github.com/lucinamay/biosynfoni\
