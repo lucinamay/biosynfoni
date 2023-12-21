@@ -41,36 +41,24 @@ def sdf_writr(mols: list, outfile: str) -> None:
     return None
 
 
-def get_supplier(sdf_file: str, supplier_only: bool = True) -> list:
-    suppl = Chem.SDMolSupplier(sdf_file)
+# def get_leaf_substructures(dict_list: list[dict[str, str]]) -> list[Chem.Mol]:
+#     leaf_substructures = []
+#     names = []
+#     for subs_dict in dict_list:
+#         mol = Chem.MolFromSmarts(subs_dict["smarts"])
+#         if isinstance(mol, Chem.Mol):
+#             leaf_substructures.append(mol)
+#             names.append(subs_dict["name"])
+#         else:
+#             print(
+#                 f"substructure {subs_dict['name']} could not be converted to mol: skipped"
+#             )
 
-    print("reading sdf, number of entries:", len(suppl))
-
-    if supplier_only:
-        return suppl
-    else:
-        mols = [x for x in suppl]
-        return mols
-
-
-def get_leaf_substructures(dict_list: list[dict[str, str]]) -> list[Chem.Mol]:
-    leaf_substructures = []
-    names = []
-    for subs_dict in dict_list:
-        mol = Chem.MolFromSmarts(subs_dict["smarts"])
-        if isinstance(mol, Chem.Mol):
-            leaf_substructures.append(mol)
-            names.append(subs_dict["name"])
-        else:
-            print(
-                f"substructure {subs_dict['name']} could not be converted to mol: skipped"
-            )
-
-    print("extracted:")
-    print("\n".join(names))
-    # with open(outfile_namer('json_saved.txt'),'w') as f:
-    #    f.write('\n'.join(names))
-    return leaf_substructures
+#     print("extracted:")
+#     print("\n".join(names))
+#     # with open(outfile_namer('json_saved.txt'),'w') as f:
+#     #    f.write('\n'.join(names))
+#     return leaf_substructures
 
 
 def get_subsset(
@@ -90,17 +78,14 @@ def get_subsset(
 
     output: (list) rdkit.Chem.rdchem.Mol files for substructure keys
     """
-    # print(f"getting substructures from set {fp_version_name}")
 
-    # ===========================================================================
-    # test for leaf:
-    if fp_version_name == "leaf":
-        print("getting leaf substructures")
-        return get_leaf_substructures(leaffile.leaf)
+    # # test for leaf:
+    # if fp_version_name == "leaf":
+    #     print("getting leaf substructures")
+    #     return get_leaf_substructures(leaffile.leaf)
 
     if not fp_version_name:
         raise "No version name provided to select substructure set"
-    # ===========================================================================
 
     substructures = []
     successful_subs_names = []
@@ -131,11 +116,11 @@ def save_version(
     # svg_text = fm.drawfp(fp_version, window_size=window_size)
     # with open(f'{outfilename}.svg', 'w') as f:
     #    f.write(svg_text)
-    if fp_version == "leaf":
-        with open(f"{outfilename}.smarts", "w") as f:
-            for leaf in leaffile.leaf:
-                f.write(f"{leaf['name']}\t{leaf['smarts']}\n")
-        return None
+    # if fp_version == "leaf":
+    #     with open(f"{outfilename}.smarts", "w") as f:
+    #         for leaf in leaffile.leaf:
+    #             f.write(f"{leaf['name']}\t{leaf['smarts']}\n")
+    #     return None
 
     smarts = get_smarts(fp_version)
     with open(f"{outfilename}.smarts", "w") as f:
