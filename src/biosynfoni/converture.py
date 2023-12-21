@@ -3,7 +3,7 @@
 ||||||||||||  ㅇㅅㅇ  |||||||||||||||
 ____________________________________
 
-title: cOnVERTure (cdk_rdk_parser)  |
+title: (c)O(n)VERTure               |
 language: python                    |
 author: Lucina-May Nollen           | 
 institute: WUR Bioinformatics       |
