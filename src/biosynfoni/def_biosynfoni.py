@@ -2,7 +2,7 @@
 ||||||||||||  ㅇㅅㅇ  |||||||||||||||
 ____________________________________
 
-title: biosynfoni arrangement       ||
+title: arrangefoni                  ||
 created: 2023-09                    ||
 author: Lucina-May Nollen           ||
 institute: WUR Bioinformatics       ||
@@ -79,10 +79,6 @@ get_names = partial(get_values, value_name="name")
 
 
 def main():
-    # get_smarts(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
-    # get_subsset(DEFAULT_BIOSYNFONI_VERSION, SUBSTRUCTURES, FP_VERSIONS)
-
-    # get_subsset('regular_1007')
     return
 
 
