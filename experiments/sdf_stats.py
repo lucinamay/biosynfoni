@@ -5,6 +5,7 @@ from enum import Enum
 from tqdm import tqdm
 import numpy as np
 from rdkit import Chem
+from rdkit.Chem import Descriptors, rdMolDescriptors, rdchem
 
 
 def cli():
@@ -41,30 +42,9 @@ def get_all_properties(suppl: Chem.SDMolSupplier) -> dict[str, np.ndarray]:
     for i, mol in tqdm(enumerate(suppl), total=len(suppl)):
         if mol is None:
             continue
-        properties["molecular_weight"][i] = Chem.Descriptors.MolWt(mol)
+        properties["molecular_weight"][i] = Descriptors.ExactMolWt(mol)
         properties["n_atoms"][i] = mol.GetNumAtoms()
-        properties["carbons"][i] = mol.GetNumAtoms(Chem.rdchem.Element.C)
-        properties["nitrogens"][i] = mol.GetNumAtoms(Chem.rdchem.Element.N)
-        properties["oxygens"][i] = mol.GetNumAtoms(Chem.rdchem.Element.O)
-        properties["halogens"][i] = (
-            mol.GetNumAtoms(Chem.rdchem.Element.F)
-            + mol.GetNumAtoms(Chem.rdchem.Element.Cl)
-            + mol.GetNumAtoms(Chem.rdchem.Element.Br)
-            + mol.GetNumAtoms(Chem.rdchem.Element.I)
-        )
-        properties["heteroatoms"][i] = mol.GetNumHeavyAtoms() - mol.GetNumAtoms(
-            Chem.rdchem.Element.C
-        )
-
-        properties["double_bonds"][i] = mol.GetNumBonds(Chem.rdchem.BondType.DOUBLE)
-        properties["triple_bonds"][i] = mol.GetNumBonds(Chem.rdchem.BondType.TRIPLE)
-        properties["aromatic_bonds"][i] = mol.GetNumBonds(Chem.rdchem.BondType.AROMATIC)
-        properties["rings"][i] = Chem.rdMolDescriptors.CalcNumRings(mol)
-        properties["ring_atoms"][i] = Chem.rdMolDescriptors.CalcNumAromaticRings(mol)
-        properties["ring_bonds"][i] = Chem.rdMolDescriptors.CalcNumAromaticRings(mol)
-        properties["rotatable_bonds"][i] = Chem.rdMolDescriptors.CalcNumRotatableBonds(
-            mol
-        )
+        # get number of nitrogens:
 
     return properties
 
@@ -72,7 +52,7 @@ def get_all_properties(suppl: Chem.SDMolSupplier) -> dict[str, np.ndarray]:
 def main():
     args = cli()
 
-    sdf_path = os.abspath(args.sdf)
+    sdf_path = os.path.abspath(args.sdf)
     folder = os.path.dirname(sdf_path)
     name = os.path.basename(sdf_path).split(".")[0]
 
