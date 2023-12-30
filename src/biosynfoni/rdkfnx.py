@@ -27,43 +27,22 @@ from biosynfoni.def_biosynfoni import (
 )
 from biosynfoni.inoutput import outfile_namer
 
-# import biosynfoni.leaf_subs_nod12 as leaffile
-import biosynfoni.new_leaf as leaffile
+
+def supplier(sdf_file: str) -> Chem.SDMolSupplier:
+    """returns a mol supplier from an sdf file"""
+    suppl = Chem.SDMolSupplier(sdf_file)
+    return suppl
 
 
-def sdf_writr(mols: list, outfile: str) -> None:
-    """writes sdf of mols,
-    * needs RDKit Chem
-    """
-    writer = Chem.SDWriter(outfile)
-    for mol in mols:
-        writer.write(mol)
-    return None
+def sdf_writer(outfile: str) -> None:
+    """returns an sdf writer object to write to outfile"""
+    return Chem.SDWriter(outfile)
 
 
-# def get_leaf_substructures(dict_list: list[dict[str, str]]) -> list[Chem.Mol]:
-#     leaf_substructures = []
-#     names = []
-#     for subs_dict in dict_list:
-#         mol = Chem.MolFromSmarts(subs_dict["smarts"])
-#         if isinstance(mol, Chem.Mol):
-#             leaf_substructures.append(mol)
-#             names.append(subs_dict["name"])
-#         else:
-#             print(
-#                 f"substructure {subs_dict['name']} could not be converted to mol: skipped"
-#             )
-
-#     print("extracted:")
-#     print("\n".join(names))
-#     # with open(outfile_namer('json_saved.txt'),'w') as f:
-#     #    f.write('\n'.join(names))
-#     return leaf_substructures
-
-
-def get_subsset(
+# used to be get_subsset
+def get_subs_set(
     fp_version_name: str,
-    subs_smarts: dict[dict] = SUBSTRUCTURES,
+    subs_set: dict[dict] = SUBSTRUCTURES,
     fp_versions: dict[list] = FP_VERSIONS,
 ) -> list[Chem.Mol]:
     """gives list of rdkit.Chem.Mols of substructures of choice
@@ -79,33 +58,21 @@ def get_subsset(
     output: (list) rdkit.Chem.rdchem.Mol files for substructure keys
     """
 
-    # # test for leaf:
-    # if fp_version_name == "leaf":
-    #     print("getting leaf substructures")
-    #     return get_leaf_substructures(leaffile.leaf)
-
     if not fp_version_name:
         raise "No version name provided to select substructure set"
 
-    substructures = []
-    successful_subs_names = []
-    # getting the list of the chosen version's substructures
+    substructures_smarts = []
+
     chosen_version = fp_versions[fp_version_name]
-    for substructure_name in chosen_version:
-        smarts = subs_smarts[substructure_name]["smarts"]
-        if isinstance(smarts, Chem.Mol):  # depracated
-            substructures.append(subs_smarts[substructure_name])
-        elif isinstance(smarts, str):
-            dirtymol = Chem.MolFromSmarts(subs_smarts[substructure_name]["smarts"])
-            if isinstance(dirtymol, Chem.Mol):
-                substructures.append(dirtymol)
-                successful_subs_names.append(substructure_name)
-            else:
-                print(
-                    f"substructure {substructure_name} could not be converted to mol: skipped"
-                )
-    # print(f"added {','.join([x for x in successful_subs_names])} to substructure set")
-    return substructures
+    for substructure_key in chosen_version:
+        substructure_properties = subs_set[substructure_key]
+        smartsmol = Chem.MolFromSmarts(substructure_properties["smarts"])
+        if smartsmol is None:
+            print(f"{substructure_key} could not be converted to mol: skipped")
+            continue
+        substructures_smarts.append(smartsmol)
+
+    return substructures_smarts
 
 
 def save_version(
@@ -127,3 +94,29 @@ def save_version(
         for smart in smarts:
             f.write(f"{smart[0]}\t{smart[1]}\n")
     return None
+
+
+# ===========================individual molecule functions=======================================
+
+
+def smiles_to_mol(smiles: str) -> Chem.Mol:
+    """returns rdkit.Chem.rdchem.Mol from smiles"""
+    mol = Chem.MolFromSmiles(smiles)
+    return mol
+
+
+def inchi_to_mol(inchi: str) -> Chem.Mol:
+    """returns rdkit.Chem.rdchem.Mol from inchi"""
+    mol = Chem.MolFromInchi(inchi)
+    return mol
+
+
+def nonh_atomcount(mol: Chem.Mol) -> int:
+    """returns number of non-hydrogen atoms in mol. GetNumAtoms on its own acts weird, so this is a workaround"""
+    nonh_mol = Chem.rdmolops.RemoveHs(mol, implicitOnly=False, sanitize=True)
+    mol_size = nonh_mol.GetNumAtoms()  # non-H atoms
+    return mol_size
+
+
+def get_sub_matches(mol: Chem.Mol, substructure: Chem.Mol) -> list[list[int]]:
+    return [list(matchatoms) for matchatoms in mol.GetSubstructMatches(substructure)]

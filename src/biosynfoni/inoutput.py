@@ -54,8 +54,6 @@ def readr(filename: str, ignore_start="", encoding="UTF-8", errors="ignore") -> 
               (str) encoding -- encoding of file
               (str) errors -- how to handle errors
     """
-    # dev function:
-    # len_stop = None
 
     # main functionality
     all_lines = []
@@ -265,4 +263,10 @@ def csv_writr(lst: list[list], outfile: str, sep: str = ",") -> None:
     return None
 
 
-# ============================== recording ===================================
+# ============================== cli-related ===================================
+
+
+def myprint(silent: bool, *args, **kwargs) -> None:
+    if not silent:
+        print(*args, **kwargs)
+    return None
