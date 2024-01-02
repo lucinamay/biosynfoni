@@ -326,7 +326,7 @@ def draw_molpair(
     pair: list[Chem.Mol], outfilename: str, highlighting: bool = True
 ) -> None:
     for i in range(len(pair)):
-        svg_text = moldrawer.draw(pair[i], get_match_highlighting=highlighting)
+        svg_text = moldrawer.draw(pair[i], matches_for_highlighting=highlighting)
         with open(f"{outfilename}_{i}.svg", "w") as f:
             f.write(svg_text)
     return None
