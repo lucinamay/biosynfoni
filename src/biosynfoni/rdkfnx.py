@@ -16,16 +16,21 @@ contains general reusable functionalities depending on RDKit packages,
 mainly supplier-handling
 """
 
+
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
-from rdkit import RDLogger  # for muting warnings
+from rdkit import RDLogger
+
+RDLogger.DisableLog("rdApp.*")  # for muting warnings
 
 from biosynfoni.def_biosynfoni import (
     SUBSTRUCTURES,
     FP_VERSIONS,
     get_smarts,
+    get_names,
 )
 from biosynfoni.inoutput import outfile_namer
+from biosynfoni.moldrawer import drawfp
 
 
 def supplier(sdf_file: str) -> Chem.SDMolSupplier:
@@ -75,24 +80,63 @@ def get_subs_set(
     return substructures_smarts
 
 
-def save_version(
-    fp_version: str, window_size=(1000, 1000), extra_text: str = ""
-) -> None:
-    outfilename = outfile_namer("version", f"{fp_version}_{extra_text}")
+class BiosynfoniVersion:
+    def __init__(self, fp_version: str):
+        self.fp_version = fp_version
+        self.substructures = get_subs_set(fp_version)
+        self.smarts = get_smarts(fp_version)
+        self.subs_ids = FP_VERSIONS[fp_version]
 
-    # svg_text = fm.drawfp(fp_version, window_size=window_size)
-    # with open(f'{outfilename}.svg', 'w') as f:
-    #    f.write(svg_text)
-    # if fp_version == "leaf":
-    #     with open(f"{outfilename}.smarts", "w") as f:
-    #         for leaf in leaffile.leaf:
-    #             f.write(f"{leaf['name']}\t{leaf['smarts']}\n")
+    def save_smarts(self):
+        outfilename = outfile_namer("version", self.fp_version)
+        with open(f"{outfilename}.smarts", "w") as f:
+            for smart in self.smarts:
+                f.write(f"{smart[0]}\t{smart[1]}\n")
+        return None
+
+    # def save_svg(self, window_size=(1000, 1000)):
+    #     outfilename = outfile_namer("version", self.fp_version)
+    #     svg_text = Draw.MolsToGridImage(
+    #         self.substructures,
+    #         molsPerRow=4,
+    #         subImgSize=window_size,
+    #         legends=self.subs_names,
+    #     )
+    #     with open(f"{outfilename}.svg", "w") as f:
+    #         f.write(svg_text)
     #     return None
+    def save_svg(self, window_size=(1000, 1000)):
+        outfilename = outfile_namer("version", self.fp_version)
+        svg_text = drawfp(
+            subs_set=self.substructures, subs_ids=self.subs_ids, window_size=window_size
+        )
+        print(svg_text)
+        with open(f"{outfilename}.svg", "w") as f:
+            f.write(svg_text)
+        return None
 
-    smarts = get_smarts(fp_version)
-    with open(f"{outfilename}.smarts", "w") as f:
-        for smart in smarts:
-            f.write(f"{smart[0]}\t{smart[1]}\n")
+
+# def save_version(
+#     fp_version: str, window_size=(1000, 1000), extra_text: str = ""
+# ) -> None:
+#     """depracated, use BiosynfoniVersion instead"""
+#     outfilename = outfile_namer("version", f"{fp_version}_{extra_text}")
+
+#     # svg_text = fm.drawfp(fp_version, window_size=window_size)
+#     # with open(f'{outfilename}.svg', 'w') as f:
+#     #    f.write(svg_text)
+
+#     smarts = get_smarts(fp_version)
+#     with open(f"{outfilename}.smarts", "w") as f:
+#         for smart in smarts:
+#             f.write(f"{smart[0]}\t{smart[1]}\n")
+#     return None
+
+
+def save_version(version: str, window_size=(1000, 1000), extra_text: str = "") -> None:
+    saver = BiosynfoniVersion(version)
+    saver.save_smarts()
+    saver.save_svg(window_size=window_size)
     return None
 
 
@@ -101,21 +145,18 @@ def save_version(
 
 def smiles_to_mol(smiles: str) -> Chem.Mol:
     """returns rdkit.Chem.rdchem.Mol from smiles"""
-    mol = Chem.MolFromSmiles(smiles)
-    return mol
+    return Chem.MolFromSmiles(smiles)
 
 
 def inchi_to_mol(inchi: str) -> Chem.Mol:
     """returns rdkit.Chem.rdchem.Mol from inchi"""
-    mol = Chem.MolFromInchi(inchi)
-    return mol
+    return Chem.MolFromInchi(inchi)
 
 
 def nonh_atomcount(mol: Chem.Mol) -> int:
     """returns number of non-hydrogen atoms in mol. GetNumAtoms on its own acts weird, so this is a workaround"""
     nonh_mol = Chem.rdmolops.RemoveHs(mol, implicitOnly=False, sanitize=True)
-    mol_size = nonh_mol.GetNumAtoms()  # non-H atoms
-    return mol_size
+    return nonh_mol.GetNumAtoms()
 
 
 def get_sub_matches(mol: Chem.Mol, substructure: Chem.Mol) -> list[list[int]]:
