@@ -240,13 +240,13 @@ def main():
         properties, "murko_framework", "murcko_framework"
     )
     # all_mols, ids_props, stats = molifier(properties, representation_info=True)
-    count = repr_to_annotated_sdf(
+    count_number_written = repr_to_annotated_sdf(
         properties_spellchecked,
         args.output,
         exclusive_repr=args.exclusive,
         rem_chir=args.remove_chirality,
     )
-    print(f"wrote {count} mols to {args.output}")
+    print(f"wrote {count_number_written} mols to {args.output}")
     print("~~~bye~~~")
 
     return None
