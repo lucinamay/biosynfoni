@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 # my imports
 from biosynfoni import def_biosynfoni
+from biosynfoni.cli import cli
 from biosynfoni.rdkfnx import (
     supplier,
     get_subs_set,
@@ -35,167 +36,14 @@ from biosynfoni.rdkfnx import (
     smiles_to_mol,
     inchi_to_mol,
 )
-from biosynfoni.inoutput import outfile_namer, csv_writr, myprint
+from biosynfoni.inoutput import csv_writr, myprint
 
 
 DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
 
 
-def _induce_input_type(inputlist: list) -> str:
-    """induces the input type from the inputlist"""
-    if inputlist[0].endswith(".sdf"):
-        return "sdf"
-    elif inputlist[0].startswith("InChI="):
-        return "inchi"
-    elif "." not in str(inputlist[0]):
-        return "smiles"
-    else:
-        return "sdf"
-
-
-def _handle_outnames(args: argparse.Namespace) -> str:
-    outname, inname_root, overlap_allowance = "", "", ""  # init
-    if args.output is None:
-        if args.repr == "sdf":
-            inname_root = args.input[0].split("/")[-1].split(".")[0]
-        else:
-            inname_root = f"{args.repr}s"
-        if args.intraoverlap:
-            overlap_allowance = "_noblock"
-        elif args.interoverlap:
-            overlap_allowance = "_lessblock"
-        else:
-            overlap_allowance = ""
-        outname_root = f"{inname_root}_{args.version}{overlap_allowance}"
-        outname = f"{outfile_namer(outname_root)}.bsf"
-
-    else:
-        if "." in args.output:
-            outname = args.output
-        else:
-            outname = f"{args.output}.bsf"
-    return outname
-
-
-def cli():
-    parser = argparse.ArgumentParser()
-
-    # required
-    parser.add_argument(
-        "input",
-        metavar="input: molecule(s) / molecule supplier",
-        type=str,
-        nargs="+",
-        help=(
-            "molecule representation to get biosynfoni of,"
-            "can be sdf file, smiles string(s), or InChI string(s)."
-            "will induce type, but recommended to add representation argument"
-        ),
-    )
-
-    # optional
-    parser.add_argument(
-        "-r",
-        "--repr",
-        type=str,
-        required=False,
-        action="store",
-        help="specify the input type of the molecule(s). If molsupplier, choose sdf",
-        choices=["sdf", "smiles", "inchi"],
-        default="induce",
-    )
-
-    parser.add_argument(
-        "-v",
-        "--version",
-        type=str,
-        required=False,
-        action="store",
-        help="specify the fingerprint version to use. If not specified, will use default",
-        choices=def_biosynfoni.FP_VERSIONS.keys(),
-        default=def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION,
-    )
-
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        required=False,
-        action="store",
-        help="specify the output file name. If not specified, will use outfile_namer",
-        default=None,
-    )
-
-    # flags
-    parser.add_argument(
-        "-l",
-        "--interoverlap",
-        "--lessblocking",
-        required=False,
-        action="store_true",
-        help="allows overlap between different substructures",
-        default=False,
-    )
-    parser.add_argument(
-        "-n",
-        "--intraoverlap",
-        "--noblocking",
-        "--noblockingstrong",
-        required=False,
-        action="store_true",
-        help="allows all overlap: between different substructures and between same substructures",
-        default=False,
-    )
-
-    parser.add_argument(
-        "-c",
-        "--coverage",
-        required=False,
-        action="store_true",
-        help="pass if you want a file with the coverage data",
-        default=False,
-    )
-
-    parser.add_argument(
-        "-p",
-        "--printonly",
-        required=False,
-        action="store_true",
-        help=(
-            "pass if you want to print the fingerprint to stdout."
-            "will only print fingerprint, no extra data"
-            "default for more than 1 molecule: False"
-            "for 1 molecule will be overwritten to True, unless specified save"
-        ),
-        default=False,
-    )
-    parser.add_argument(
-        "-s",
-        "--save",
-        required=False,
-        action="store_true",
-        help=("pass if you want to overwrite standard printonly for 1 mol"),
-        default=None,
-    )
-
-    # args = vars(parser.parse_args())
-    args = parser.parse_args()
-
-    if args.repr == "induce":
-        args.repr = _induce_input_type(args.input)
-
-    # overwrite for 1 mol if not specified save
-    if args.save is None:
-        if len(args.input) == 1 and not args.repr == "sdf":
-            args.printonly = True
-
-    args.output = _handle_outnames(args)
-
-    return args
-
-
-# ============================= MAIN FUNCTIONS  =================================
-# -------------------------- per-mol functions ---------------------------------
+# =============================  HELPERS  =====================================
+# -------------------------- general helpers ----------------------------------
 def _count_listitems(nested_list: list) -> int:
     count = 0
     for item in nested_list:
@@ -207,7 +55,20 @@ def _count_listitems(nested_list: list) -> int:
     return count
 
 
-class MolFp:
+def _list_unnest_once(once_nested: list[list[int]]) -> list[int]:
+    # return list(set(chain.from_iterable(sub_matches)))
+    return list(chain.from_iterable(once_nested))
+
+
+def _list_unnest_twice(twice_nested: list[list[list[int]]]) -> list[int]:
+    return list(chain.from_iterable(chain.from_iterable(twice_nested)))
+
+
+# ============================= MAIN FUNCTIONS  =================================
+# -------------------------- per-mol functions ---------------------------------
+
+
+class Biosynfoni:
     def __init__(
         self,
         mol: Chem.Mol,
@@ -218,116 +79,101 @@ class MolFp:
     ) -> None:
         self.mol = mol
         self.version = version_name
-        print(substructure_set)
-        self.substructure_set = self.set_substructure_set(substructure_set)
+        self.substructure_set = self._set_substructure_set(substructure_set)
         self.intersub_overlap = intersub_overlap
         self.intrasub_overlap = intrasub_overlap
         self.overlap_allowance = {
             "intersub": self.intersub_overlap,
             "intrasub": self.intrasub_overlap,
         }
-        self.matches = self._detect_substructures()
-        self.biosynfoni = self.get_biosynfoni()
-        self.coverage = self._matches_to_coverage()
+        self.overlap_matches = self._detect_substructures()
+        # self.inter_overlap_matches = self._get_nonoverlaps()
+        self.matches = self._get_nonoverlaps()
+        self.counted_fp = self.get_biosynfoni()
+        self.fingerprint = self.counted_fp
+        # self.coverage = self._matches_to_coverage()
+        self.coverage = None
+        self.coverage_per_sub = None
 
-    def set_substructure_set(self, substructure_set) -> None:
+    def get_coverage(self) -> float:
+        """gets non-h atom-based coverage of fingerprints over atoms"""
+        coverage = self._matches_to_coverage()
+        self.coverage = coverage
+        return coverage
+
+    def get_coverage_per_substructure(self) -> list[float]:
+        """gets non-h atom-based coverage of fingerprints over atoms"""
+        coverage_per_sub = self._matches_to_coverage_per_substructure()
+        self.coverage_per_sub = coverage_per_sub
+        return coverage_per_sub
+
+    def _set_substructure_set(self, substructure_set) -> None:
         if substructure_set is None:
             return get_subs_set(self.version)
         else:
             return substructure_set
-
-    # def set_mol(self, mol: Chem.Mol) -> None:
-    #     self.mol = mol
-
-    # def set_substructure_set(self, substructure_set: list) -> None:
-    #     self.substructure_set = substructure_set
-
-    # def set_overlap_allowance_intersub(self, intersub_overlap: bool) -> None:
-    #     self.overlap_allowance["intersub"] = intersub_overlap
-
-    # def set_overlap_allowance_intersub(self, intrasub_overlap: bool) -> None:
-    #     self.overlap_allowance["intrasub"] = intrasub_overlap
-
-    # def set_overlap_allowance(self, overlap_allowance: dict) -> None:
-    #     self.overlap_allowance = overlap_allowance
-
-    # def set_matches(self, matches: list[tuple[tuple[int]]]) -> None:
-    #     self.matches = matches
-
-    # def set_biosynfoni(self, biosynfoni: list[int]) -> None:
-    #     self.biosynfoni = biosynfoni
-
-    # def set_coverage(self, coverage: float) -> None:
-    #     self.coverage = coverage
-
-    # def get_mol(self) -> Chem.Mol:
-    #     return self.mol
-
-    # def get_substructure_set(self) -> list:
-    #     return self.substructure_set
-
-    # def get_overlap_allowance(self) -> dict:
-    #     return self.overlap_allowance
-
-    # def get_matches(self) -> list[tuple[tuple[int]]]:
-    #     return self.matches
-
-    # def get_biosynfoni(self) -> list[int]:
-    #     return self.biosynfoni
-
-    # def get_coverage(self) -> float:
-    #     return self.coverage
-
-    def _sub_matches_to_atoms(self, sub_matches: list[list[int]]) -> list[int]:
-        # return list(set(chain.from_iterable(sub_matches)))
-        return list(chain.from_iterable(sub_matches))
-
-    def __filter_intersub_overlap(
-        self, sub_matches: list[list[int]], previous_matches: list[list[int]]
-    ) -> list[list[int]]:
-        """filters out matches that have overlap with previous matches"""
-        filtered_matches = []
-        for sub_match in sub_matches:
-            overlap = False
-            for atom in sub_match:
-                if atom in self._sub_matches_to_atoms(previous_matches):
-                    overlap = True
-                    break
-            if not overlap:
-                filtered_matches.append(sub_match)
-        return filtered_matches
-
-    def __filter_intrasub_overlap(
-        self, sub_matches: list[list[int]]
-    ) -> list[list[int]]:
-        """filters out matches that have overlap within the same substructure"""
-        filtered_matches = []
-        for sub_match in sub_matches:
-            overlap = False
-            for atom in sub_match:
-                if atom in self._sub_matches_to_atoms(filtered_matches):
-                    overlap = True
-                    break
-            if not overlap:
-                filtered_matches.append(sub_match)
-        return filtered_matches
 
     def _detect_substructures(self) -> list[list[list[int]]]:
         """for mol, extracts fingerprint & atomnumbers of each
         match
         """
         # output init.
-        all_approved_matches = []  # empty at start
+        all_detected_matches = []  # empty at start
         for substructure in self.substructure_set:
             sub_matches = get_sub_matches(self.mol, substructure)  # any matches
-            if not self.intersub_overlap:
-                sub_matches = self.__filter_intersub_overlap(
-                    sub_matches, all_approved_matches
-                )
+            all_detected_matches.append(sub_matches)
+        return all_detected_matches
+
+    def __filter_intrasub_overlap(
+        self, sub_matches: list[list[int]]
+    ) -> list[list[int]]:
+        """
+        filters out matches that have overlap within the same substructure
+        (i.e. one atom cannot belong to two 'versions' of the same substructure. e.g. for CCCC there can only be two matches for CC)
+        """
+        # per substructure
+        filtered_matches = []
+        for sub_match in sub_matches:
+            overlap = False  # reset
+            atoms_to_block = _list_unnest_once(filtered_matches)
+            print(sub_match, "|", atoms_to_block)
+            for atom in sub_match:
+                if atom in atoms_to_block:
+                    overlap = True
+                    break
+            if not overlap:
+                filtered_matches.append(sub_match)
+        return filtered_matches
+
+    def __filter_intersub_overlap(
+        self, sub_matches: list[list[int]], previous_matches: list[list[list[int]]]
+    ) -> list[list[int]]:
+        """filters out matches for one substructure key that have overlap with previous matches"""
+        filtered_matches = []
+        atoms_to_block = _list_unnest_twice(previous_matches)
+        for sub_match in sub_matches:
+            overlap = False  # reset
+            print(sub_match, "|", atoms_to_block)
+            for atom in sub_match:
+                if atom in atoms_to_block:
+                    overlap = True
+                    break
+            if not overlap:
+                filtered_matches.append(sub_match)
+        return filtered_matches
+
+    def _get_nonoverlaps(self) -> list[list[list[int]]]:
+        filtered_matches = []
+        for i, substructure in enumerate(self.substructure_set):
+            all_sub_matches = self.overlap_matches[i]  # all sub_matches
             if not self.intrasub_overlap:
-                sub_matches = self.__filter_intrasub_overlap(sub_matches)
-            all_approved_matches.append(sub_matches)
-        return all_approved_matches
+                all_sub_matches = self.__filter_intrasub_overlap(all_sub_matches)
+            if not self.intersub_overlap:
+                all_sub_matches = self.__filter_intersub_overlap(
+                    all_sub_matches, previous_matches=filtered_matches
+                )
+            filtered_matches.append(all_sub_matches)
+        return filtered_matches
 
     def _matches_to_substruct_counts(self) -> list[int]:
         """converts the arrays of atoms of matches to an array with the number of matches per substructure"""
@@ -373,75 +219,73 @@ class MolFp:
         return coverage_per_sub
 
 
-# ------------------------------ multiple mols ----------------------------------
+# ------------------------------ multiple mol operations -------------------------------
 
 
-# def loop_over_supplier(
-#     supplier: Chem.SDMolSupplier,  # or list of mols
-#     fp_version: str = "",
-#     substructure_set: list = [],
-#     coverage_info=False,
-#     blocking_intersub=True,
-#     blocking_intrasub=True,
-# ) -> list[list[int]]:
-#     """gets the fingerprint of the entire set"""
-#     # main functionality
-#     fingerprint_collection = []
-#     if coverage_info:
-#         coverage_collection = []
-#         for mol in supplier:
-#             fingerprint, matchlist = get_biosynfoni(
-#                 mol,
-#                 version=fp_version,
-#                 substructure_set=substructure_set,
-#                 return_matches=True,  # ==coverage_info
-#                 blocking_intersub=blocking_intersub,
-#                 blocking_intrasub=blocking_intrasub,
-#             )
-#             fingerprint_collection.append(fingerprint)
-#             coverage_collection.append(_matches_to_coverage(mol, matchlist))
-#         return fingerprint_collection, coverage_collection
-#     else:
-#         for mol in supplier:
-#             fingerprint = get_biosynfoni(
-#                 mol,
-#                 version=fp_version,
-#                 substructure_set=substructure_set,
-#                 return_matches=coverage_info,
-#                 blocking_intersub=blocking_intersub,
-#                 blocking_intrasub=blocking_intrasub,
-#             )
-#             fingerprint_collection.append(fingerprint)
-#         return fingerprint_collection
+class MolsCollection:
+    def __init__(
+        self, representations: list[Chem.Mol], repr_type: str = "smiles"
+    ) -> iter:
+        self.representations = representations
+        self.repr_type = repr_type
+        self.num_mols = self.get_num_mols()
+
+    def __iter__(self) -> iter:
+        """yields mols from inputlist"""
+        appropriate_yielder = self._get_conversion_yielder()
+        for mol in appropriate_yielder():
+            yield mol
+
+    def _get_conversion_yielder(self) -> Chem.Mol:
+        """yields mols from inputlist"""
+        types_functions = {
+            "sdf": self._yield_sdf_mols,
+            "smiles": self._yield_smiles_mols,
+            "inchi": self._yield_inchi_mols,
+        }
+        return types_functions[self.repr_type]
+
+    def _yield_smiles_mols(self) -> Chem.Mol:
+        """yields mols from smileslist"""
+        for mol in self.representations:
+            yield smiles_to_mol(mol)
+
+    def _yield_inchi_mols(self) -> Chem.Mol:
+        """yields mols from inchilist"""
+        for mol in self.representations:
+            yield inchi_to_mol(mol)
+
+    def _yield_sdf_mols(self) -> Chem.Mol:
+        """yields mols from supplier (only first one of list)"""
+        suppl = supplier(self.representations[0])
+        for mol in suppl:
+            yield mol
+
+    def get_num_mols(self) -> int:
+        if self.repr_type == "sdf":
+            suppl = supplier(self.representations[0])
+            return len(suppl)
+        else:
+            return len(self.representations)
 
 
-def _yield_sdf_mols(sdflist: list) -> Chem.Mol:
-    """yields mols from supplier (only first one of list)"""
-    suppl = supplier(sdflist[0])
-    for mol in suppl:
-        yield mol
+# class Mols_sdf:
+#     pass
 
+#     def _yield_sdf_mols(sdflist: list) -> Chem.Mol:
+#         """yields mols from supplier (only first one of list)"""
+#         suppl = supplier(sdflist[0])
+#         for mol in suppl:
+#             yield mol
 
-def _yield_smiles_mols(smileslist: list) -> Chem.Mol:
-    """yields mols from smileslist"""
-    for mol in smileslist:
-        yield smiles_to_mol(mol)
-
-
-def _yield_inchi_mols(inchilist: list) -> Chem.Mol:
-    """yields mols from inchilist"""
-    for mol in inchilist:
-        yield inchi_to_mol(mol)
-
-
-def _get_yield_mol_function(input_type: str) -> Chem.Mol:
-    """yields mols from inputlist"""
-    types_functions = {
-        "sdf": _yield_sdf_mols,
-        "smiles": _yield_smiles_mols,
-        "inchi": _yield_inchi_mols,
-    }
-    return types_functions[input_type]
+# def _get_yield_mol_function(input_type: str) -> Chem.Mol:
+# """yields mols from inputlist"""
+# types_functions = {
+# "sdf": _yield_sdf_mols,
+# "smiles": _yield_smiles_mols,
+# "inchi": _yield_inchi_mols,
+# }
+# return types_functions[input_type]
 
 
 # ==============================  MAIN =======================================
@@ -449,10 +293,10 @@ def _get_yield_mol_function(input_type: str) -> Chem.Mol:
 
 def main():
     args = cli()
-    print_only_fp = args.printonly  # default False
+    silence_except_fp = args.nosave and not args.verbose  # default False
 
     # set printing on and off depending on print_only_fp
-    print_ = partial(myprint, print_only_fp)
+    print_ = partial(myprint, silence_except_fp)
 
     print_(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
     print_(args)
@@ -461,39 +305,47 @@ def main():
     # get substructure set to speed up process (and not have to get it each time)
     substructure_set = get_subs_set(args.version)
 
-    total_molecules = (
-        len(args.input) if args.repr != "sdf" else len(supplier(args.input[0]))
-    )
-    yield_mol_function = _get_yield_mol_function(args.repr)
+    # total_molecules = (
+    # len(args.input) if args.repr != "sdf" else len(supplier(args.input[0]))
+    # )
+    # yield_mol_function = _get_yield_mol_function(args.repr)
+
+    mol_collection = MolsCollection(args.input, args.repr)
 
     print_("looping over molecules...")
     biosynfonies, coverages = [], []
     for i, mol in tqdm(
-        enumerate(yield_mol_function(args.input)), total=total_molecules
+        # enumerate(yield_mol_function(args.input)), total=total_molecules
+        enumerate(mol_collection.__iter__()),
+        total=mol_collection.num_mols,
+        disable=silence_except_fp,
     ):
         if mol is None:
             with open("biosynfoni.err", "a") as ef:
                 ef.write(f"{i}\n")
 
-        mol_fp = MolFp(
-            mol,
-            substructure_set,
-            args.version,
-            args.interoverlap,
-            args.intraoverlap,
+        mol_fp = Biosynfoni(
+            mol=mol,
+            substructure_set=substructure_set,
+            version_name=args.version,
+            intersub_overlap=args.intersub_overlap,
+            intrasub_overlap=args.intrasub_overlap,
         )
         if args.coverage:
-            coverages.append(mol_fp.coverage)
-        biosynfonies.append(mol_fp.biosynfoni)
+            coverages.append(mol_fp.get_coverage())
+        biosynfonies.append(mol_fp.fingerprint)
 
-    if print_only_fp:
+    if args.nosave:
         for row in biosynfonies:
             if not row:
-                print_("None")
+                print("None")
             else:
                 print(*row, sep=",")
+        print_("coverages:")
+        print_(*coverages, sep="\n")
         exit(0)
         return None
+
     if args.coverage:
         print_("writing coverages...")
         csv_writr(coverages, args.output.replace(".bsf", "_coverages.tsv"), sep="\t")
@@ -506,7 +358,10 @@ def main():
     if args.repr != "sdf":
         with open(args.output.replace(".bsf", "_input.tsv"), "w") as f:
             f.write("\n".join([x for x in args.input]))
-    save_version(args.version, extra_text="extracted")
+    # save_version(args.version, extra_text="extracted")
+    # save version
+    save_version(args.version)
+
     print_("done")
     exit(0)
     return None
