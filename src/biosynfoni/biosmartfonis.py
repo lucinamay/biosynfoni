@@ -190,7 +190,7 @@ Substructures = {
         "name": "isoprene",
         "smarts": "[#6]~[#6](~[#6])~[#6]~[#6]",
         "explanation": "does not filter for existance of double bond, to allow detection within fused rings",
-        "pathway": ["mevalonate", "methylerythritol phosphate"],
+        "pathway": ["mevalonate", "methylerythritol_phosphate"],
         "dewick": True,
         "elements": ["C"],
         "fuzziness": 0.0,
