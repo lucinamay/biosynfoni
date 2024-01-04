@@ -5,19 +5,19 @@ import seaborn as sns
 import scipy.cluster.hierarchy as sch
 import scipy.cluster.vq as scv
 import matplotlib as mpl
-
-# matplotlib.use('Agg')       #if in background
 import matplotlib.pylab as plt
 from matplotlib.patches import Patch
 import pandas as pd
 
-from biosynfoni.def_biosynfoni import FP_VERSIONS
+# matplotlib.use('Agg')       #if in background
+
+from biosynfoni.def_biosynfoni import FP_VERSIONS, DEFAULT_BIOSYNFONI_VERSION
 
 
 def cli():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("fingerprint", help="Fingerprint file")
+    parser.add_argument("fingerprints", help="Fingerprint file")
     parser.add_argument("labels", help="Labels file")
     parser.add_argument(
         "-s",
@@ -218,19 +218,19 @@ def _cmap_makezerowhite(default_cmap: str = "mako"):
 
 
 def main():
-    blocked = "../../input/coco/coconut_full1103.bsf"
-    overlapped = "../../input/coco/coconut_full1103noblock.bsf"
+    args = cli()
 
-    input_file = blocked
     filetype = "pdf"
-    version = input_file.split("/")[-1].split("_")[-1].split(".")[0]
-    substructure_names = FP_VERSIONS["full_1103"]
+    # version = input_file.split("/")[-1].split("_")[-1].split(".")[0]
+    substructure_names = FP_VERSIONS[DEFAULT_BIOSYNFONI_VERSION]
 
-    df = pd.read_csv(blocked, sep=",", header=None, dtype=int)
-    df.columns = substructure_names
+    fp = pd.read_csv(args.fingerprints, sep=",", header=None, dtype=int)
+    fp.columns = substructure_names
+    db_name = args.fingerprints.split("/")[-1].split(".")[0].split("_")[0]
+    fp_name = args.fingerprints.split("/")[-1].split(".")[0].split("_")[1]
 
     npcs = pd.read_csv(
-        "../../input/coco/coconut_classes.tsv",
+        args.labels,
         sep="\t",
         header=None,
         dtype=str,
@@ -239,25 +239,24 @@ def main():
 
     # filter out multiple-prediction compounds
     npcs.fillna(",", inplace=True)
-    df = df[~npcs[0].str.contains(",")]
+    fp = fp[~npcs[0].str.contains(",")]
     npcs = npcs[~npcs[0].str.contains(",")]
-    # oneprediction_df_overlap = df_overlap[~npcs[0].str.contains(',')]
 
     # filter out only-zero columns in df ~~~~~~~~~~~~~~~ CHECK IF THIS APPLIES TO YOUR PURPOSES ~~~~~~~~~~~~~~~
-    df = df.loc[:, (df != 0).any(axis=0)]
+    fp = fp.loc[:, (fp != 0).any(axis=0)]
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # subsample indexes
     if args.subsample:
         np.random.seed(args.seed)
-        idx = np.random.choice(df.index, args.subsample, replace=False)
-        df = df.loc[idx]
+        idx = np.random.choice(fp.index, args.subsample, replace=False)
+        fp = fp.loc[idx]
         npcs = npcs.loc[idx]
 
     npcs_series = npcs.iloc[:, 0]
 
     # check if indexes are the same
-    assert df[df.index != npcs.index].empty
+    assert fp[fp.index != npcs.index].empty
     assert npcs[npcs.index != npcs_series.index].empty
     assert type(npcs_series) == pd.Series
 
@@ -273,7 +272,7 @@ def main():
     cwd = os.getcwd()
     # make a directory in grandparent directory called clustermaps
     # os.chdir("../../")
-    os.makedirs("clustermaps", exist_ok=True)
+    os.makedirs(f"clustermaps/{db_name}/{fp_name}", exist_ok=True)
     os.chdir("clustermaps")
 
     for method in ["average", "complete", "single", "weighted"]:
@@ -297,13 +296,11 @@ def main():
             "sokalsneath",
             "yule",
         ]:
-            # clustermap = ClusterMap(df, npcs_series, metric, method)
-            # clustermap.save_clustermap(fmt=filetype)
+            # errors can occur for some metrics if they have too small sample sets, or with certain combinations:
             try:
-                clustermap = ClusterMap(df, npcs_series, metric, method)
+                clustermap = ClusterMap(fp, npcs_series, metric, method)
                 # clustermap.save_clustermap(fmt=filetype)
             except:
-                # errors can occur for some metrics if they have too small sample sets, or with certain combinations
                 print(f"failed for {method} and {metric}")
             pass
         pass
