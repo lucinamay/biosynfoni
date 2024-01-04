@@ -8,6 +8,7 @@ import matplotlib as mpl
 import matplotlib.pylab as plt
 from matplotlib.patches import Patch
 import pandas as pd
+from tqdm import tqdm
 
 # matplotlib.use('Agg')       #if in background
 
@@ -275,27 +276,30 @@ def main():
     os.makedirs(f"clustermaps/{db_name}/{fp_name}", exist_ok=True)
     os.chdir("clustermaps")
 
-    for method in ["average", "complete", "single", "weighted"]:
-        for metric in [
-            "euclidean",
-            "cityblock",
-            "cosine",
-            "correlation",
-            "hamming",
-            "jaccard",
-            "mahalanobis",
-            "chebyshev",
-            "canberra",
-            "braycurtis",
-            "dice",
-            "kulsinski",
-            "matching",
-            "rogerstanimoto",
-            "russellrao",
-            "sokalmichener",
-            "sokalsneath",
-            "yule",
-        ]:
+    for method in tqdm(["average", "complete", "single", "weighted"]):
+        for metric in tqdm(
+            [
+                "euclidean",
+                "cityblock",
+                "cosine",
+                "correlation",
+                "hamming",
+                "jaccard",
+                "mahalanobis",
+                "chebyshev",
+                "canberra",
+                "braycurtis",
+                "dice",
+                "kulsinski",
+                "matching",
+                "rogerstanimoto",
+                "russellrao",
+                "sokalmichener",
+                "sokalsneath",
+                "yule",
+            ],
+            leave=False,
+        ):
             # errors can occur for some metrics if they have too small sample sets, or with certain combinations:
             try:
                 clustermap = ClusterMap(fp, npcs_series, metric, method)
