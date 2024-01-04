@@ -9,7 +9,7 @@ from utils import set_style
 
 def cli():
     parser = argparse.ArgumentParser()
-    set_style()
+
     parser.add_argument("fingerprint", help="Fingerprint file")
     parser.add_argument("labels", help="Labels file")
     parser.add_argument(
@@ -23,7 +23,9 @@ def cli():
 
 
 def main():
+    set_style()
     args = cli()
+
     fp = np.loadtxt(args.fingerprint, delimiter=",", dtype=int)
     labels = np.loadtxt(args.labels, delimiter="\t", dtype=str, usecols=(0,))
 
