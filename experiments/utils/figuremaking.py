@@ -79,11 +79,16 @@ def scatter_boxplots(
     )
 
     # Create the Axes.
+    # for scatterplot
     ax = fig.add_subplot(gs[1, 0])
+    # for legend
     legax = fig.add_subplot(gs[0, 1])
+
+    # Set aspect of the Axes manually to have points on 0 and 1 show better
     # ax.set_xlim(-0.05, 1.05)
     # ax.set_ylim(-0.05, 1.05)
 
+    # Get Data
     all_data_x = [
         np.array(df[df[color_by] == category][col_x].to_numpy(dtype=float))
         for category in df[color_by].unique()
@@ -95,6 +100,7 @@ def scatter_boxplots(
         for category in df[color_by].unique()
     ]
     all_data_y = [y[~np.isnan(y)] for y in all_data_y]
+
     ax_xobs, ax_yobs = [], []
     print(all_data_x)
     print(len(all_data_x))
@@ -140,10 +146,12 @@ def scatter_boxplots(
             zorder=3,
         )
 
+        # change boxplot colours to match the category colour
         alpha = 0.6
-
         _set_ax_boxplot_i_colour(xplot, i, colour, inner_alpha=alpha)
         _set_ax_boxplot_i_colour(yplot, i, colour, inner_alpha=alpha)
+
+        # scatter empty df, to get legend in right format in right position
         leg = legax.scatter(
             x=col_x,
             y=col_y,
@@ -181,48 +189,6 @@ def scatter_boxplots(
     return fig
 
 
-COLOUR_DICT = {
-    "taxonomy": {
-        "Viridiplantae": px.colors.qualitative.Plotly[7],  # green
-        "Bacteria": px.colors.qualitative.D3[9],  # light red
-        "Fungi": px.colors.qualitative.Plotly[3],  # purple
-        "Metazoa": px.colors.qualitative.Plotly[4],  # orange
-        "Archaea": px.colors.qualitative.T10[7],  # pink
-        "Eukaryota": px.colors.qualitative.Set3[8],
-        "Cellular organisms": px.colors.qualitative.Plotly[9],
-        "Opisthokonta": px.colors.qualitative.Plotly[8],
-    },
-    "stepnum": {
-        "1": "#081d58",  #'#57BAC0',  # navy,
-        "2": "#225ea8",  #'#77BC4D',  # royal blue,
-        "3": "#41b6c4",  #'#F3C55F',  # teal,
-        "4": "#7fcdbb",  #'#F48861',  # turquoise,
-        "-1": "#c7e9b4",  #'#797979',  # lemon green,
-        "random pairs": "#c7e9b4",
-        "control": "#c7e9b4",
-    },
-    "pathways": {
-        "shikimate": px.colors.qualitative.Plotly[3],  # purple
-        "acetate": px.colors.qualitative.Pastel[2],  # orange,
-        "mevalonate": px.colors.qualitative.Pastel[4],  # green,
-        "methylerythritol": px.colors.qualitative.Pastel[0],  # blue
-        "sugar": px.colors.qualitative.T10[7],  # pink
-    },
-    "class": {
-        "Terpenoids": px.colors.qualitative.Plotly[7],  # green
-        "Alkaloids": "lightblue",  # purple
-        "Shikimates and Phenylpropanoids": px.colors.qualitative.Plotly[3],
-        "Fatty acids": px.colors.qualitative.Plotly[4],  # orange
-        "Carbohydrates": "lightpink",  # pink
-        "Polyketides": px.colors.qualitative.Prism[7],  # light red
-        "Amino acids and Peptides": "bisque",
-        "No NP-Classifier prediction": "grey",
-        "None": "grey",
-        "Synthetic": "black",
-    },
-}
-
-
 def scatter_3d(df, col1, col2, col3, m="o"):
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
@@ -251,6 +217,23 @@ def scatter_3d(df, col1, col2, col3, m="o"):
 #     fig.show()
 
 #     return None
+
+
+def label_colourcode(ticklabels: list, colors: list) -> str:
+    for label, color in zip(ticklabels, colors):
+        # label.set_color(COLOUR_DICT[axis][label.get_text()])
+        plt.setp(
+            label,
+            backgroundcolor=color,
+            bbox=dict(
+                facecolor=color,
+                alpha=0.5,
+                boxstyle="round, rounding_size=0.8",
+                edgecolor="none",
+            ),
+        )  # , height=0.3))
+        # t.set_bbox(dict(facecolor=color, alpha=0.5, boxstyle="round"))  # , height=0.3))
+    return None
 
 
 def heatmap(
