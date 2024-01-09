@@ -77,24 +77,6 @@ def entry_parser(lines: list, sep: str = "$$$$") -> list[list]:
     return entries
 
 
-def extractr(
-    lines: list, starts: list = [], remove_starts: bool = True, strip_extra: str = " - "
-) -> dict[list[str]]:
-    """within a collection of lines, only extracts the lines starting with
-    terms in starts, returning them as a list to accomodate multiple values
-    per entry"""
-    extraction = {}
-    for start in starts:
-        extraction[start] = []
-    for line in lines:
-        for start in starts:
-            if line.startswith(start):
-                extraction[start].append(
-                    line.strip().replace(start, "").replace(strip_extra, "").strip()
-                )
-    return extraction
-
-
 # ============================= general handling  =============================
 
 

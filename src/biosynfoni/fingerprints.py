@@ -25,7 +25,7 @@ from rdkit.Chem import AllChem
 
 # my imports
 from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
-from biosynfoni.concerto_fp import get_biosynfoni
+from biosynfoni.concerto_fp import Biosynfoni
 
 
 # circular fingerprint -------------------------------------------------
@@ -59,9 +59,9 @@ def biosynfoni_getter(
     mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
     """returns counted fingerprint list"""
-    counted_fingerprint = get_biosynfoni(
-        mol, version=version, return_matches=False, *args, **kwargs
-    )
+    counted_fingerprint = Biosynfoni(
+        mol, version_name=version, *args, **kwargs
+    ).fingerprint
     return np.array(counted_fingerprint)
 
 
@@ -86,19 +86,11 @@ def binosynfoni_getter(
     mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
 ) -> np.array:
     """returns explicit bit vector"""
-    counted = get_biosynfoni(
-        mol, version=version, return_matches=False, *args, **kwargs
-    )
-    binary = []
-    for i in counted:
-        if i > 0:
-            binary.append(1)
-        elif i == 0:
-            binary.append(0)
-    assert len(binary) == len(counted), "error in obtaining binosynfoni"
-
+    counted = biosynfoni_getter(mol, version=version, *args, **kwargs)
+    binary = counted.copy()
+    binary[np.where(counted > 0)] = 1
     # binosynfoni = list_to_bitvect(binary)
-    return np.array(binary)
+    return binary
 
 
 # ============================= distance, similarity =========================
