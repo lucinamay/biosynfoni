@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, os
+import argparse, os, logging
 from collections import Counter
 
 
@@ -80,15 +80,27 @@ def cli() -> argparse.Namespace:
             "(not for k-fold cross validation))"
         ),
     )
+    parser.add_argument(
+        "-e",
+        "--export",
+        action="store_true",
+        default=False,
+        help="If set, will export the model ",
+    )
+
     args = parser.parse_args()
-
     if args.unilabel and args.cutoff != 0.5:
-        print(f"WARNING: cutoff {args.cutoff} is ignored for unilabel classification.")
+        logging.warning(f"cutoff {args.cutoff} is ignored for unilabel classification.")
 
+    # get absolute path from relative path
+    args.fingerprints = os.path.abspath(args.fingerprints)
+    args.classifications = os.path.abspath(args.classifications)
+    if args.names:
+        args.names = os.path.abspath(args.names)
     return args
 
 
-def get_unilabels(classifications_path: str) -> tuple[list, dict]:
+def _read_unilabels(classifications_path: str) -> tuple[list, dict]:
     """returns list of classification types"""
     # parse labels from input file
     classification_types = Counter()
@@ -114,7 +126,7 @@ def get_unilabels(classifications_path: str) -> tuple[list, dict]:
     return labels_names, class_index
 
 
-def get_multilabels(classifications_path: str) -> tuple[list, dict]:
+def _read_multilabels(classifications_path: str) -> tuple[list, dict]:
     """from the file, parse the classifications for the first tab-separated field,
     and extract the individual labels separated by commas, putting them in a multilabel
     classification table
@@ -136,14 +148,14 @@ def get_multilabels(classifications_path: str) -> tuple[list, dict]:
     return labels_names, class_index
 
 
-def unilabel_to_numeric(labels_names: list, class_index: dict) -> tuple:
+def _unilabel_to_numeric(labels_names: list, class_index: dict) -> np.array:
     """for a list labels, return integer values assigned to each label"""
     # Assign every key from classification type to an integer.
     y = np.array([class_index[label] for label in labels_names])
     return y
 
 
-def multilabels_to_binary(labels_names: list, class_index: dict) -> tuple:
+def _multilabels_to_binary(labels_names: list, class_index: dict) -> np.array:
     """from the list of labels, make a binary table of labels"""
     # Labels.
     y = np.zeros((len(labels_names), len(class_index.keys())), dtype=int)
@@ -153,13 +165,13 @@ def multilabels_to_binary(labels_names: list, class_index: dict) -> tuple:
     return y
 
 
-def read_in_classifications(cl_path: str, unilabel: bool) -> tuple:
+def read_classifications(cl_path: str, unilabel: bool) -> tuple:
     if unilabel:
-        label_names, class_index = get_unilabels(cl_path)
-        y = unilabel_to_numeric(label_names, class_index)
+        label_names, class_index = _read_unilabels(cl_path)
+        y = _unilabel_to_numeric(label_names, class_index)
     else:
-        label_names, class_index = get_multilabels(cl_path)
-        y = multilabels_to_binary(label_names, class_index)
+        label_names, class_index = _read_multilabels(cl_path)
+        y = _multilabels_to_binary(label_names, class_index)
     return label_names, class_index, y
 
 
@@ -180,8 +192,22 @@ def i_to_cl(y: np.array, class_index: dict, unilabel: bool = False) -> tuple:
     return y_classes
 
 
-def separate_nones(label_names, class_index, X, y, ids, unilabel=False):
+def get_ids(names_path: str, size: int) -> np.array:
+    if names_path:
+        ids = np.loadtxt(names_path, dtype=str, delimiter="\t", usecols=0)
+    else:
+        ids = np.array(range(size))
+
+    assert ids.shape[0] == size, "number of ids does not match number of fingerprints"
+
+    return ids
+
+
+def separate_nones(label_names: list[list], class_index: dict, x_y_andco: list):
+    """x_y_andco: (X, y, ids)"""
     none_indices = []
+    # X, y, ids = x_y_andco
+    y = x_y_andco[1]  #!!! be careful it is a y
     # get indexes of "None" annotations
     for i, name in enumerate(label_names):
         if name == ["None"]:
@@ -190,140 +216,229 @@ def separate_nones(label_names, class_index, X, y, ids, unilabel=False):
     # remove "None" class index dictionary (integer values)
     if "None" in class_index.keys():
         none_index = class_index.pop("None")
-        if not unilabel:
+        # if not unilabel:
+        if y.shape[1] > 1:
             y = np.delete(y, none_index, 1)  # drop column
-    print(f'separating {len(none_indices)} "nones" from training/testing set')
+    logging.info(f'separating {len(none_indices)} "nones" from training/testing set')
 
     none_indices = np.array(none_indices, dtype=int)
-    nones_X, nones_y, nones_ids = X[none_indices], y[none_indices], ids[none_indices]
 
-    X = np.delete(X, none_indices, 0)
-    y = np.delete(y, none_indices, 0)
-    ids = np.delete(ids, none_indices, 0)
-    return label_names, class_index, X, y, ids, nones_X, nones_y, nones_ids
+    nones = [], []
+    for array in x_y_andco:
+        nones.append(array[none_indices])
+        np.delete(array, none_indices, 0)
+    # nones_X, nones_y, nones_ids = X[none_indices], y[none_indices], ids[none_indices]
+    # X = np.delete(X, none_indices, 0)
+    # y = np.delete(y, none_indices, 0)
+    # ids = np.delete(ids, none_indices, 0)
+    return (label_names, class_index), x_y_andco, nones
+
+
+# def subsampler(
+#     X: np.array,
+#     y: np.array,
+#     size: int = 10000,
+#     random_seed: int = None,
+# ) -> tuple:
+#     logging.info(f"Subsampling {size}. Random seed: {random_seed}")
+#     if isinstance(random_seed, int):
+#         np.random.seed(random_seed)
+#     indices = np.random.choice(X.shape[0], size=size, replace=False)
+#     X = X[indices]
+#     y = y[indices]
+#     logging.info(X.shape, y.shape)
+#     return X, y
 
 
 def subsampler(
-    X: np.array,
-    y: np.array,
+    arrays_to_subsample: tuple[np.array],
     size: int = 10000,
     random_seed: int = None,
-    verbose: bool = True,
 ) -> tuple:
-    if verbose:
-        print(f"Subsampling {size}. Random seed: {random_seed}")
+    """subsample arrays in list, keeping same indices"""
     if isinstance(random_seed, int):
         np.random.seed(random_seed)
-    indices = np.random.choice(X.shape[0], size=size, replace=False)
-    X = X[indices]
-    y = y[indices]
-    if verbose:
-        print(X.shape, y.shape)
-    return X, y
-
-
-def subsampler_ids(
-    X: np.array,
-    y: np.array,
-    ids: np.array,
-    size: int = 10000,
-    random_seed: int = None,
-    verbose: bool = True,
-) -> tuple:
-    """subsample including ids"""
-    if verbose:
-        print(f"Subsampling {size}. Random seed: {random_seed}")
-
-    if len(ids) == 0:
-        ids = np.arange(X.shape[0])
-    indices = np.random.choice(X.shape[0], size=size, replace=False)
-    X = X[indices]
-    y = y[indices]
-    ids = ids[indices]
-
-    if verbose:
-        print(X.shape, y.shape)
-    return X, y, ids
-
-
-def train_test_split(X: np.array, y: np.array, fract: float = 0.8) -> tuple:
-    """regular train test split"""
-    # Split into train and test.
-    indices = np.random.permutation(X.shape[0])
-    X = X[indices]
-    y = y[indices]
-    train_size = int(fract * X.shape[0])
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
-    print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-    return X_train, X_test, y_train, y_test
-
-
-def tr_te_split_ids(
-    X: np.array, y: np.array, ids: np.array = np.array([]), fract: float = 0.8
-) -> tuple:
-    """train test split including ids"""
-    # Split into train and test.
-    if len(ids) == 0:
-        ids = np.arange(X.shape[0])
-
-    indices = np.random.permutation(X.shape[0])
-    X = X[indices]
-    y = y[indices]
-    ids = ids[indices]
-
-    train_size = int(fract * X.shape[0])
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
-    ids_train, ids_test = ids[:train_size], ids[train_size:]
-
-    print(
-        X_train.shape,
-        X_test.shape,
-        y_train.shape,
-        y_test.shape,
-        ids_train.shape,
-        ids_test.shape,
+    indices = np.random.choice(
+        arrays_to_subsample[0].shape[0], size=size, replace=False
     )
-    return X_train, X_test, y_train, y_test, ids_train, ids_test
+    subsampled_arrays = []
+    for array in arrays_to_subsample:
+        subsampled_arrays.append(array[indices])
+    logging.info(f"Subsampled {size}. Random seed: {random_seed}")
+    logging.info([array.shape for array in subsampled_arrays])
+    return tuple(subsampled_arrays)
 
 
-def random_forester(
+# def train_test_split(X: np.array, y: np.array, fract: float = 0.8) -> tuple:
+#     """regular train test split"""
+#     # Split into train and test.
+#     indices = np.random.permutation(X.shape[0])
+#     X = X[indices]
+#     y = y[indices]
+#     train_size = int(fract * X.shape[0])
+#     X_train, X_test = X[:train_size], X[train_size:]
+#     y_train, y_test = y[:train_size], y[train_size:]
+#     print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+#     return X_train, X_test, y_train, y_test
+
+
+def train_test_split(arrays_to_split: tuple[np.array], fract: float = 0.8) -> tuple:
+    indices = np.random.permutation(arrays_to_split[0].shape[0])
+    arrays = []
+    for array in arrays_to_split:
+        arrays.append(array[indices])
+    train_size = int(fract * arrays[0].shape[0])
+    train_arrays = []
+    test_arrays = []
+    for array in arrays:
+        train_arrays.append(array[:train_size])
+        test_arrays.append(array[train_size:])
+    return tuple(train_arrays), tuple(test_arrays)
+
+
+# def tr_te_split_ids(
+#     X: np.array, y: np.array, ids: np.array = np.array([]), fract: float = 0.8
+# ) -> tuple:
+#     """train test split including ids"""
+#     # Split into train and test.
+#     if len(ids) == 0:
+#         ids = np.arange(X.shape[0])
+
+#     indices = np.random.permutation(X.shape[0])
+#     X = X[indices]
+#     y = y[indices]
+#     ids = ids[indices]
+
+#     train_size = int(fract * X.shape[0])
+#     X_train, X_test = X[:train_size], X[train_size:]
+#     y_train, y_test = y[:train_size], y[train_size:]
+#     ids_train, ids_test = ids[:train_size], ids[train_size:]
+
+#     print(
+#         X_train.shape,
+#         X_test.shape,
+#         y_train.shape,
+#         y_test.shape,
+#         ids_train.shape,
+#         ids_test.shape,
+#     )
+#     return X_train, X_test, y_train, y_test, ids_train, ids_test
+
+
+# class rfData:
+#     # X = data[0]
+#     # y = data[1]
+#     # ids = data[2]
+
+#     def __init__(
+#         self,
+#         X: np.array,
+#         cl_path: str,
+#         ids: np.array,
+#         unilabel: bool,
+#         fract: float = 0.8,
+#     ):
+#         self.X = X
+#         self.ids = ids
+#         self.unilabel = unilabel
+#         self.label_names, self.class_index, self.y = read_classifications(
+#             cl_path, unilabel
+#         )
+#         self.data = (self.X, self.y, self.ids)
+#         self.classes = None
+#         self.nones_X = None
+#         self.nones_y = None
+#         self.nones_ids = None
+#         self.nones_data = None
+
+#         self.X_train = None
+#         self.X_test = None
+#         self.y_train = None
+#         self.y_test = None
+#         self.ids_train = None
+#         self.ids_test = None
+#         train_test_split(self.data, fract=0.8)
+
+#     def subsample(self, size: int = 10000, random_seed: int = None):
+#         if isinstance(random_seed, int):
+#             np.random.seed(random_seed)
+#         indices = np.random.choice(self.X.shape[0], size=size, replace=False)
+
+#         self.X = self.X[indices]
+#         self.y = self.y[indices]
+#         self.ids = self.ids[indices]
+
+#         logging.info(f"Subsampled {size}. Random seed: {random_seed}")
+#         logging.debug(self.X.shape, self.ids.shape)
+#         return None
+
+#     def train_test_split(self, fract: float = 0.8):
+#         """regular train test split"""
+#         # Split into train and test.
+#         indices = np.random.permutation(self.X.shape[0])
+#         self.X = self.X[indices]
+#         self.y = self.y[indices]
+#         self.ids = self.ids[indices]
+
+#         train_size = int(fract * self.X.shape[0])
+#         self.X_train, self.X_test = self.X[:train_size], self.X[train_size:]
+#         self.y_train, self.y_test = self.y[:train_size], self.y[train_size:]
+#         self.ids_train, self.ids_test = self.ids[:train_size], self.ids[train_size:]
+
+#         logging.debug(self.X_train.shape, self.X_test.shape)
+#         return None
+
+#     def separate_nones(self):
+#         """separate nones from data"""
+#         none_indices = []
+#         # get indexes of "None" annotations
+#         for i, name in enumerate(self.label_names):
+#             if name == ["None"]:
+#                 none_indices.append(int(i))
+
+#         # remove "None" class index dictionary (integer values)
+#         if "None" in self.class_index.keys():
+#             none_ind = self.class_index.pop("None")
+#             # if not unilabel:
+#             if self.y.shape[1] > 1:
+#                 self.y = np.delete(self.y, none_ind, 1)
+
+#         # separate
+
+
+def get_rf(
     X_train: np.array,
-    X_test: np.array,
     y_train: np.array,
-    y_test: np.array,
     n_estimators: int = 1000,  # number of trees
     max_depth: int = 100,
-) -> tuple[list, list]:
+) -> RandomForestClassifier:
     # Train random forest classifier.
     clf = RandomForestClassifier(
         n_estimators=n_estimators, max_depth=max_depth, n_jobs=-1
     )
     clf.fit(X_train, y_train)
-    # y_pred = clf.predict_proba(X_test)
-    y_pred = clf.predict(X_test)
-    return np.array(y_pred), clf.feature_importances_
+    return clf
 
 
-def rf_proba(
-    X_train: np.array,
+def predict_one(
     X_test: np.array,
-    y_train: np.array,
-    y_test: np.array,
-    n_estimators: int = 1000,  # number of trees
-    max_depth: int = 100,
+    classifier: RandomForestClassifier,
+) -> tuple[list, list]:
+    # Train random forest classifier.
+    y_pred = classifier.predict(X_test)
+    return np.array(y_pred), classifier.feature_importances_
+
+
+def proba(
+    X_test: np.array,
+    classifier: RandomForestClassifier,
 ) -> tuple[list, list]:
     """predict probabilities with RF"""
-    # Train random forest classifier.
-    clf = RandomForestClassifier(
-        n_estimators=n_estimators, max_depth=max_depth, n_jobs=-1
-    )
-    clf.fit(X_train, y_train)
-    probabilities = np.array(clf.predict_proba(X_test))
+    probabilities = np.array(classifier.predict_proba(X_test))
     # only probability of "yes class"
     only_class_membership = probabilities[:, :, 1]
-    return np.transpose(only_class_membership)
+    class_probabilities = np.transpose(only_class_membership)
+    return class_probabilities
 
 
 def cutoffr(y_proba: np.array, cutoff: float = 0.5) -> np.array:
@@ -343,7 +458,7 @@ def kfold_yielder(X: np.array, y: np.array, k: int = 5) -> tuple:
     for train_index, test_index in kf.split(X):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        # print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+        # logging.info(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
         yield X_train, X_test, y_train, y_test
 
 
@@ -355,7 +470,7 @@ def kfold_yielder_ids(X: np.array, y: np.array, ids: np.array, k: int = 5) -> tu
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         ids_train, ids_test = ids[train_index], ids[test_index]
-        # print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+        # logging.info(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
         yield X_train, X_test, y_train, y_test, ids_train, ids_test
 
 
@@ -374,27 +489,16 @@ def kfold_preds(
     cl_reps = []  # classification reports
     importances = []
     for X_train, X_test, y_train, y_test in tqdm(kfold_yielder(X, y, k=k), total=k):
+        classifier = get_rf(
+            X_train, y_train, n_estimators=n_estimators, max_depth=max_depth
+        )
         if unilabel:
-            y_pred, importance = random_forester(
-                X_train,
-                X_test,
-                y_train,
-                y_test,
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-            )
+            y_pred, importance = predict_one(X_test, classifier)
             cl_rep = classification_report(y_test, y_pred, zero_division=np.nan)
             cm = confusion_matrix(y_test, y_pred)
         else:
             # multilabel, consider cutoff
-            y_proba = rf_proba(
-                X_train,
-                X_test,
-                y_train,
-                y_test,
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-            )
+            y_proba = proba(X_test, classifier)
             y_pred = cutoffr(y_proba, cutoff=cutoff)
             # classification report with classes as target names for multilabel
             cl_rep = classification_report(
@@ -434,7 +538,7 @@ def wrongs_array(
     w_test_str = i_to_cl(w_test, class_index)
     w_pred_str = i_to_cl(w_pred, class_index)
     wrong = np.array([w_id, w_test_str, w_pred_str]).T
-    print(wrong.shape[0], " wrong predictions")
+    logging.info(wrong.shape[0], " wrong predictions")
     return wrong
 
 
@@ -536,114 +640,101 @@ def main() -> None:
     n_estimators = 1000  # number of trees
     max_depth = 100
     args = cli()
-    print(args)
-    include_none = args.include_none  # preserve value of args.include_none
+    logging.info(args)
+    include_none = args.include_none  # preserve value of args.include_none for later
 
-    # get absolute path from relative path
-    fp_path = os.path.abspath(args.fingerprints)
-    classif = os.path.abspath(args.classifications)
-    if args.names:
-        args.names = os.path.abspath(args.names)
-
-    folder = os.path.basename(os.path.dirname(fp_path))
-    # get fingerprint name
-    fp_name = fp_path.split("/")[-1].split(".")[0]
-    # get database name
+    # get fingerprint information from path
+    folder = os.path.basename(os.path.dirname(args.fingerprints))
+    fp_name = args.fingerprints.split("/")[-1].split(".")[0]
     db_name = folder.split("/")[-1]
 
-    # make directory for output
+    # make directory for output, get initial working directory for later
     iwd = handle_outdirs(db_name, fp_name, args.unilabel)
 
     # Parse fingerprints from input file.
     delimiter = "\t" if args.fingerprints.endswith(".tsv") else ","
-    X = np.loadtxt(fp_path, delimiter=delimiter, dtype=int)
+    X = np.loadtxt(args.fingerprints, delimiter=delimiter, dtype=int)
 
-    label_names, class_index, y = read_in_classifications(classif, args.unilabel)
-    print("X, y:", X.shape, y.shape)
+    label_names, class_index, y = read_classifications(
+        args.classifications, args.unilabel
+    )
+    logging.info("X, y:", X.shape, y.shape)
+    ids = get_ids(args.names, X.shape[0])
 
-    if args.names:
-        ids = np.loadtxt(args.names, dtype=str, delimiter="\t", usecols=0)
-    else:
-        ids = np.array(range(X.shape[0]))
-
+    nones_X, nones_y, nones_ids = np.array([]), np.array([]), np.array([])
     if not include_none:
-        (
-            label_names,
-            class_index,
-            X,
-            y,
-            ids,
-            nones_X,
-            nones_y,
-            nones_ids,
-        ) = separate_nones(label_names, class_index, X, y, ids, unilabel=False)
+        (label_names, class_index), filtered, nones = separate_nones(
+            label_names, class_index, (X, y, ids)
+        )
+        X, y, ids = filtered
+        nones_X, nones_y, nones_ids = nones
 
     if nones_X.shape[0] == 0:
-        print("no nones")
-        include_none = True
+        logging.info("no nones")
+        include_none = True  # for same functions later
+
     classes = list(class_index.keys())
 
-    # Subsample 10.000 randomly from X and y.
+    # Subsample randomly from X and y.
     if isinstance(args.subsample, int):
-        X, y, ids = subsampler_ids(
-            X, y, ids, size=args.subsample, random_seed=args.random_seed
+        X, y, ids = subsampler(
+            (X, y, ids), size=args.subsample, random_seed=args.random_seed
         )
 
     # Split into train and test.
-    X_train, X_test, y_train, y_test, ids_train, ids_test = tr_te_split_ids(
-        X, y, ids, fract=0.8
-    )
+    train, test = train_test_split((X, y, ids), fract=0.8)
+    X_train, y_train, ids_train = train
+    X_test, y_test, ids_test = test
+    # X_train, X_test, y_train, y_test, ids_train, ids_test = tr_te_split_ids(
+    #     X, y, ids, fract=0.8
+    # )
 
     # get initial predictions. ------------------------------------------------------
-    print("RF for getting wrong predictions")
+    logging.info("RF for getting wrong predictions")
     if args.unilabel:
-        y_pred, _ = random_forester(
+        y_pred, _ = predict_one(
             X_train,
             X_test,
             y_train,
-            y_test,
             n_estimators=n_estimators,
             max_depth=max_depth,
         )
         cm = confusion_matrix(y_test, y_pred)
     else:
         # multilabel, considers cutoff, no feature importances
-        y_proba = rf_proba(
+        y_proba = proba(
             X_train,
             X_test,
             y_train,
-            y_test,
             n_estimators=n_estimators,
             max_depth=max_depth,
         )
         y_pred = cutoffr(y_proba, cutoff=args.cutoff)
         cm = multilabel_confusion_matrix(y_test, y_pred)
-        # print("proba, test, pred shapes:", y_proba.shape, y_test.shape, y_pred.shape)
+        # logging.info("proba, test, pred shapes:", y_proba.shape, y_test.shape, y_pred.shape)
 
     # try and get wrong predictions. ------------------------------------------------
     wrongs = wrongs_array(ids_test, y_test, y_pred, class_index)
     np.savetxt("wrong_predictions.tsv", wrongs, delimiter="\t", fmt="%s")
-    # print("wrong predictions not (/not properly) detected")
+    # logging.info("wrong predictions not (/not properly) detected")
 
     # none predictions. -------------------------------------------------------------
     if not include_none:
-        print('get prediction for the "Nones"')
+        logging.info('get prediction for the "Nones"')
         if args.unilabel:
             # get prediction for the "Nones" by training with full not-none dataset
-            ny_pred, _ = random_forester(
+            ny_pred, _ = predict_one(
                 X,
                 nones_X,
                 y,
-                nones_y,
                 n_estimators=n_estimators,
                 max_depth=max_depth,
             )
         else:
-            ny_proba = rf_proba(
+            ny_proba = proba(
                 X,
                 nones_X,
                 y,
-                nones_y,
                 n_estimators=n_estimators,
                 max_depth=max_depth,
             )
@@ -673,6 +764,18 @@ def main() -> None:
 
     # write arguments as yaml. ------------------------------------------------------
     args_yaml(args, title="arguments.yaml")
+
+    # save model
+    if args.export:
+        logging.info("exporting model")
+        # Train random forest classifier.
+        clf = RandomForestClassifier(
+            n_estimators=n_estimators, max_depth=max_depth, n_jobs=-1
+        )
+        # clf.fit(X_train, y_train)
+        clf.fit(X, y)
+        # save model
+        np.save("full_model.npy", clf)
 
     # write decision tree.
     # export_graphviz(clf.estimators_[0], out_file="tree.dot", feature_names=classes)
