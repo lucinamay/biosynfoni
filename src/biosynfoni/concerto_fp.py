@@ -136,7 +136,6 @@ class Biosynfoni:
         for sub_match in sub_matches:
             overlap = False  # reset
             atoms_to_block = _list_unnest_once(filtered_matches)
-            print(sub_match, "|", atoms_to_block)
             for atom in sub_match:
                 if atom in atoms_to_block:
                     overlap = True
@@ -153,7 +152,6 @@ class Biosynfoni:
         atoms_to_block = _list_unnest_twice(previous_matches)
         for sub_match in sub_matches:
             overlap = False  # reset
-            print(sub_match, "|", atoms_to_block)
             for atom in sub_match:
                 if atom in atoms_to_block:
                     overlap = True
