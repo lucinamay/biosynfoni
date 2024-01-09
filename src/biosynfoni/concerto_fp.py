@@ -285,6 +285,21 @@ class MolsCollection:
 # }
 # return types_functions[input_type]
 
+# =========================== functions to import ==============================
+
+
+def overlapped_fp(mol: Chem.Mol) -> list[int]:
+    """gives the biosynfoni fingerprint for a mol, uses the default version as defined in def_biosynfoni.py
+    defaults to full overlap allowance for Random Forest classification purposes(!)"""
+    substructure_set = get_subs_set(DEFAULT_BIOSYNFONI_VERSION)
+    mol_fp = Biosynfoni(
+        mol=mol,
+        substructure_set=substructure_set,
+        intersub_overlap=True,
+        intrasub_overlap=True,
+    )
+    return mol_fp.fingerprint
+
 
 # ==============================  MAIN =======================================
 
