@@ -1,10 +1,9 @@
 import argparse, os
 from collections import Counter
+import pickle
 
 
 import numpy as np
-
-# import umap
 from tqdm import tqdm
 from sklearn.metrics import (
     confusion_matrix,
@@ -56,30 +55,28 @@ def main():
 
     # load data
     fingerprints = np.loadtxt(args.fingerprints, delimiter=",")
-    classifications = np.loadtxt(args.classifications, delimiter=",")
-    names = np.loadtxt(args.names, delimiter=",", dtype=str)
+    # classifications = np.loadtxt(args.classifications, delimiter=",")
+    names = np.loadtxt(args.names, delimiter=",", dtype=str, usecols=0)
 
     # load model from .npy file
-    model = np.load(args.model)
+    model = pickle.load(open(args.model, "rb"))
 
     # predict
     predictions = model.predict(fingerprints)
+    probabilites = model.predict_proba(fingerprints)
+
+    # print probabilites
+    print(probabilites[:100])
 
     # print results
-    print(classification_report(classifications, predictions, target_names=names))
-    print(confusion_matrix(classifications, predictions))
-    print(accuracy_score(classifications, predictions))
+    print(predictions[:100])
 
-    # save model
-    np.savetxt(args.model, model)
+    # # print results
+    # print(classification_report(classifications, predictions, target_names=names))
+    # print(confusion_matrix(classifications, predictions))
+    # print(accuracy_score(classifications, predictions))
 
     # predict
-    predictions = model.predict(fingerprints)
-
-    # print results
-    print(classification_report(classifications, predictions, target_names=names))
-    print(confusion_matrix(classifications, predictions))
-    print(accuracy_score(classifications, predictions))
 
 
 if __name__ == "__main__":
