@@ -5,6 +5,7 @@ import umap
 import matplotlib.pyplot as plt
 
 from utils import set_style
+from utils.colours import COLOUR_DICT as col_dicts
 
 
 def cli():
@@ -12,6 +13,7 @@ def cli():
 
     parser.add_argument("fingerprint", help="Fingerprint file")
     parser.add_argument("labels", help="Labels file")
+    parser.add_argument("--smiles", required=False, help="Smiles file")
     parser.add_argument(
         "-s",
         "--synthetic",
@@ -22,26 +24,47 @@ def cli():
     return parser.parse_args()
 
 
+def clean_labels(fp, labels):
+    """
+    removes any where there is a ',' in the label
+    """
+    idx = np.where(["," not in label for label in labels])
+    fp = fp[idx]
+    labels = labels[idx]
+    return fp, labels
+
+
 def main():
     set_style()
     args = cli()
 
+    colour_dict = col_dicts["class"]
+
     fp = np.loadtxt(args.fingerprint, delimiter=",", dtype=int)
     labels = np.loadtxt(args.labels, delimiter="\t", dtype=str, usecols=(0,))
+    smiles = np.zeros(labels.shape[0]).astype(str)
+    if args.smiles:
+        smiles = np.loadtxt(args.smiles, delimiter="\t", dtype=str, usecols=(0,))
 
     if args.synthetic:
         synthetic_fp = np.loadtxt(args.synthetic, delimiter=",", dtype=int)
-        synthetic_fp = np.random.choice(
-            synthetic_fp.shape[0], fp.shape[0], replace=False
-        )
-        fp = np.concatenate((fp, synthetic_fp))
+        ind = np.random.choice(synthetic_fp.shape[0], fp.shape[0], replace=False)
+        synthetic_fp = synthetic_fp[ind]
         synthetic_labels = np.array(["synthetic" for _ in range(synthetic_fp.shape[0])])
+        synthetic_smiles = np.array(["synthetic" for _ in range(synthetic_fp.shape[0])])
+        fp = np.concatenate((fp, synthetic_fp))
         labels = np.concatenate((labels, synthetic_labels))
+        smiles = np.concatenate((smiles, synthetic_smiles))
 
     # remove any where there is a , in the label
     idx = np.where(["," not in label for label in labels])
     fp = fp[idx]
     labels = labels[idx]
+    smiles = smiles[idx]
+
+    # remove any where the smiles is the same as others
+    idx = np.where([smiles[i] not in smiles[:i] for i in range(smiles.shape[0])])
+    fp = fp[idx]
 
     # # random subsample
     # np.random.seed(42)
@@ -51,25 +74,182 @@ def main():
 
     # get unique labels
     unique_labels = list(np.unique(labels))
-    print(type(unique_labels))
+
     # map labels to indexes
     label_to_idx = {str(label): int(idx) for idx, label in enumerate(unique_labels)}
-    print(label_to_idx)
+    idx_to_label = {val: key for key, val in label_to_idx.items()}
+    # print(label_to_idx)
+    # print(idx_to_label)
+
     # convert labels to indexes
     labels_i = np.array([label_to_idx[label] for label in list(labels)])
+    colors = [colour_dict[label] for label in labels]
 
-    print(fp.shape)
-    print(labels.shape)
-    reducer = umap.UMAP()
-    embedding = reducer.fit_transform(fp)
+    assert fp.shape[0] == labels.shape[0], "fp and labels must have same length"
+
+    # fit an embedding to data
+    reducer = umap.UMAP(n_components=2)
+
+    if args.synthetic:
+        s_label = label_to_idx["synthetic"]
+        # fit an embedding to data except class 6
+        embedding = reducer.fit_transform(fp[labels_i != s_label])
+        # show class 6 on that embedding
+        embedding = reducer.transform(fp)
+    else:
+        embedding = reducer.fit_transform(fp)
+
+    # # show loadings of the embedding
+    # print(reducer.embedding_)
+
+    def onpick(event):
+        print("onpick scatter")
+        ind = event.ind
+        print(
+            "onpick scatter:",
+            ind,
+            fp[ind],
+            labels[ind],
+            smiles[ind],
+            # np.take(embedding[:, 0], ind),
+            # np.take(embedding[:, 1], ind),
+            # np.take(embedding[:, 2], ind),
+        )
+        annotations = []  # make list for removing annotations
+        for i in ind:
+            annotation = ax.text(
+                (
+                    embedding[i, 0] + 0.1
+                ),  # x coordinate + 2 to the right to avoid overlap
+                (
+                    embedding[i, 1] + 0.05
+                ),  # y coordinate + 2 to the right to avoid overlap
+                f"{i} {smiles[i]}",  # text
+                size=2,
+                zorder=1,
+                color="k",
+            )
+            annotations.append(annotation)
+        # force redraw
+        fig.canvas.draw_idle()
+        return annotations
+
     # plot umap with different colours for each label, and a legend on the right side
-    s = plt.scatter(embedding[:, 0], embedding[:, 1], c=labels_i, cmap="Spectral")
-    plt.legend(s.legend_elements()[0], list(set(labels)), loc="lower right")
-    plt.xlabel("UMAP 1")
-    plt.ylabel("UMAP 2")
+    fig = plt.figure(figsize=(3, 3))
+    ax = fig.add_subplot(111)
+    s = plt.scatter(
+        embedding[:, 0],
+        embedding[:, 1],
+        # c=labels_i,
+        # cmap="Spectral",
+        c=colors,
+        # alpha=0.5,
+        edgecolors="none",
+        picker=True,
+    )
+    s.set_alpha(0.5)  # set afterwards
+
+    # set background color
+    ax.set_facecolor("white")
+
+    # def onpick(event):
+    #     print("onpick scatter")
+    #     ind = event.ind
+    #     print(
+    #         "onpick scatter:",
+    #         ind,
+    #         fp[ind],
+    #         labels[ind],
+    #         smiles[ind],
+    #         # np.take(embedding[:, 0], ind),
+    #         # np.take(embedding[:, 1], ind),
+    #         # np.take(embedding[:, 2], ind),
+    #     )
+    #     for i in ind:
+    #         ax.text(
+    #             embedding[i, 0] + 2,  # x coordinate + 2 to the right to avoid overlap
+    #             embedding[i, 1] + 2,  # y coordinate + 2 to the right to avoid overlap
+    #             embedding[i, 2] + 2,  # z coordinate + 2 to the right to avoid overlap
+    #             f"{i} {smiles[i]}",  # text
+    #             size=5,
+    #             zorder=1,
+    #             color="k",
+    #         )
+    #     fig.canvas.draw_idle()  # redraw the canvas
+
+    # # plot umap in three dimensions with adjustable viewing angle ================================
+    # fig = plt.figure(figsize=(3, 3))
+    # ax = fig.add_subplot(111, projection="3d")
+    # s = ax.scatter(
+    #     embedding[:, 0],
+    #     embedding[:, 1],
+    #     embedding[:, 2],
+    #     # c=labels_i,
+    #     # cmap="Spectral",
+    #     c=colors,
+    #     alpha=0.5,
+    #     s=3,
+    #     edgecolors="none",
+    #     picker=True,
+    # )
+    # ax.view_init(30, 45) #==================== change viewing angle here ====================
+
+    # fig.canvas.mpl_connect("pick_event", onpick3)
+
+    # add hover information within the scatterplot, at (10,10,10) from the data point that is hovered over
+
+    # # also show the label in the left corner
+    # ax.text(
+    #     0.05,
+    #     0.95,
+    #     f"{labels[ind[0]]}",
+    #     transform=ax.transAxes,
+    #     size=10,
+    #     zorder=1,
+    #     color="k",
+    # )
+    # fig.canvas.draw_idle() # redraw the canvas
+
+    fig.canvas.mpl_connect("pick_event", onpick)
+    # press 'e' to erase all annotations
+    fig.canvas.mpl_connect(
+        "key_press_event",
+        lambda event: [
+            (annotation.remove() for annotation in onpick(event)),
+            fig.canvas.draw_idle() if event.key == "e" else None,
+        ],
+    )
+
+    # for i, txt in enumerate(labels):
+    #     ax.annotate(txt, (embedding[i, 0], embedding[i, 1], embedding[i, 2]))
+
+    # # Add annotations and legends
+
+    # plt.xlabel("UMAP 1")
+    # plt.ylabel("UMAP 2")
+    # ax.set_zlabel("UMAP 3")
+    # plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
+    # plt.savefig("umap.png")
+
+    # add annotations and legends, making the legend max 1/10th of the plot
+
+    ax.legend(
+        # handles=s.legend_elements()[0],
+        labels=label_to_idx.keys(),
+        loc="lower right",
+        title="Classes",
+        # draw far outside the plot
+        bbox_to_anchor=(1.1, 0.0),
+        borderaxespad=0,
+    )
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+    # ax.set_zlabel("UMAP 3")
     plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
+    plt.show()
     plt.savefig("umap.png")
 
+    # save embedding and labels
     np.savetxt("embedding.txt", embedding, fmt="%s")
     np.savetxt("labels.txt", labels, fmt="%s")
 
