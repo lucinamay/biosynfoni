@@ -95,18 +95,6 @@ class Biosynfoni:
         self.coverage = None
         self.coverage_per_sub = None
 
-    def get_coverage(self) -> float:
-        """gets non-h atom-based coverage of fingerprints over atoms"""
-        coverage = self._matches_to_coverage()
-        self.coverage = coverage
-        return coverage
-
-    def get_coverage_per_substructure(self) -> list[float]:
-        """gets non-h atom-based coverage of fingerprints over atoms"""
-        coverage_per_sub = self._matches_to_coverage_per_substructure()
-        self.coverage_per_sub = coverage_per_sub
-        return coverage_per_sub
-
     def _set_substructure_set(self, substructure_set) -> None:
         if substructure_set is None:
             return get_subs_set(self.version)
@@ -216,27 +204,47 @@ class Biosynfoni:
         ]
         return coverage_per_sub
 
+    def get_coverage(self) -> float:
+        """gets non-h atom-based coverage of fingerprints over atoms"""
+        coverage = self._matches_to_coverage()
+        self.coverage = coverage
+        return coverage
+
+    def get_coverage_per_substructure(self) -> list[float]:
+        """gets non-h atom-based coverage of fingerprints over atoms"""
+        coverage_per_sub = self._matches_to_coverage_per_substructure()
+        self.coverage_per_sub = coverage_per_sub
+        return coverage_per_sub
+
     def _matches_to_connections(self) -> list[float]:
         """under construction"""
         connections_bonds = []
         connections_atoms = []
         connections_subs = []
+        connections = []
 
         # get all of the substructure matches-atoms
         atoms_per_sub = self._matched_atoms_per_substructure()
         # for each substructure combination, check if there is a bond between them
-        for i, sub_matches in enumerate(self.matches):
-            for j, sub_matches2 in enumerate(self.matches):
-                for atom in sub_matches:
-                    for atom2 in sub_matches2:
-                        if atom != atom2:
-                            bond = self.mol.GetBondBetweenAtoms(atom, atom2)
-                            if bond:
-                                # get atom indices of atom and atom2
-                                connections_atoms.append((atom, atom2))
-                                connections_bonds.append(bond.GetIdx())
-                                connections_subs.append((i, j))
-        return connections_atoms, connections_bonds
+        for i, one_sub in enumerate(self.matches):
+            for j, one_sub2 in enumerate(self.matches):
+                for _, sub_matches in enumerate(one_sub):
+                    for _, sub_matches2 in enumerate(one_sub2):
+                        for atom in sub_matches:
+                            for atom2 in sub_matches2:
+                                if atom != atom2:
+                                    bond = self.mol.GetBondBetweenAtoms(atom, atom2)
+                                    if bond:
+                                        connection_dict = {}
+                                        # get atom indices of atom and atom2
+                                        connection_dict["atoms"] = (atom, atom2)
+                                        connection_dict["bond"] = bond.GetIdx()
+                                        connection_dict["sub_index"] = (i, j)
+                                        connections.append(connection_dict)
+
+        sort = sorted(connections, key=lambda x: x["atoms"][0])
+
+        return sort
 
 
 # ------------------------------ multiple mol operations -------------------------------
