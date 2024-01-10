@@ -216,6 +216,28 @@ class Biosynfoni:
         ]
         return coverage_per_sub
 
+    def _matches_to_connections(self) -> list[float]:
+        """under construction"""
+        connections_bonds = []
+        connections_atoms = []
+        connections_subs = []
+
+        # get all of the substructure matches-atoms
+        atoms_per_sub = self._matched_atoms_per_substructure()
+        # for each substructure combination, check if there is a bond between them
+        for i, sub_matches in enumerate(self.matches):
+            for j, sub_matches2 in enumerate(self.matches):
+                for atom in sub_matches:
+                    for atom2 in sub_matches2:
+                        if atom != atom2:
+                            bond = self.mol.GetBondBetweenAtoms(atom, atom2)
+                            if bond:
+                                # get atom indices of atom and atom2
+                                connections_atoms.append((atom, atom2))
+                                connections_bonds.append(bond.GetIdx())
+                                connections_subs.append((i, j))
+        return connections_atoms, connections_bonds
+
 
 # ------------------------------ multiple mol operations -------------------------------
 
