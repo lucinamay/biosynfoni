@@ -86,9 +86,9 @@ class BiosynfoniVersion:
             fp_version = defaultVersion
         self.fp_version = fp_version
         self.substructures = get_subs_set(fp_version)
-        self.smarts = get_smarts(fp_version)
+        self.smarts = get_smarts(version=fp_version)
         self.subs_ids = fpVersions[fp_version]
-        self.subs_names = get_names(fp_version)
+        self.subs_names = get_names(version=fp_version)
         self.subs_pathways = get_values("pathway", fp_version)
         self.subs_colors = None
 

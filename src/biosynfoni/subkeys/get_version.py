@@ -22,7 +22,7 @@ from biosynfoni.subkeys.default_version import defaultVersion
 
 def get_values(
     value_name: str,
-    fp_version_name: str = defaultVersion,
+    version: str = defaultVersion,
     subs_smarts: dict = substructureSmarts,
     fp_versions: dict[str, list[str]] = fpVersions,
 ) -> list[str]:
@@ -32,8 +32,19 @@ def get_values(
              fp_versions (dict) {version name (e.g. fps_full_2): (list) substructure names (e.g. 'fp1')}
     output:  list of the requested values for each substructure in the version
     """
-    chosen_sub_names = fp_versions[fp_version_name]
-    return [[x, subs_smarts[x][value_name]] for x in chosen_sub_names]
+    values = []
+    sub_ids = fp_versions[version]
+    for sub_id in sub_ids:
+        sub_info = subs_smarts[sub_id]
+        if value_name not in sub_info:
+            raise ValueError(
+                f"Value {value_name} not found in substructure {sub_id} of version {fp_version_name}"
+            )
+        else:
+            values.append(sub_info[value_name])
+
+    assert len(values) == len(sub_ids)
+    return values
 
 
 get_smarts = partial(get_values, value_name="smarts")
