@@ -2,7 +2,7 @@ import unittest
 
 from rdkit import Chem
 from biosynfoni.concerto_fp import MolsCollection, Biosynfoni
-from biosynfoni.concerto_fp import DEFAULT_BIOSYNFONI_VERSION as DefaultVersion
+from biosynfoni.concerto_fp import defaultVersion as DefaultVersion
 
 general_test_mols = [
     Chem.MolFromSmiles("CC(=O)CC=O"),

@@ -26,8 +26,10 @@ RDLogger.DisableLog("rdApp.*")  # for muting warnings
 from biosynfoni.def_biosynfoni import (
     SUBSTRUCTURES,
     FP_VERSIONS,
+    defaultVersion,
     get_smarts,
     get_names,
+    get_values,
 )
 from biosynfoni.inoutput import outfile_namer
 from biosynfoni.moldrawer import drawfp
@@ -81,11 +83,15 @@ def get_subs_set(
 
 
 class BiosynfoniVersion:
-    def __init__(self, fp_version: str):
+    def __init__(self, fp_version: str = defaultVersion):
+        if fp_version.lower() == "default":
+            fp_version = defaultVersion
         self.fp_version = fp_version
         self.substructures = get_subs_set(fp_version)
         self.smarts = get_smarts(fp_version)
         self.subs_ids = FP_VERSIONS[fp_version]
+        self.subs_names = get_names(fp_version)
+        self.subs_pathways = get_values(fp_version, "pathway")
 
     def save_smarts(self):
         outfilename = outfile_namer("version", self.fp_version)
@@ -133,7 +139,7 @@ class BiosynfoniVersion:
 #     return None
 
 
-def save_version(version: str, window_size=(1000, 1000), extra_text: str = "") -> None:
+def save_version(version: str, window_size=(1000, 1000)) -> None:
     saver = BiosynfoniVersion(version)
     saver.save_smarts()
     saver.save_svg(window_size=window_size)

@@ -1,6 +1,3 @@
-# set default substructure collection here.
-defaultVersion = "full_1103"
-
 # all substructure collections
 fpVersions = {
     "fps_full_0814": [

@@ -15,7 +15,7 @@ ____________________________________
 
 ConCERTO-fp | CONvert Compound E-Representation TO FingerPrint
 """
-import argparse
+
 from itertools import chain
 from functools import partial
 
@@ -29,17 +29,16 @@ from biosynfoni import def_biosynfoni
 from biosynfoni.cli import cli
 from biosynfoni.rdkfnx import (
     supplier,
-    get_subs_set,
+    # get_subs_set,
     save_version,
     nonh_atomcount,
     get_sub_matches,
     smiles_to_mol,
     inchi_to_mol,
 )
+from biosynfoni.rdkfnx import BiosynfoniVersion
 from biosynfoni.inoutput import csv_writr, myprint
-
-
-DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.default_version import defaultVersion
 
 
 # =============================  HELPERS  =====================================
@@ -73,7 +72,7 @@ class Biosynfoni:
         self,
         mol: Chem.Mol,
         substructure_set: list = None,
-        version_name: str = DEFAULT_BIOSYNFONI_VERSION,
+        version_name: str = defaultVersion,
         intersub_overlap: bool = False,
         intrasub_overlap: bool = False,
     ) -> None:
@@ -88,7 +87,7 @@ class Biosynfoni:
         }
         self.overlap_matches = self._detect_substructures()
         # self.inter_overlap_matches = self._get_nonoverlaps()
-        self.matches = self._get_nonoverlaps()
+        self.matches = self._filter_matches()
         self.counted_fp = self.get_biosynfoni()
         self.fingerprint = self.counted_fp
         # self.coverage = self._matches_to_coverage()
@@ -97,7 +96,7 @@ class Biosynfoni:
 
     def _set_substructure_set(self, substructure_set) -> None:
         if substructure_set is None:
-            return get_subs_set(self.version)
+            return BiosynfoniVersion(self.version).substructures
         else:
             return substructure_set
 
@@ -121,6 +120,9 @@ class Biosynfoni:
         """
         # per substructure
         filtered_matches = []
+        # sort sub_matches from largest to smallest ("heuristic set coverage")
+        sub_matches.sort(key=len, reverse=True)
+
         for sub_match in sub_matches:
             overlap = False  # reset
             atoms_to_block = _list_unnest_once(filtered_matches)
@@ -130,6 +132,25 @@ class Biosynfoni:
                     break
             if not overlap:
                 filtered_matches.append(sub_match)
+        return filtered_matches
+
+    def __filter_intra_smarter(self, sub_matches: list[list[int]]) -> list[list[int]]:
+        filtered_matches = []
+        all_atoms = _list_unnest_once(sub_matches)
+        # sort from small to large index num
+        all_atoms.sort()
+        for atom in all_atoms:
+            # search for the sub_match that contains the atom
+            for sub_match in sub_matches:
+                overlap = False
+                atoms_to_block = _list_unnest_once(filtered_matches)
+                if atom in sub_match:
+                    for atom_of_match in sub_match:
+                        if atom_of_match in atoms_to_block:
+                            overlap = True
+                            break
+                    if not overlap:
+                        filtered_matches.append(sub_match)
         return filtered_matches
 
     def __filter_intersub_overlap(
@@ -148,7 +169,7 @@ class Biosynfoni:
                 filtered_matches.append(sub_match)
         return filtered_matches
 
-    def _get_nonoverlaps(self) -> list[list[list[int]]]:
+    def _filter_matches(self) -> list[list[list[int]]]:
         filtered_matches = []
         for i, substructure in enumerate(self.substructure_set):
             all_sub_matches = self.overlap_matches[i]  # all sub_matches
@@ -321,7 +342,7 @@ class MolsCollection:
 def overlapped_fp(mol: Chem.Mol) -> list[int]:
     """gives the biosynfoni fingerprint for a mol, uses the default version as defined in def_biosynfoni.py
     defaults to full overlap allowance for Random Forest classification purposes(!)"""
-    substructure_set = get_subs_set(DEFAULT_BIOSYNFONI_VERSION)
+    substructure_set = BiosynfoniVersion(defaultVersion).substructures
     mol_fp = Biosynfoni(
         mol=mol,
         substructure_set=substructure_set,
@@ -346,7 +367,7 @@ def main():
 
     # main functionality
     # get substructure set to speed up process (and not have to get it each time)
-    substructure_set = get_subs_set(args.version)
+    substructure_set = BiosynfoniVersion(args.version).substructures
 
     # total_molecules = (
     # len(args.input) if args.repr != "sdf" else len(supplier(args.input[0]))

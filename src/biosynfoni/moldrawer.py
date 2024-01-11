@@ -21,10 +21,10 @@ from rdkit import Chem
 from rdkit.Chem import Draw
 from rdkit.Chem.Draw import rdMolDraw2D, MolsToGridImage
 
-# from biosynfoni.concerto_fp import get_biosynfoni
-# from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION, FP_VERSIONS
-# from biosynfoni.rdkfnx import get_subsset as gss
 from biosynfoni.biosmartfonis import Substructures
+
+# imported by rdkfnx
+
 
 # Based off of David's code ====================================================
 
@@ -140,6 +140,7 @@ class Palette(Enum):
         )
 
 
+# split this into mol-focused and colour-focused
 def _get_highlight_loc_and_col(
     mol: Chem.Mol,
     subs_matches_for_highlighting: list = [],  # list of lists of lists of atom indices
