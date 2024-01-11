@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 # matplotlib.use('Agg')       #if in background
 
-from biosynfoni.subkeys.get_version import FP_VERSIONS, defaultVersion
+from biosynfoni.subkeys import fpVersions, defaultVersion
 
 
 def cli():
@@ -223,7 +223,7 @@ def main():
 
     filetype = "pdf"
     # version = input_file.split("/")[-1].split("_")[-1].split(".")[0]
-    substructure_names = FP_VERSIONS[defaultVersion]
+    substructure_names = fpVersions[defaultVersion]
 
     fp = pd.read_csv(args.fingerprints, sep=",", header=None, dtype=int)
     fp.columns = substructure_names

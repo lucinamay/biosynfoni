@@ -115,13 +115,6 @@ def umap_2d(embedding, mols_info):
     ax.set_xlabel("UMAP 1")
     ax.set_ylabel("UMAP 2")
     # ax.set_zlabel("UMAP 3")
-    plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
-    plt.show()
-    plt.savefig("umap.png")
-
-    # save embedding and labels
-    np.savetxt("embedding.txt", embedding, fmt="%s")
-    np.savetxt("labels.txt", labels, fmt="%s")
 
 
 def main():
@@ -203,19 +196,53 @@ def main():
     # # show loadings of the embedding
     # print(reducer.embedding_)
 
-    mols_info = [
-        {
-            "fp": fp[i],
-            "labels": labels[i],
-            "smiles": smiles[i],
-            "colors": colors[i],
-            "labels_cl": idx_to_label[labels_i[i]],
-        }
-        for i in range(fp.shape[0])
-    ]
-    # # plot umap with different colours for each label, and a legend on the right side
-    # 2d_umap = umap_2d(embedding, mols_info)
+    annotations = []
 
+    def onpick(event):
+        print("onpick scatter")
+        ind = event.ind
+        print(
+            "onpick scatter:",
+            ind,
+            fp[ind],
+            labels[ind],
+            smiles[ind],
+            # np.take(embedding[:, 0], ind),
+            # np.take(embedding[:, 1], ind),
+            # np.take(embedding[:, 2], ind),
+        )
+        # annotations = []  # make list for removing annotations
+        for i in ind:
+            annotation = ax.text(
+                (
+                    embedding[i, 0] + 0.1
+                ),  # x coordinate + 2 to the right to avoid overlap
+                (
+                    embedding[i, 1] + 0.05
+                ),  # y coordinate + 2 to the right to avoid overlap
+                f"{i} {smiles[i]}",  # text
+                size=2,
+                zorder=1,
+                color="k",
+            )
+            annotations.append(annotation)
+        # force redraw
+        fig.canvas.draw_idle()
+        return annotations
+
+    # plot umap with different colours for each label, and a legend on the right side
+    fig = plt.figure(figsize=(3, 3))
+    ax = fig.add_subplot(111)
+    s = plt.scatter(
+        embedding[:, 0],
+        embedding[:, 1],
+        # c=labels_i,
+        # cmap="Spectral",
+        c=colors,
+        # alpha=0.5,
+        edgecolors="none",
+        picker=True,
+    )
     s.set_alpha(0.5)  # set afterwards
 
     # set background color
@@ -303,8 +330,8 @@ def main():
     ax.legend(
         # cannot get to
         handles=s.legend_elements()[0],
-        # labels=label_to_idx.keys(),
-        labels=labels_cl,
+        labels=label_to_idx.keys(),
+        # labels=labels_cl,
         loc="lower right",
         title="Classes",
         # draw far outside the plot

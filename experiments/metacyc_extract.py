@@ -11,6 +11,8 @@ from sys import argv
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+from rdkit import Chem
 
 sys.path.append("../src/")
 from biosynfoni.inoutput import *
@@ -18,7 +20,25 @@ from biosynfoni.inoutput import *
 # ============================== input handling ===============================
 
 
-def get_df(
+def extract_linestartswith(
+    lines: list, starts: list = [], remove_starts: bool = True, strip_extra: str = " - "
+) -> dict[list[str]]:
+    """within a collection of lines, only extracts the lines starting with
+    terms in starts, returning them as a list to accomodate multiple values
+    per entry"""
+    extraction = {}
+    for start in starts:
+        extraction[start] = []
+    for line in lines:
+        for start in starts:
+            if line.startswith(start):
+                extraction[start].append(
+                    line.strip().replace(start, "").replace(strip_extra, "").strip()
+                )
+    return extraction
+
+
+def get_all_pathways(
     info_loc: str,
     info2extract: list[str],
     ignore_start: str = "#",
@@ -33,43 +53,147 @@ def get_df(
 
     all_vals = per_entry(
         entries,
-        extractr,
+        extract_linestartswith,
         starts=info2extract,
         remove_starts=remove_starts,
         strip_extra=strip_extra,
     )
-
-    # get data frame, will have doubles if rxnslists (because of 'expanding')
-    df = get_normalised_db(all_vals)
+    df = pd.DataFrame.from_records(all_vals)
     return df
 
 
-def get_relevant_pws(
-    df: pd.DataFrame, reactions_of_interest: list, min_pw_len: int = 4
+# ============================== formatting df =====================================
+
+
+def df_get_all_rxn_layouts(
+    df: pd.DataFrame, column_name: str = "REACTION-LAYOUT"
 ) -> pd.DataFrame:
-    """from DataFrame with pathways, for each pathway with at least min_pw_len,
-    returns the Dataframe containing them and their pathway unique-id's"""
-    # get pathways containing reactions----------------------------------------
-    # pathway-df row containing rxn of interest
-    pw_rxns_oi = df_filter(df, "REACTION-LAYOUT", reactions_of_interest)
-    # filter out only those with index of interest
-    ind_oi = get_indexes(pw_rxns_oi).tolist()  # index of interests
-    pw_oi = df[df.index.isin(ind_oi)]
+    """non-general function to split the reaction-layout column into reaction-id, left, direction, right"""
+    # first get separate entry for each REACTION-LAYOUT
+    df = df.explode(column_name)
+    df["reaction-id"] = df[column_name].str.split(" ", expand=True)[0].str.strip("(")
+    df["left"] = (
+        df[column_name]
+        .str.split(":", expand=True)[1]
+        .str.replace("LEFT-PRIMARIES", "")
+        .str.strip(") (")
+    )
+    df["direction"] = df[column_name].str.split(":", expand=True)[3].str.strip(") (")
+    df["right"] = (
+        df[column_name]
+        .str.split("RIGHT-PRIMARIES", expand=True)[1]
+        .str.strip("))")
+        .str.strip()
+    )
+    return df
 
-    # check if same indexes
-    check_ind = get_indexes(pw_oi).tolist()
-    assert check_ind == ind_oi, "error with COCONUT-df filtering"
 
-    # remove taxonomic range and species for the rxn annotation + undouble:
-    columns_to_rem = pw_oi.columns.values.tolist()
-    columns_to_rem.remove("UNIQUE-ID")
-    columns_to_rem.remove("REACTION-LAYOUT")
-    clean_pw_oi = remove_cols(pw_oi, columns_to_rem)
+def switch_directions(
+    df: pd.DataFrame, subset: tuple[str] = ("left", "right"), on: str = "direction"
+) -> pd.DataFrame:
+    """switches left and right columns if direction is R2L"""
+    left, right = subset
+    df[left], df[right] = np.where(
+        df[on] == "R2L", (df[right], df[left]), (df[left], df[right])
+    )
+    df[on] = df[on].str.replace("R2L", "L2R")
+    return df
 
-    # get df with pathways that have at least four reactions in them
-    long_enough_pws = filter_by_rxn_len(clean_pw_oi, length=min_pw_len)
-    # all_reaction_layouts = [x for x in colval_per_index(enough_pw_oi)]
-    return long_enough_pws
+
+def lower_dunder(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = df.columns.str.lower()
+    df.columns = df.columns.str.replace("-", "_")
+    return df
+
+
+def remove_empties(
+    df: pd.DataFrame, subset: list[str] = ["left", "right"]
+) -> pd.DataFrame:
+    df = df.replace(r"^\s*$", np.nan, regex=True)
+    df = df.dropna(subset=subset)
+    return df
+
+
+def remove_water(
+    df: pd.DataFrame, subset: list[str] = ["left", "right"], water_str: str = "WATER"
+) -> pd.DataFrame:
+    for colname in subset:
+        df[colname] = df[colname].str.replace(water_str, "")
+    return df
+
+
+def filter_by_num_reactions(
+    df: pd.DataFrame, min_num: int = 4, reaction_list_col="reaction_list"
+) -> pd.DataFrame:
+    df = df[df[reaction_list_col].str.len() >= min_num]
+    return df
+
+
+def listcell_to_strcell(df: pd.DataFrame, colname: str) -> pd.DataFrame:
+    assert df[df[colname].str.len() > 1].empty, "error, multiple values in cell"
+    df[colname] = df[colname].str.join[0]
+    return df
+
+
+def clean_df(
+    df: pd.DataFrame, min_num: int = 4, reaction_list_col="reaction_list"
+) -> pd.DataFrame:
+    df = df_get_all_rxn_layouts(df, column_name="REACTION-LAYOUT")
+    df = lower_dunder(df)
+    df = switch_directions(df, subset=["left", "right"], on="direction")
+    df = remove_water(df, subset=["left", "right"])
+    df = remove_empties(df, subset=["left", "right"])
+    df = filter_by_num_reactions(
+        df, min_num=min_num, reaction_list_col=reaction_list_col
+    )
+    df = listcell_to_strcell(df, "unique_id")
+    return df
+
+
+# ============================== additional pathway filtering/adjusting =====================================
+def filter_pathwayid(
+    df: pd.DataFrame, is_in: list[str], col: str = "unique-id"
+) -> pd.DataFrame:
+    return df[df[col].isin(is_in)]
+
+
+def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
+    """if more than one product, explode the dataframe downwards, to get one product per row.
+    this makes same precursors/reactions appear more than once"""
+    # unfold dataframe downwards if there are more than one right or left primary
+    exploded = df.copy()
+    # first make into list, then explode
+    exploded["right"] = exploded["right"].str.split(" ")
+    exploded = exploded.explode("right")
+    return exploded
+
+
+# def filter_pws(
+#     pathways: pd.DataFrame, reactions_of_interest: list[str], min_pw_len: int = 4
+# ) -> pd.DataFrame:
+#     """from DataFrame with pathways, for each pathway with at least min_pw_len,
+#     returns the Dataframe containing them and their pathway unique-id's"""
+#     # get pathways containing reactions----------------------------------------
+#     # pathway-df row containing rxn of interest
+#     pw_rxns_oi = df_filter(pathways, "REACTION-LAYOUT", reactions_of_interest)
+#     # filter out only those with index of interest
+#     ind_oi = get_indexes(pw_rxns_oi).tolist()  # index of interests
+#     pw_oi = pathways[pathways.index.isin(ind_oi)]
+
+#     # check if same indexes
+#     check_ind = get_indexes(pw_oi).tolist()
+#     assert check_ind == ind_oi, "error with COCONUT-df filtering"
+
+#     # remove taxonomic range and species for the rxn annotation + undouble:
+#     columns_to_rem = pw_oi.columns.values.tolist()
+#     columns_to_rem.remove("UNIQUE-ID")
+#     columns_to_rem.remove("REACTION-LAYOUT")
+#     clean_pw_oi = remove_cols(pw_oi, columns_to_rem)
+
+#     # get df with pathways that have at least four reactions in them
+#     long_enough_pws = filter_by_rxn_len(clean_pw_oi, length=min_pw_len)
+#     # all_reaction_layouts = [x for x in colval_per_index(enough_pw_oi)]
+#     return long_enough_pws
 
 
 # ============================ obtain annotations ============================
@@ -122,25 +246,103 @@ def get_preandpost(entry: list[str]) -> tuple[str]:
 # ---------------------------- compound annotation ---------------------------
 
 
-def id_repr(
-    filename: str = "../metacyc/compound-links.dat", representation: str = "inchi"
-) -> dict:
-    reprs = ["inchi", "smiles"]
-    assert representation in reprs, "representation type unavailable"
-    column = reprs.index(representation) + 1
-    id_repr = {}
-    with open(filename) as comp:
-        for line in comp:
-            if line:
-                row = line.strip().split("\t")
-                if len(row) > 1:
-                    if row[column] and row[0]:
-                        try:
-                            id_repr[row[0].upper()] = row[column]
-                        except:
-                            continue
-    cleaned = clean_dict(id_repr)
-    return cleaned
+def dat_to_compounds(
+    filename: str, column_names: list = ["unique_id", "inchi", "SMILES"]
+) -> pd.DataFrame:
+    usecols = (i for i in range(len(column_names)))
+    array = np.loadtxt(filename, dtype=str, delimiter="\t", usecols=usecols)
+    df = pd.DataFrame(array, columns=column_names)
+    return df
+
+
+def partial_inchi(
+    df, inchi_column: str = "inchi", inchi_parts: int = 3
+) -> pd.DataFrame:
+    newcol = f"{inchi_parts}_{inchi_column}"
+    df[newcol] = df[~df[inchi_column].isna()][inchi_column].str.split("/")
+    df[newcol] = df[newcol].apply(lambda x: "/".join(x[:inchi_parts]))
+
+
+def sdf_to_records(
+    sdf_path: str,
+    column_names: list = ["coconut_id", "inchi", "SMILES", "rdk_inchi", "rdk_SMILES"],
+) -> pd.DataFrame:
+    sdf_path = "/Users/lucina-may/thesis/input/coconut.sdf"
+    coco_props = []
+
+    supplier = Chem.SDMolSupplier(sdf_path)
+    for i, mol in tqdm(enumerate(supplier), total=len(supplier)):
+        this_mol_props = {q: "" for q in column_names}
+        if mol is None:
+            print("molecule {} could not be read".format(i))
+            continue
+        else:
+            for prop in column_names:
+                if mol.HasProp(prop):
+                    this_mol_props[prop] = mol.GetProp(prop)
+        coco_props.append(this_mol_props)
+    return coco_props
+
+
+def sdf_to_compounds(*args, **kwargs) -> pd.DataFrame:
+    records = sdf_to_records(*args, **kwargs)
+    return pd.DataFrame(records)
+
+
+def takeover_rdk_partials(
+    df: pd.DataFrame, columns: dict = {"3_rdk_inchi": "3_inchi"}
+) -> pd.DataFrame:
+    for key, val in columns.items():
+        df[df[key] == df[val]][key] = np.nan
+        assert df[df[key] == df[val]].empty, "error in takeover_rdk_partials merging"
+
+
+def merge_on_partial_inchi(
+    coco: pd.DataFrame, meta: pd.DataFrame, on: str = "3_inchi"
+) -> pd.DataFrame:
+    df = pd.merge(coco, meta, on=on, how="inner", suffixes=("_coco", "_meta"))
+    return df
+
+
+def merge_on_smiles(
+    coco: pd.DataFrame, meta: pd.DataFrame, on: str = "SMILES"
+) -> pd.DataFrame:
+    df = pd.merge(coco, meta, on="SMILES", how="inner", suffixes=("_coco", "_meta"))
+    return df
+
+
+def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFrame:
+    on_smiles.rename(columns={"SMILES": "SMILES_meta"}, inplace=True)
+    df = pd.merge(
+        on_inchi,
+        on_smiles,
+        on=["coconut_id", "unique_id", "inchi_meta", "SMILES_meta"],
+        how="outer",
+        suffixes=("_inchi", "_SMILES"),
+    )
+    df.rename(columns={"SMILES_meta": "SMILES", "inchi_meta": "inchi"}, inplace=True)
+    return df
+
+
+# def id_repr(
+#     filename: str = "../metacyc/compound-links.dat", representation: str = "inchi"
+# ) -> dict:
+#     reprs = ["inchi", "smiles"]
+#     assert representation in reprs, "representation type unavailable"
+#     column = reprs.index(representation) + 1
+#     id_repr = {}
+#     with open(filename) as comp:
+#         for line in comp:
+#             if line:
+#                 row = line.strip().split("\t")
+#                 if len(row) > 1:
+#                     if row[column] and row[0]:
+#                         try:
+#                             id_repr[row[0].upper()] = row[column]
+#                         except:
+#                             continue
+#     cleaned = clean_dict(id_repr)
+#     return cleaned
 
 
 # fix capitalisation
@@ -625,32 +827,32 @@ def write_reactions(
 
 def main():
     # pathway_loc = argv[1]
-    pathway_loc = "/Users/lucina-may/thesis/metacyc/pathways.dat"
-    info2extract = [
-        "UNIQUE-ID",
-        "REACTION-LIST",
-        "SPECIES",
-        "TAXONOMIC-RANGE",
-        "REACTION-LAYOUT",
-    ]
-    pathways = get_df(pathway_loc, info2extract)
+    # pathway_loc = "/Users/lucina-may/thesis/metacyc/pathways.dat"
+    # info2extract = [
+    #     "UNIQUE-ID",
+    #     "REACTION-LIST",
+    #     "SPECIES",
+    #     "TAXONOMIC-RANGE",
+    #     "REACTION-LAYOUT",
+    # ]
+    # pathways = get_all_pathways(pathway_loc, info2extract)
 
-    # get reactions containing COCONUT
-    pathways_ofinterest_loc = "/Users/lucina-may/thesis/metacyc/interest_pws.tmp"
-    reactions_of_interest = extractr(
-        readr(pathways_ofinterest_loc), ["REACTION-LAYOUT"], strip_extra=" - "
-    )["REACTION-LAYOUT"]
-    # get pathways containing COCONUT compounds of defined minimal length
-    pathways_oi = get_relevant_pws(pathways, reactions_of_interest, min_pw_len=4)
-    all_reaction_layouts = [x for x in colval_per_index(pathways_oi)]
-    pw_num = [x for x in colval_per_index(pathways_oi, "UNIQUE-ID")]
+    # # get reactions containing COCONUT
+    # pathways_ofinterest_loc = "/Users/lucina-may/thesis/metacyc/interest_pws.tmp"
+    # reactions_of_interest = extract_linestartswith(
+    #     readr(pathways_ofinterest_loc), ["REACTION-LAYOUT"], strip_extra=" - "
+    # )["REACTION-LAYOUT"]
+    # # get pathways containing COCONUT compounds of defined minimal length
+    # pathways_oi = filter_pws(pathways, reactions_of_interest, min_pw_len=4)
+    # all_reaction_layouts = [x for x in colval_per_index(pathways_oi)]
+    # pw_num = [x for x in colval_per_index(pathways_oi, "UNIQUE-ID")]
 
     # get annotation of compounds
     compounds_loc = "/Users/lucina-may/thesis/metacyc/cleaner_compounds.dat"
     second_db = "/Users/lucina-may/thesis/metacyc/compound-links.dat"
 
     compoundinfo = ["UNIQUE-ID", "SMILES", "INCHI", "NON-STANDARD-INCHI"]
-    compounds = mergeinchis(get_df(compounds_loc, compoundinfo))
+    compounds = mergeinchis(get_all_pathways(compounds_loc, compoundinfo))
     main_dict = to_conversion_dict(compounds)
     compound_inchi = id_repr(filename=second_db)  # backup dictionaries
     compound_smiles = id_repr(filename=second_db, representation="smiles")

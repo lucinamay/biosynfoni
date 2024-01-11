@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse, os
 from collections import Counter
-
+import pickle
 
 import numpy as np
 
@@ -79,6 +79,12 @@ def cli() -> argparse.Namespace:
             "and will instead use them only as test set for wrong_prediction output"
             "(not for k-fold cross validation))"
         ),
+    )
+    parser.add_argument(
+        "-e",
+        "--export",
+        action="store_true",
+        help="If set, will export model as pickle file.",
     )
     args = parser.parse_args()
 
@@ -674,8 +680,18 @@ def main() -> None:
     # write arguments as yaml. ------------------------------------------------------
     args_yaml(args, title="arguments.yaml")
 
-    # write decision tree.
-    # export_graphviz(clf.estimators_[0], out_file="tree.dot", feature_names=classes)
+    # save model
+    if args.export:
+        # Train random forest classifier.
+        clf = RandomForestClassifier(
+            n_estimators=n_estimators, max_depth=max_depth, n_jobs=-1
+        )
+        # clf.fit(X_train, y_train)
+        clf.fit(X, y)
+        # save model
+        pickle.dump(clf, open("model.pkl", "wb"))
+        # save labels for indexes
+        np.savetxt("model_labels.tsv", classes, delimiter="\t", fmt="%s")
 
     # return to initial working directory
     os.chdir(iwd)

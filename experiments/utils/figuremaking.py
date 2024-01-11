@@ -16,70 +16,177 @@ description: functions for figuremaking
 from enum import Enum
 import typing as ty
 
-import plotly.express as px
+# import plotly.express as px
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 
-def df_scatterplot(
+# def df_scatterplot(
+#     df: pd.DataFrame,
+#     col_x: str,
+#     col_y: str,
+#     figtitle: str,
+#     filename: str = "scatterplot",
+#     auto_open: bool = True,
+#     *args,
+#     **kwargs,
+# ) -> None:
+#     fig = px.scatter(df, x=col_x, y=col_y, *args, **kwargs)
+#     fig.update_layout(title=figtitle)
+#     fig.write_html(
+#         f"{filename}.html",
+#         auto_open=auto_open,
+#     )
+#     # fig.close()
+#     return None
+
+
+def _set_ax_boxplot_i_colour(ax_boxplot, i, colour, inner_alpha=0.6):
+    translucent = mpl.colors.to_rgba(colour, inner_alpha)
+
+    ax_boxplot["boxes"][i].set_facecolor(translucent)
+    ax_boxplot["boxes"][i].set_edgecolor(colour)
+    ax_boxplot["medians"][i].set_color(colour)
+    ax_boxplot["whiskers"][i * 2].set_color(colour)
+    ax_boxplot["whiskers"][i * 2 + 1].set_color(colour)
+    ax_boxplot["caps"][i * 2].set_color(colour)
+    ax_boxplot["caps"][i * 2 + 1].set_color(colour)
+    ax_boxplot["fliers"][i].set_markeredgecolor(translucent)
+    return ax_boxplot
+
+
+def scatter_boxplots(
     df: pd.DataFrame,
     col_x: str,
     col_y: str,
     figtitle: str,
-    filename: str = "scatterplot",
-    auto_open: bool = True,
-    *args,
-    **kwargs,
-) -> None:
-    fig = px.scatter(df, x=col_x, y=col_y, *args, **kwargs)
-    fig.update_layout(title=figtitle)
-    fig.write_html(
-        f"{filename}.html",
-        auto_open=auto_open,
+    color_by: str = "stepnum",
+) -> plt.Figure:
+    fig = plt.figure()
+    # fig, ax = plt.subplots()
+    # add gridspec for subplots
+
+    gs = fig.add_gridspec(
+        2,
+        2,
+        width_ratios=(4, 1),
+        height_ratios=(1, 4),
+        # left=0.1, right=0.9, bottom=0.1, top=0.9,
+        wspace=-1,
+        hspace=-5,
     )
+
+    # Create the Axes.
+    # for scatterplot
+    ax = fig.add_subplot(gs[1, 0])
+    # for legend
+    legax = fig.add_subplot(gs[0, 1])
+
+    # Set aspect of the Axes manually to have points on 0 and 1 show better
+    # ax.set_xlim(-0.05, 1.05)
+    # ax.set_ylim(-0.05, 1.05)
+
+    # Get Data
+    all_data_x = [
+        np.array(df[df[color_by] == category][col_x].to_numpy(dtype=float))
+        for category in df[color_by].unique()
+    ]
+    all_data_x = [x[~np.isnan(x)] for x in all_data_x]
+    # all_data_x = np.random.normal(100, 10, 3426)
+    all_data_y = [
+        np.array(df[df[color_by] == category][col_y].tolist())
+        for category in df[color_by].unique()
+    ]
+    all_data_y = [y[~np.isnan(y)] for y in all_data_y]
+
+    ax_xobs, ax_yobs = [], []
+    print(all_data_x)
+    print(len(all_data_x))
+
+    xax = fig.add_subplot(gs[0, 0], sharex=ax)
+    yax = fig.add_subplot(gs[1, 1], sharey=ax)
+
+    xax.tick_params(
+        length=0, labelbottom=False, labelsize=5
+    )  # , labelleft=False, labelbottom=False, labelsize=0)
+    yax.tick_params(
+        length=0, labelrotation=-30, labelleft=False, labelsize=5
+    )  # , labelbottom=False, labelsize=0)
+    legax.tick_params(length=0, labelleft=False, labelbottom=False, labelsize=0)
+    ax.tick_params(length=0)  # , labelleft=False, labelbottom=False)
+
+    labels = [
+        f"{category}" if category != "-1" else "nonce"
+        for category in df[color_by].unique()
+    ]
+    xplot = xax.boxplot(
+        all_data_x, vert=False, patch_artist=True, labels=labels
+    )  # labels=df[color_by].tolist())#, patch_artist=True
+    yplot = yax.boxplot(
+        all_data_y, vert=True, patch_artist=True, labels=labels
+    )  # labels=df[color_by].tolist())#, patch_artist=True)
+    print(xplot["boxes"])
+    i = 0
+    for category in df[color_by].unique():
+        colour = COLOUR_DICT[color_by][category]
+
+        label = f"{category}" if category != "-1" else "None"
+
+        # ax.scatter(x, y, c=color, s=scale, label=color,alpha=0.3, edgecolors='none')
+        scatterplot = ax.scatter(
+            x=col_x,
+            y=col_y,
+            data=df[df[color_by] == category],
+            c=colour,
+            label=label,
+            alpha=0.5,
+            edgecolors="none",
+            zorder=3,
+        )
+
+        # change boxplot colours to match the category colour
+        alpha = 0.6
+        _set_ax_boxplot_i_colour(xplot, i, colour, inner_alpha=alpha)
+        _set_ax_boxplot_i_colour(yplot, i, colour, inner_alpha=alpha)
+
+        # scatter empty df, to get legend in right format in right position
+        leg = legax.scatter(
+            x=col_x,
+            y=col_y,
+            data=df[df[color_by] == category][0:0],
+            c=colour,
+            label=label,
+            alpha=0.5,
+            edgecolors="none",
+            s=10,
+        )
+        leg.set_facecolor(mpl.colors.to_rgba(colour, alpha=alpha))
+
+        i += 1
+
+    # ==================================================
+
+    legax.legend(loc="lower left", prop={"size": 6}, frameon=False)
+    squareside = 0.2
+    s_color = "#7A7979AA"
+    s_color = mpl.colors.to_rgba(COLOR, alpha=0.3)
+    linewidth = 1
+
+    # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
+    ax.set_xlabel(col_x, labelpad=10)
+    ax.set_ylabel(col_y, labelpad=10)
+    # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
+    xax.set_title(figtitle, loc="center", pad=20)
+
+    ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
+    gs.tight_layout(fig)
+
+    plt.show()
+    # plt.savefig(f"{filename}.png", dpi=500)
     # fig.close()
-    return None
-
-
-COLOUR_DICT = {
-    "taxonomy": {
-        "Viridiplantae": px.colors.qualitative.Plotly[7],  # green
-        "Bacteria": px.colors.qualitative.D3[9],  # light red
-        "Fungi": px.colors.qualitative.Plotly[3],  # purple
-        "Metazoa": px.colors.qualitative.Plotly[4],  # orange
-        "Archaea": px.colors.qualitative.T10[7],  # pink
-        "Eukaryota": px.colors.qualitative.Set3[8],
-        "Cellular organisms": px.colors.qualitative.Plotly[9],
-        "Opisthokonta": px.colors.qualitative.Plotly[8],
-    },
-    "stepnum": {
-        "1": px.colors.qualitative.Pastel[0],  # blue,
-        "2": px.colors.qualitative.Pastel[4],  # green,
-        "3": px.colors.qualitative.Pastel[1],  # yellow,
-        "4": px.colors.qualitative.Pastel[2],  # orange
-    },
-    "pathways": {
-        "shikimate": px.colors.qualitative.Plotly[3],  # purple
-        "acetate": px.colors.qualitative.Pastel[2],  # orange,
-        "mevalonate": px.colors.qualitative.Pastel[4],  # green,
-        "methylerythritol": px.colors.qualitative.Pastel[0],  # blue
-        "sugar": px.colors.qualitative.T10[7],  # pink
-    },
-    "class": {
-        "Terpenoids": px.colors.qualitative.Plotly[7],  # green
-        "Alkaloids": "lightblue",  # purple
-        "Shikimates and Phenylpropanoids": px.colors.qualitative.Plotly[3],
-        "Fatty acids": px.colors.qualitative.Plotly[4],  # orange
-        "Carbohydrates": "lightpink",  # pink
-        "Polyketides": px.colors.qualitative.Prism[7],  # light red
-        "Amino acids and Peptides": "bisque",
-        "No NP-Classifier prediction": "grey",
-        "None": "grey",
-        "Synthetic": "black",
-    },
-}
+    return fig
 
 
 def scatter_3d(df, col1, col2, col3, m="o"):
@@ -96,19 +203,36 @@ def scatter_3d(df, col1, col2, col3, m="o"):
     return None
 
 
-def violins(df):
-    df = px.data.tips()
-    fig = px.violin(
-        df,
-        y="count",
-        x="fingerprint",
-        color="class",
-        box=True,
-        points="all",
-        hover_data=df.columns,
-    )
-    fig.show()
+# def violins(df):
+#     df = px.data.tips()
+#     fig = px.violin(
+#         df,
+#         y="count",
+#         x="fingerprint",
+#         color="class",
+#         box=True,
+#         points="all",
+#         hover_data=df.columns,
+#     )
+#     fig.show()
 
+#     return None
+
+
+def label_colourcode(ticklabels: list, colors: list) -> str:
+    for label, color in zip(ticklabels, colors):
+        # label.set_color(COLOUR_DICT[axis][label.get_text()])
+        plt.setp(
+            label,
+            backgroundcolor=color,
+            bbox=dict(
+                facecolor=color,
+                alpha=0.5,
+                boxstyle="round, rounding_size=0.8",
+                edgecolor="none",
+            ),
+        )  # , height=0.3))
+        # t.set_bbox(dict(facecolor=color, alpha=0.5, boxstyle="round"))  # , height=0.3))
     return None
 
 

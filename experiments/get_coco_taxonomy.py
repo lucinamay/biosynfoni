@@ -11,11 +11,11 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-# for intra-biosynfoni-code running
-sys.path.append(
-    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
-)
+# sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
+# # for intra-biosynfoni-code running
+# sys.path.append(
+#     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
+# )
 from biosynfoni.inoutput import jaropener
 from biosynfoni.subkeys.get_version import get_biosynfoni
 from tsne import tsner
