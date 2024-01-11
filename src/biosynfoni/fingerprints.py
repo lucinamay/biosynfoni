@@ -24,7 +24,7 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from biosynfoni.def_biosynfoni import defaultVersion
+from biosynfoni.subkeys.get_version import defaultVersion
 from biosynfoni.concerto_fp import Biosynfoni
 
 

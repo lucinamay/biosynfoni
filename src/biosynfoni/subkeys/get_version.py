@@ -15,16 +15,16 @@ Biosynfoni Definition. Can be converted into an sdf file per 'version'
 """
 from functools import partial
 
-from biosynfoni.biosmartfonis import Substructures as SUBSTRUCTURES
-from biosynfoni.versionfonis import fpVersions as FP_VERSIONS
-from biosynfoni.default_version import defaultVersion
+from biosynfoni.subkeys.biosmartfonis import substructureSmarts
+from biosynfoni.subkeys.versionfonis import fpVersions
+from biosynfoni.subkeys.default_version import defaultVersion
 
 
 def get_values(
-    fp_version_name: str,
     value_name: str,
-    subs_smarts: dict = SUBSTRUCTURES,
-    fp_versions: dict[str, list[str]] = FP_VERSIONS,
+    fp_version_name: str = defaultVersion,
+    subs_smarts: dict = substructureSmarts,
+    fp_versions: dict[str, list[str]] = fpVersions,
 ) -> list[str]:
     """gives list of values of choice of all substructures in fingerprint version
     input:   fp_version_name (str) -- name of the version
@@ -38,11 +38,3 @@ def get_values(
 
 get_smarts = partial(get_values, value_name="smarts")
 get_names = partial(get_values, value_name="name")
-
-
-def main():
-    return
-
-
-if __name__ == "__main__":
-    main()

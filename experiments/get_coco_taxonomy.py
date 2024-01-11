@@ -17,7 +17,7 @@ sys.path.append(
     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
 )
 from biosynfoni.inoutput import jaropener
-from biosynfoni.def_biosynfoni import get_biosynfoni
+from biosynfoni.subkeys.get_version import get_biosynfoni
 from tsne import tsner
 from utils import figuremaking as fm
 

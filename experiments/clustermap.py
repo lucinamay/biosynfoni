@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 # matplotlib.use('Agg')       #if in background
 
-from biosynfoni.def_biosynfoni import FP_VERSIONS, defaultVersion
+from biosynfoni.subkeys.get_version import FP_VERSIONS, defaultVersion
 
 
 def cli():

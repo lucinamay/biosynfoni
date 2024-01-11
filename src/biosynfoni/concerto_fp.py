@@ -25,7 +25,6 @@ from tqdm import tqdm
 
 
 # my imports
-from biosynfoni import def_biosynfoni
 from biosynfoni.cli import cli
 from biosynfoni.rdkfnx import (
     supplier,
@@ -38,7 +37,7 @@ from biosynfoni.rdkfnx import (
 )
 from biosynfoni.rdkfnx import BiosynfoniVersion
 from biosynfoni.inoutput import csv_writr, myprint
-from biosynfoni.default_version import defaultVersion
+from biosynfoni.subkeys import defaultVersion, get_version
 
 
 # =============================  HELPERS  =====================================

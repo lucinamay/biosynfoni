@@ -1,4 +1,4 @@
-from biosynfoni.versionfonis import fpVersions
+from biosynfoni.subkeys.versionfonis import fpVersions
 
 # set default substructure collection here.
 defaultVersion = list(fpVersions.keys())[-1]

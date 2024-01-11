@@ -21,47 +21,45 @@ from rdkit import Chem
 from rdkit.Chem import Draw
 from rdkit.Chem.Draw import rdMolDraw2D, MolsToGridImage
 
-from biosynfoni.biosmartfonis import Substructures
+from biosynfoni.subkeys import substructureSmarts
 
 # imported by rdkfnx
 
 
-# Based off of David's code ====================================================
-
-coloured_subs = {
-    "d_indoleC2N_12": (0.65, 0.51, 0.71),
-    "d_phenylC2N_9": (0.65, 0.51, 0.71),
-    # acetate
-    "d_c5n_6": (1, 0.55, 0.38),
-    "d_c4n_5": (1, 0.55, 0.38),
-    # shikimate
-    "d_phenylC3_9_1007": (0.65, 0.51, 0.71),
-    "d_phenylC2_8_1007": (0.65, 0.51, 0.71),
-    "d_phenylC1_7_1007": (0.65, 0.51, 0.71),
-    "d_phenylC3_9": (0.65, 0.51, 0.71),
-    "d_phenylC2_8": (0.65, 0.51, 0.71),
-    "d_phenylC1_7": (0.65, 0.51, 0.71),
-    "d_phenylC3_9_strict": (0.65, 0.51, 0.71),
-    "d_phenylC2_8_strict": (0.65, 0.51, 0.71),
-    "d_phenylC1_7_strict": (0.65, 0.51, 0.71),
-    # mevalonate/MEP
-    "d_isoprene_5": (0.61, 0.76, 0.73),
-    # acetate, aromaticity ok
-    "d_ethyl_2": (1, 0.55, 0.38),
-    "d_methyl_1": (1, 0.55, 0.38),
-    # sugar-related --------------------------------------------------------
-    "s_pyranose_C5O4": (1, 0.77, 0.81),
-    "s_furanose_C4O3": (1, 0.77, 0.81),
-    "s_openpyr_C6O6": (1, 0.77, 0.81),
-    "s_openfur_C5O5": (1, 0.77, 0.81),
-    # additional from dewick -----------------------------------------------
-    # acetate
-    "d2_acetyl_C2O1": (1, 0.55, 0.38),
-    "d2_methylmalonyl_C3": (1, 0.55, 0.38),
-    # amino acids:
-    "allstnd_aminos": (1, 0.92, 0.63),
-    "nonstnd_aminos": (1, 0.92, 0.63),
-}
+# coloured_subs = {
+#     "d_indoleC2N_12": (0.65, 0.51, 0.71),
+#     "d_phenylC2N_9": (0.65, 0.51, 0.71),
+#     # acetate
+#     "d_c5n_6": (1, 0.55, 0.38),
+#     "d_c4n_5": (1, 0.55, 0.38),
+#     # shikimate
+#     "d_phenylC3_9_1007": (0.65, 0.51, 0.71),
+#     "d_phenylC2_8_1007": (0.65, 0.51, 0.71),
+#     "d_phenylC1_7_1007": (0.65, 0.51, 0.71),
+#     "d_phenylC3_9": (0.65, 0.51, 0.71),
+#     "d_phenylC2_8": (0.65, 0.51, 0.71),
+#     "d_phenylC1_7": (0.65, 0.51, 0.71),
+#     "d_phenylC3_9_strict": (0.65, 0.51, 0.71),
+#     "d_phenylC2_8_strict": (0.65, 0.51, 0.71),
+#     "d_phenylC1_7_strict": (0.65, 0.51, 0.71),
+#     # mevalonate/MEP
+#     "d_isoprene_5": (0.61, 0.76, 0.73),
+#     # acetate, aromaticity ok
+#     "d_ethyl_2": (1, 0.55, 0.38),
+#     "d_methyl_1": (1, 0.55, 0.38),
+#     # sugar-related --------------------------------------------------------
+#     "s_pyranose_C5O4": (1, 0.77, 0.81),
+#     "s_furanose_C4O3": (1, 0.77, 0.81),
+#     "s_openpyr_C6O6": (1, 0.77, 0.81),
+#     "s_openfur_C5O5": (1, 0.77, 0.81),
+#     # additional from dewick -----------------------------------------------
+#     # acetate
+#     "d2_acetyl_C2O1": (1, 0.55, 0.38),
+#     "d2_methylmalonyl_C3": (1, 0.55, 0.38),
+#     # amino acids:
+#     "allstnd_aminos": (1, 0.92, 0.63),
+#     "nonstnd_aminos": (1, 0.92, 0.63),
+# }
 
 pathway_colours = {
     "shikimate": (0.65, 0.51, 0.71),
@@ -73,6 +71,7 @@ pathway_colours = {
 }
 
 
+# ===== David's code =====
 class Palette(Enum):
     """
     Palette of colors for drawing molecules as RGB.
@@ -140,26 +139,40 @@ class Palette(Enum):
         )
 
 
-# split this into mol-focused and colour-focused
+# =============
+
+
+# adapted from David's code to have distinct modules ======================
 def _get_highlight_loc_and_col(
     mol: Chem.Mol,
     subs_matches_for_highlighting: list = [],  # list of lists of lists of atom indices
-    subs_ids: ty.List[str] = [],  # list of substructure names
+    # subs_ids: ty.List[str] = [],  # list of substructure names
+    subs_colors: ty.Optional[ty.List[ty.Tuple[float, float, float]]] = None,
 ) -> tuple[tuple[list, dict]]:
     """gets highlighting information"""
     palette = [c.normalize() for c in Palette]
     atoms_to_highlight, bonds_to_highlight = [], []
     atom_highlight_colors, bond_highlight_colors = {}, {}
 
+    if subs_colors is None:
+        subs_colors = [
+            palette[i % len(palette)] for i in range(len(subs_matches_for_highlighting))
+        ]
+    else:
+        assert len(subs_colors) == len(
+            subs_matches_for_highlighting
+        ), "Number of colors must match number of substructures."
+
     for sub_index, sub_matches in enumerate(subs_matches_for_highlighting):
         atom_indices = []
-        sub_id = subs_ids[sub_index]
-        if Substructures[sub_id]["pathway"]:
-            first_pathway = Substructures[sub_id]["pathway"][0]
-            color = pathway_colours[first_pathway]
-        else:
-            # color = palette[sub_index % len(palette)] #for random colour
-            color = (0.7, 0.7, 0.7)  # grey
+        # sub_id = subs_ids[sub_index]
+        color = subs_colors[sub_index]
+        # if Substructures[sub_id]["pathway"]:
+        #     first_pathway = Substructures[sub_id]["pathway"][0]
+        #     color = pathway_colours[first_pathway]
+        # else:
+        #     # color = palette[sub_index % len(palette)] #for random colour
+        #     color = (0.7, 0.7, 0.7)  # grey
 
         for match in sub_matches:
             # individual substructure-match indices
@@ -184,6 +197,9 @@ def _get_highlight_loc_and_col(
     locations = (atoms_to_highlight, bonds_to_highlight)
     colors = (atom_highlight_colors, bond_highlight_colors)
     return locations, colors
+
+
+# ================================================
 
 
 def draw(
@@ -287,8 +303,10 @@ def drawfp(
             indexes.append(sub_index)
 
     successful_subs = [subs_ids[i] for i in indexes]
+    # clean up later
     names = [
-        Substructures[sub_id]["name"].replace("_", " ") for sub_id in successful_subs
+        substructureSmarts[sub_id]["name"].replace("_", " ")
+        for sub_id in successful_subs
     ]
     # names = [subs_labels[i] for i in indexes]
     print(len(mols), len(names), len(subs_atoms_to_highlight))

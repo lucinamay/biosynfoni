@@ -1,10 +1,10 @@
 import argparse
 
-from biosynfoni import def_biosynfoni
+from biosynfoni.subkeys import get_version
 from biosynfoni.inoutput import outfile_namer
 
 
-DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.defaultVersion
+DEFAULT_BIOSYNFONI_VERSION = get_version.defaultVersion
 
 
 def _induce_input_type(inputlist: list) -> str:
@@ -78,8 +78,8 @@ def cli():
         required=False,
         action="store",
         help="specify the fingerprint version to use. If not specified, will use default",
-        choices=def_biosynfoni.FP_VERSIONS.keys(),
-        default=def_biosynfoni.defaultVersion,
+        choices=get_version.FP_VERSIONS.keys(),
+        default=get_version.defaultVersion,
     )
 
     parser.add_argument(
