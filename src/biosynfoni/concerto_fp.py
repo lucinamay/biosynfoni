@@ -15,9 +15,10 @@ ____________________________________
 
 ConCERTO-fp | CONvert Compound E-Representation TO FingerPrint
 """
-
+import logging
 from itertools import chain
 from functools import partial
+
 
 import numpy as np
 from rdkit import Chem
@@ -48,7 +49,7 @@ def _count_listitems(nested_list: list) -> int:
         if isinstance(item, list) or isinstance(item, tuple):
             sublist_count = _count_listitems(list(item))  # recursive
             count = count + sublist_count
-        elif item:
+        elif item or item == 0:
             count += 1
     return count
 
@@ -212,8 +213,11 @@ class Biosynfoni:
     def _matches_to_coverage(self) -> float:
         """gets non-h atom-based coverage of fingerprints over atoms"""
         matched_atoms = _count_listitems(self.matches)
-        coverage = float(matched_atoms) / float(nonh_atomcount(self.mol))
-        return coverage
+        total_atoms = nonh_atomcount(self.mol)
+
+        logging.debug(f"matched, total: {matched_atoms}, {total_atoms}")
+
+        return float(matched_atoms) / float(nonh_atomcount(self.mol))
 
     def _matches_to_coverage_per_substructure(self) -> list[float]:
         """gets non-h atom-based coverage of fingerprints over atoms"""

@@ -177,6 +177,10 @@ def _get_highlight_loc_and_col(
         for match in sub_matches:
             # individual substructure-match indices
             match_indices = []
+
+            if len(match) == 2:
+                print(match)
+
             for atom_index in match:
                 atom_indices.append(atom_index)
                 atoms_to_highlight.append(atom_index)
@@ -207,8 +211,7 @@ def draw(
     # subs: ty.List[ty.List[tuple[tuple[int]]]] = [],
     window_size: ty.Tuple[int, int] = (800, 800),
     background_color: ty.Optional[str] = None,
-    subs_matches_for_highlighting: list = [],  # list of lists of lists of atom indices
-    subs_ids: ty.List[str] = [],  # list of substructure names
+    highlight_atoms_bonds_mappings=None,
 ) -> str:
     """
     Draw a molecule with its substructures highlighted.
@@ -225,13 +228,13 @@ def draw(
 
     drawing = rdMolDraw2D.MolDraw2DSVG(*window_size)
 
-    highlight_locations, highlight_colors = _get_highlight_loc_and_col(
-        mol,
-        subs_matches_for_highlighting=subs_matches_for_highlighting,
-        subs_ids=subs_ids,
-    )
-    atoms_to_highlight, bonds_to_highlight = highlight_locations
-    atom_highlight_colors, bond_highlight_colors = highlight_colors
+    # unpack
+    (
+        atoms_to_highlight,
+        bonds_to_highlight,
+        atom_highlight_colors,
+        bond_highlight_colors,
+    ) = highlight_atoms_bonds_mappings
 
     options = drawing.drawOptions()
     if background_color is not None:

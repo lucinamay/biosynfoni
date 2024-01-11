@@ -15,6 +15,7 @@ ____________________________________
 contains general reusable functionalities depending on RDKit packages,
 mainly supplier-handling
 """
+import logging
 
 from rdkit import Chem
 from rdkit import RDLogger
