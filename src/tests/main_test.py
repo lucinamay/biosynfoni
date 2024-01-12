@@ -10,7 +10,7 @@ import numpy as np
 from biosynfoni.concerto_fp import MolsCollection, Biosynfoni
 from biosynfoni.subkeys import defaultVersion
 from biosynfoni.moldrawing import draw
-from biosynfoni import get_highlight_mapping
+from biosynfoni import get_highlight_mapping, draw_with_highlights
 
 general_test_smiles = [
     "CC(=O)CC=O",
@@ -86,6 +86,9 @@ class testBiosynfoni(unittest.TestCase):
         for i, mol in enumerate(general_test_mols):
             info = get_highlight_mapping(mol)
             svg_str = draw(mol, highlight_atoms_bonds_mappings=info)
+            svg_str2 = draw_with_highlights(mol)
+
+            self.assertEqual(svg_str, svg_str2)
             # add mol's smiles to the svg as text
             svg_str = svg_str.replace(
                 "</svg>",
