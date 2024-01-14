@@ -81,6 +81,12 @@ def cli() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--no_proba",
+        action="store_true",
+        default=False,
+        help="If set, will not calculate probabilities for multilabel classification. Probabilties are not calculated for unilabel classification.",
+    )
+    parser.add_argument(
         "-e",
         "--export",
         action="store_true",
@@ -91,6 +97,9 @@ def cli() -> argparse.Namespace:
     args = parser.parse_args()
     if args.unilabel and args.cutoff != 0.5:
         logging.warning(f"cutoff {args.cutoff} is ignored for unilabel classification.")
+
+    if args.unilabel:
+        args.no_proba = True
 
     # get absolute path from relative path
     args.fingerprints = os.path.abspath(args.fingerprints)
@@ -198,40 +207,44 @@ def get_ids(names_path: str, size: int) -> np.array:
     else:
         ids = np.array(range(size))
 
-    assert ids.shape[0] == size, "number of ids does not match number of fingerprints"
+    if ids.shape[0] != size:
+        logging.warning(
+            f"number of ids ({ids.shape[0]}) does not match number of fingerprints ({size})"
+        )
 
     return ids
 
 
 def separate_nones(label_names: list[list], class_index: dict, x_y_andco: list):
-    """x_y_andco: (X, y, ids)"""
+    """x_y_andco: (X, y, ids, ...) (...-> anything else that needs to be separated into nones set)"""
     none_indices = []
-    # X, y, ids = x_y_andco
-    y = x_y_andco[1]  #!!! be careful it is a y
-    # get indexes of "None" annotations
     for i, name in enumerate(label_names):
         if name == ["None"]:
             none_indices.append(int(i))
 
-    # remove "None" class index dictionary (integer values)
+    x_y_andco = list(x_y_andco)
+    y = x_y_andco[1]  #!!! make sure it is a y
     if "None" in class_index.keys():
-        none_index = class_index.pop("None")
+        none_column = class_index.pop("None")
+        # for all numbers higher than none_column, subtract 1
+        for key in class_index.keys():
+            if class_index[key] > none_column:
+                class_index[key] -= 1
         # if not unilabel:
         if y.shape[1] > 1:
-            y = np.delete(y, none_index, 1)  # drop column
+            logging.debug(f"removing column {none_column} from y")
+            x_y_andco[1] = np.delete(x_y_andco[1], none_column, 1)
     logging.info(f'separating {len(none_indices)} "nones" from training/testing set')
 
     none_indices = np.array(none_indices, dtype=int)
 
-    nones = [], []
+    nones = []
     for array in x_y_andco:
-        nones.append(array[none_indices])
-        np.delete(array, none_indices, 0)
-    # nones_X, nones_y, nones_ids = X[none_indices], y[none_indices], ids[none_indices]
-    # X = np.delete(X, none_indices, 0)
-    # y = np.delete(y, none_indices, 0)
-    # ids = np.delete(ids, none_indices, 0)
-    return (label_names, class_index), x_y_andco, nones
+        nones.append(array[none_indices])  # add to nones
+        np.delete(array, none_indices, 0)  # remove from not-nones
+
+    logging.debug([array.shape for array in nones])
+    return label_names, class_index, x_y_andco, nones
 
 
 # def subsampler(
@@ -246,7 +259,7 @@ def separate_nones(label_names: list[list], class_index: dict, x_y_andco: list):
 #     indices = np.random.choice(X.shape[0], size=size, replace=False)
 #     X = X[indices]
 #     y = y[indices]
-#     logging.info(X.shape, y.shape)
+#     logging.info(f"{X.shape}, {y.shape}")
 #     return X, y
 
 
@@ -369,7 +382,7 @@ def train_test_split(arrays_to_split: tuple[np.array], fract: float = 0.8) -> tu
 #         self.ids = self.ids[indices]
 
 #         logging.info(f"Subsampled {size}. Random seed: {random_seed}")
-#         logging.debug(self.X.shape, self.ids.shape)
+#         logging.debug(f"{self.X.shape}, {self.ids.shape}")
 #         return None
 
 #     def train_test_split(self, fract: float = 0.8):
@@ -385,7 +398,7 @@ def train_test_split(arrays_to_split: tuple[np.array], fract: float = 0.8) -> tu
 #         self.y_train, self.y_test = self.y[:train_size], self.y[train_size:]
 #         self.ids_train, self.ids_test = self.ids[:train_size], self.ids[train_size:]
 
-#         logging.debug(self.X_train.shape, self.X_test.shape)
+#         logging.debug(f"{self.X_train.shape}, {self.X_test.shape}"")
 #         return None
 
 #     def separate_nones(self):
@@ -406,16 +419,15 @@ def train_test_split(arrays_to_split: tuple[np.array], fract: float = 0.8) -> tu
 #         # separate
 
 
-def get_rf(
+def train_classifier(
     X_train: np.array,
     y_train: np.array,
-    n_estimators: int = 1000,  # number of trees
-    max_depth: int = 100,
+    *args,
+    **kwargs,
 ) -> RandomForestClassifier:
     # Train random forest classifier.
-    clf = RandomForestClassifier(
-        n_estimators=n_estimators, max_depth=max_depth, n_jobs=-1
-    )
+    n_jobs = -1  # use all cores
+    clf = RandomForestClassifier(n_jobs=n_jobs, *args, **kwargs)
     clf.fit(X_train, y_train)
     return clf
 
@@ -426,19 +438,24 @@ def predict_one(
 ) -> tuple[list, list]:
     # Train random forest classifier.
     y_pred = classifier.predict(X_test)
-    return np.array(y_pred), classifier.feature_importances_
+    return np.array(y_pred)
 
 
 def proba(
     X_test: np.array,
     classifier: RandomForestClassifier,
 ) -> tuple[list, list]:
-    """predict probabilities with RF"""
+    """predict probabilities with RF. Can cause errors if the sample is too small (<1000) and causes 1.0 probabilities for a class)"""
     probabilities = np.array(classifier.predict_proba(X_test))
     # only probability of "yes class"
     only_class_membership = probabilities[:, :, 1]
     class_probabilities = np.transpose(only_class_membership)
     return class_probabilities
+
+
+def classify(X, y, other_data, n_estimators=1000, max_depth=100):
+    # under construction
+    return None
 
 
 def cutoffr(y_proba: np.array, cutoff: float = 0.5) -> np.array:
@@ -489,11 +506,12 @@ def kfold_preds(
     cl_reps = []  # classification reports
     importances = []
     for X_train, X_test, y_train, y_test in tqdm(kfold_yielder(X, y, k=k), total=k):
-        classifier = get_rf(
+        classifier = train_classifier(
             X_train, y_train, n_estimators=n_estimators, max_depth=max_depth
         )
+        importances.append(classifier.feature_importances_)
         if unilabel:
-            y_pred, importance = predict_one(X_test, classifier)
+            y_pred = predict_one(X_test, classifier)
             cl_rep = classification_report(y_test, y_pred, zero_division=np.nan)
             cm = confusion_matrix(y_test, y_pred)
         else:
@@ -507,11 +525,9 @@ def kfold_preds(
             cm = multilabel_confusion_matrix(y_test, y_pred)
             # feature importance not possible for predict_proba,
             # therefore not included if multilabel (i.e. proba is possible)
-            importance = []
         # append results
         cms.append(cm)
         cl_reps.append(cl_rep)
-        importances.append(importance)
     return cms, cl_reps, importances
 
 
@@ -535,10 +551,11 @@ def wrongs_array(
     # get wrong predictions.
     w_id, w_test, w_pred = get_wrong_predictions(y_test, y_pred, ids_test)
     # get the classification predictions in strings:
+    print(w_test, class_index)
     w_test_str = i_to_cl(w_test, class_index)
     w_pred_str = i_to_cl(w_pred, class_index)
     wrong = np.array([w_id, w_test_str, w_pred_str]).T
-    logging.info(wrong.shape[0], " wrong predictions")
+    logging.info(f"{wrong.shape[0]} wrong predictions")
     return wrong
 
 
@@ -636,7 +653,61 @@ def handle_outdirs(db_name: str, fp_name: str, unilabel: bool) -> str:
     return iwd
 
 
+def get_decision_trees(
+    classifier: RandomForestClassifier, title: str = "decision_trees"
+):
+    # write decision tree.
+    feature_names = [
+        "coenzyme_a",
+        "nadh",
+        "nadph",
+        "standard_amino_acids",
+        "non-standard_amino_acids",
+        "open_pyranose",
+        "open_furanose",
+        "pyranose",
+        "furanose",
+        "indoleC2N",
+        "phenylC2N",
+        "C5N",
+        "C4N",
+        "phenylC3",
+        "phenylC2",
+        "phenylC1",
+        "isoprene",
+        "acetyl",
+        "methylmalonyl",
+        "ethyl",
+        "methyl",
+        "phosphate",
+        "sulfonate",
+        "fluorine",
+        "chlorine",
+        "bromine",
+        "iodine",
+        "nitrate",
+        "epoxy",
+        "ether",
+        "hydroxyl",
+        "C3_ring",
+        "C4_ring",
+        "C5_ring",
+        "C6_ring",
+        "C7_ring",
+        "C8_ring",
+        "C9_ring",
+        "C10_ring",
+    ]
+    export_graphviz(
+        classifier.estimators_[0],
+        out_file="tree.dot",
+        feature_names=feature_names,
+    )
+
+
 def main() -> None:
+    # set logging to debug
+    logging.basicConfig(level=logging.DEBUG)
     n_estimators = 1000  # number of trees
     max_depth = 100
     args = cli()
@@ -654,26 +725,31 @@ def main() -> None:
     # Parse fingerprints from input file.
     delimiter = "\t" if args.fingerprints.endswith(".tsv") else ","
     X = np.loadtxt(args.fingerprints, delimiter=delimiter, dtype=int)
+    # try to reduce dimensionality
+    # indices = np.array(
+    #     [3, 4, 5, 11, 14, 17, 18, 21, 22, 24, 27, 28, 29, 30, 31, 32, 33, 34, 36]
+    # )
+    indices = np.array([3, 4, 5, 11, 14, 17, 18, 21, 22, 24, 27, 28, 29, 30, 33, 34])
+    # make mask where indices are true
+    filtr = np.zeros(X.shape[1], dtype=bool)
+    filtr[indices] = True
+    X = X[:, filtr]
 
-    label_names, class_index, y = read_classifications(
-        args.classifications, args.unilabel
-    )
-    logging.info("X, y:", X.shape, y.shape)
+    h_labels, cl_idx, y = read_classifications(args.classifications, args.unilabel)
     ids = get_ids(args.names, X.shape[0])
+    logging.info(f"X, y:{X.shape}, {y.shape}")
 
-    nones_X, nones_y, nones_ids = np.array([]), np.array([]), np.array([])
     if not include_none:
-        (label_names, class_index), filtered, nones = separate_nones(
-            label_names, class_index, (X, y, ids)
+        h_labels, cl_idx, filtered, nones = separate_nones(
+            h_labels, cl_idx, (X, y, ids)
         )
         X, y, ids = filtered
-        nones_X, nones_y, nones_ids = nones
+        nones_X, _, nones_ids = nones
+    else:
+        nones_X, nones_ids = np.array([]), np.array([])
 
-    if nones_X.shape[0] == 0:
-        logging.info("no nones")
-        include_none = True  # for same functions later
-
-    classes = list(class_index.keys())
+    logging.debug(cl_idx)
+    classes = list(cl_idx.keys())
 
     # Subsample randomly from X and y.
     if isinstance(args.subsample, int):
@@ -685,104 +761,91 @@ def main() -> None:
     train, test = train_test_split((X, y, ids), fract=0.8)
     X_train, y_train, ids_train = train
     X_test, y_test, ids_test = test
-    # X_train, X_test, y_train, y_test, ids_train, ids_test = tr_te_split_ids(
-    #     X, y, ids, fract=0.8
-    # )
 
     # get initial predictions. ------------------------------------------------------
     logging.info("RF for getting wrong predictions")
-    if args.unilabel:
-        y_pred, _ = predict_one(
-            X_train,
-            X_test,
-            y_train,
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-        )
-        cm = confusion_matrix(y_test, y_pred)
-    else:
-        # multilabel, considers cutoff, no feature importances
-        y_proba = proba(
-            X_train,
-            X_test,
-            y_train,
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-        )
-        y_pred = cutoffr(y_proba, cutoff=args.cutoff)
-        cm = multilabel_confusion_matrix(y_test, y_pred)
-        # logging.info("proba, test, pred shapes:", y_proba.shape, y_test.shape, y_pred.shape)
 
-    # try and get wrong predictions. ------------------------------------------------
-    wrongs = wrongs_array(ids_test, y_test, y_pred, class_index)
-    np.savetxt("wrong_predictions.tsv", wrongs, delimiter="\t", fmt="%s")
-    # logging.info("wrong predictions not (/not properly) detected")
-
-    # none predictions. -------------------------------------------------------------
-    if not include_none:
-        logging.info('get prediction for the "Nones"')
-        if args.unilabel:
-            # get prediction for the "Nones" by training with full not-none dataset
-            ny_pred, _ = predict_one(
-                X,
-                nones_X,
-                y,
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-            )
-        else:
-            ny_proba = proba(
-                X,
-                nones_X,
-                y,
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-            )
-            ny_pred = cutoffr(ny_proba, cutoff=args.cutoff)
-
-        ny_pred = i_to_cl(ny_pred, class_index, unilabel=args.unilabel)
-        nones_preds = np.concatenate([nones_ids[:, None], ny_pred[:, None]], axis=1)
-        np.savetxt("nones_predictions.tsv", nones_preds, delimiter="\t", fmt="%s")
-        if not args.unilabel:
-            nones_probas = np.concatenate([nones_ids[:, np.newaxis], ny_proba], axis=1)
-            np.savetxt("nones_probas.tsv", nones_probas, delimiter="\t", fmt="%s")
-
-    # k-fold cross validation. ------------------------------------------------------
-    cms, cl_reps, importances = kfold_preds(
-        X,
-        y,
-        unilabel=args.unilabel,
+    classifier = train_classifier(
+        X_train,
+        y_train,
         n_estimators=n_estimators,
         max_depth=max_depth,
-        cutoff=args.cutoff,
-        target_names=classes,
+        class_weight="balanced",
     )
+    importances = classifier.feature_importances_
+    if args.no_proba:
+        y_pred = predict_one(X_test, classifier)
+    else:
+        y_proba = proba(X_test, classifier)
+        y_pred = cutoffr(y_proba, cutoff=args.cutoff)
 
-    write_classification_report(cl_reps, classes)
-    write_comb_confusion_matrix(combine_cms(cms), classes)
-    np.savetxt("importances.tsv", importances, delimiter="\t", fmt="%s")
+    if args.unilabel:
+        cm = confusion_matrix(y_test, y_pred)
+    else:
+        cm = multilabel_confusion_matrix(y_test, y_pred)
 
-    # write arguments as yaml. ------------------------------------------------------
-    args_yaml(args, title="arguments.yaml")
+    wrongs = wrongs_array(ids_test, y_test, y_pred, cl_idx)
+    np.savetxt("wrong_predictions.tsv", wrongs, delimiter="\t", fmt="%s")
 
-    # save model
-    if args.export:
-        logging.info("exporting model")
-        # Train random forest classifier.
-        clf = RandomForestClassifier(
-            n_estimators=n_estimators, max_depth=max_depth, n_jobs=-1
-        )
-        # clf.fit(X_train, y_train)
-        clf.fit(X, y)
-        # save model
-        # np.save("full_model.npy", clf) # does not work
+    # print(cm, importances, sep="\n\n")
+    # print(f'with {X.shape[1]} features and "balanced" class weights')
+    # print(classification_report(y_test, y_pred, zero_division=np.nan))
 
-        # write decision tree.
-        # export_graphviz(clf.estimators_[0], out_file="tree.dot", feature_names=classes)
-        pickle.dump(clf, open("model.pkl", "wb"))
-        # save labels for indexes
-        np.savetxt("model_labels.tsv", classes, delimiter="\t", fmt="%s")
+    # # none predictions. -------------------------------------------------------------
+    # if nones_X.shape[0] == 0:
+    #     if not args.include_none:
+    #         logging.info("no nones in dataset")
+    # else:
+    #     logging.info('get prediction for the "Nones"')
+    #     full_classifier = train_classifier(X, y, n_estimators=n_estimators)
+    #     if args.no_proba:
+    #         ny_pred = predict_one(nones_X, full_classifier)
+    #     else:
+    #         ny_proba = proba(nones_X, full_classifier)
+    #         ny_pred = cutoffr(ny_proba, cutoff=args.cutoff)
 
+    #     ny_pred = i_to_cl(ny_pred, class_index, unilabel=args.unilabel)
+    #     nones_preds = np.concatenate([nones_ids[:, None], ny_pred[:, None]], axis=1)
+    #     np.savetxt("nones_predictions.tsv", nones_preds, delimiter="\t", fmt="%s")
+    #     if not args.no_proba:
+    #         nones_probas = np.concatenate([nones_ids[:, np.newaxis], ny_proba], axis=1)
+    #         np.savetxt("nones_probas.tsv", nones_probas, delimiter="\t", fmt="%s")
+
+    # # k-fold cross validation. ------------------------------------------------------
+    # cms, cl_reps, importances = kfold_preds(
+    #     X,
+    #     y,
+    #     unilabel=args.unilabel,
+    #     n_estimators=n_estimators,
+    #     max_depth=max_depth,
+    #     cutoff=args.cutoff,
+    #     target_names=classes,
+    # )
+
+    # write_classification_report(cl_reps, classes)
+    # write_comb_confusion_matrix(combine_cms(cms), classes)
+    # # write importances with 3 decimals
+    # np.savetxt("importances.tsv", importances, delimiter="\t", fmt="%.3f")
+
+    # # write arguments as yaml. ------------------------------------------------------
+    # args_yaml(args, title="arguments.yaml")
+
+    # # save model
+    # if args.export:
+    #     # make directory for model
+    #     if not os.path.exists("./model"):
+    #         os.mkdir("./model")
+    #     os.chdir("./model")
+
+    #     logging.info("exporting full model")
+    #     full_classifier = train_classifier(X, y, n_estimators=n_estimators)
+
+    #     pickle.dump(full_classifier, open("model.pkl", "wb"))
+    #     # save labels for indexes
+    #     np.savetxt("model_labels.tsv", classes, delimiter="\t", fmt="%s")
+    #     # export decision tree
+    #     get_decision_trees(full_classifier)
+    #     os.chdir("../")
     # return to initial working directory
     os.chdir(iwd)
     exit(0)
