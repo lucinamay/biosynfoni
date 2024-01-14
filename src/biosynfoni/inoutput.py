@@ -116,7 +116,7 @@ def get_twovals(
 
 def entryfile_dictify(
     filename: str,
-    keyvals: tuple[str],
+    queries: tuple[str],
     start_val_sep: str,
     entry_sep: str = "//",
     encoding: str = "UTF-8",
@@ -127,8 +127,8 @@ def entryfile_dictify(
         per_entry(
             annot_entries,
             get_twovals,
-            start1=keyvals[0],
-            start2=keyvals[1],
+            start1=queries[0],
+            start2=queries[1],
             start_val_sep=start_val_sep,
         )
     )

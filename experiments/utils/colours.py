@@ -1,4 +1,4 @@
-COLOUR_DICT = {
+colourDict = {
     "taxonomy": {
         "Viridiplantae": "#B9C311",  # green
         "Bacteria": "#9BC2BA",  # teal

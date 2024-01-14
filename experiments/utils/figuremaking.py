@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from utils.colours import colourDict
+
 
 # def df_scatterplot(
 #     df: pd.DataFrame,
@@ -130,7 +132,7 @@ def scatter_boxplots(
     print(xplot["boxes"])
     i = 0
     for category in df[color_by].unique():
-        colour = COLOUR_DICT[color_by][category]
+        colour = colourDict[color_by][category]
 
         label = f"{category}" if category != "-1" else "None"
 
@@ -169,10 +171,12 @@ def scatter_boxplots(
     # ==================================================
 
     legax.legend(loc="lower left", prop={"size": 6}, frameon=False)
-    squareside = 0.2
-    s_color = "#7A7979AA"
-    s_color = mpl.colors.to_rgba(COLOR, alpha=0.3)
-    linewidth = 1
+
+    # # info for square drawing
+    # squareside = 0.2
+    # s_color = "#7A7979AA"
+    # s_color = mpl.colors.to_rgba("#7A7979AA", alpha=0.3)
+    # linewidth = 1
 
     # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
     ax.set_xlabel(col_x, labelpad=10)

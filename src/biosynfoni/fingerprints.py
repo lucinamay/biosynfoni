@@ -97,22 +97,26 @@ def binosynfoni_getter(
 # ----------------------------- distance -------------------------------------
 
 
-def bitvect_to_tanimoto(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+def tanimoto_distance(fps: list[DataStructs.ExplicitBitVect]) -> float:
+    expl_bitvectors = [array_to_bitvect(fp) for fp in fps]
     array = Metric.rdMetricMatrixCalc.GetTanimotoDistMat(expl_bitvectors)
     return array.tolist()[0]
 
 
-def bitvect_to_euclidean(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+def euclidean_distance(fps: list[DataStructs.ExplicitBitVect]) -> float:
+    expl_bitvectors = [array_to_bitvect(fp) for fp in fps]
     array = Metric.rdMetricMatrixCalc.GetEuclideanDistMat(expl_bitvectors)
     return array.tolist()[0]
 
 
-def bitvect_to_manhattan(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+def manhattan_distance(fps: list[DataStructs.ExplicitBitVect]) -> float:
+    expl_bitvectors = [array_to_bitvect(fp) for fp in fps]
     array = Metric.rdMetricMatrixCalc.GetManhattanDistMat(expl_bitvectors)
     return array.tolist()[0]
 
 
-def bitvect_to_cosine(expl_bitvectors: list[DataStructs.ExplicitBitVect]) -> float:
+def cosine_distance(fps: list[DataStructs.ExplicitBitVect]) -> float:
+    expl_bitvectors = [array_to_bitvect(fp) for fp in fps]
     array = Metric.rdMetricMatrixCalc.GetCosineDistMat(expl_bitvectors)
     return array.tolist()[0]
 
@@ -127,15 +131,27 @@ def counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
         return nom / denom
 
 
-def countanimoto(pair: list) -> float:
-    return counted_tanimoto_sim(np.array(pair[0]), np.array(pair[1]))
+def countanimoto(fps: list) -> float:
+    return counted_tanimoto_sim(np.array(fps[0]), np.array(fps[1]))
 
 
-def cosine_sim(pair: list[np.array]) -> float:
-    cos_sim = dot(np.array(pair[0]), np.array(pair[1])) / (
-        norm(np.array(pair[0])) * norm(np.array(pair[1]))
+def cosine_sim(fps: list[np.array]) -> float:
+    cos_sim = dot(np.array(fps[0]), np.array(fps[1])) / (
+        norm(np.array(fps[0])) * norm(np.array(fps[1]))
     )
     return cos_sim
+
+
+def tanimoto_sim(fps: list[np.array]) -> float:
+    return 1 - tanimoto_distance(fps)
+
+
+def euclidean_sim(fps: list[np.array]) -> float:
+    return 1 - euclidean_distance(fps)
+
+
+def manhattan_sim(fps: list[np.array]) -> float:
+    return 1 - manhattan_distance(fps)
 
 
 # ============================= formatting ===================================
