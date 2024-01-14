@@ -1,16 +1,17 @@
 import unittest, logging
 from enum import Enum
+import subprocess
 
 # set logging level to debug for this test
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 from rdkit import Chem
 import numpy as np
 
 from biosynfoni.concerto_fp import MolsCollection, Biosynfoni
-from biosynfoni.subkeys import defaultVersion
+from biosynfoni.subkeys import defaultVersion, get_smarts
 from biosynfoni.moldrawing import draw
-from biosynfoni import get_highlight_mapping
+from biosynfoni import get_highlight_mapping, draw_with_highlights
 
 general_test_smiles = [
     "CC(=O)CC=O",
@@ -20,7 +21,22 @@ general_test_smiles = [
     "[C@H]([C@@H](/C=C/CCCCCCCCCCCCC)O)(NC(=O)*)CO[C@@H]1O[C@H](CO)[C@H]([C@@H]([C@H]1O)O)O[C@@H]2O[C@H](CO[C@]3(O[C@]([C@@H]([C@H](C3)O)NC(C)=O)([C@@H]([C@@H](CO)O)O)[H])C(=O)O)[C@@H]([C@H](O)[C@H]2O)O",
 ]
 general_test_mols = [Chem.MolFromSmiles(smiles) for smiles in general_test_smiles]
-empty_fp = [0 for _ in defaultVersion]
+empty_fp = [0 for _ in get_smarts(version=defaultVersion)]
+
+
+class testCommandLine(unittest.TestCase):
+    def test_single_smiles(self):
+        for smile in general_test_smiles:
+            cmd = ["biosynfoni", smile]
+            result = subprocess.run(cmd, capture_output=True)
+            # make sure it has no errors
+            self.assertEqual(result.returncode, 0)
+
+    def test_multiple_smiles(self):
+        cmd = ["biosynfoni"] + general_test_smiles
+        result = subprocess.run(cmd, capture_output=True)
+        # make sure it has no errors
+        self.assertEqual(result.returncode, 0)
 
 
 # easy functions for testing
@@ -86,6 +102,9 @@ class testBiosynfoni(unittest.TestCase):
         for i, mol in enumerate(general_test_mols):
             info = get_highlight_mapping(mol)
             svg_str = draw(mol, highlight_atoms_bonds_mappings=info)
+            svg_str2 = draw_with_highlights(mol)
+
+            self.assertEqual(svg_str, svg_str2)
             # add mol's smiles to the svg as text
             svg_str = svg_str.replace(
                 "</svg>",
@@ -153,7 +172,7 @@ class testBiosynfoni(unittest.TestCase):
         self.assertEqual(inter_overlap.get_coverage(), (5 / 6), f"inter_over{smiles}")
         self.assertEqual(overlap.get_coverage(), (10 / 6), msg=f"overlap{smiles}")
         # set logging level for concertofp back to normal
-        logging.getLogger("biosynfoni.concerto_fp").setLevel(logging.INFO)
+        logging.getLogger("biosynfoni.concerto_fp").setLevel(logging.WARNING)
 
     def test_no_chirality_difference(self):
         for mol in general_test_mols:

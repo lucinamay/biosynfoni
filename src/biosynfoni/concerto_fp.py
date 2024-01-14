@@ -29,7 +29,6 @@ from tqdm import tqdm
 from biosynfoni.cli import cli
 from biosynfoni.rdkfnx import (
     supplier,
-    # get_subs_set,
     save_version,
     nonh_atomcount,
     get_sub_matches,
@@ -38,7 +37,7 @@ from biosynfoni.rdkfnx import (
 )
 from biosynfoni.rdkfnx import BiosynfoniVersion
 from biosynfoni.inoutput import csv_writr, myprint
-from biosynfoni.subkeys import defaultVersion, get_version
+from biosynfoni.subkeys import defaultVersion
 
 
 # =============================  HELPERS  =====================================
@@ -361,12 +360,11 @@ def overlapped_fp(mol: Chem.Mol) -> list[int]:
 def main():
     args = cli()
     silence_except_fp = args.nosave and not args.verbose  # default False
+    if args.verbose:
+        logging.getLogger("biosynfoni.concerto_fp").setLevel(logging.INFO)
 
-    # set printing on and off depending on print_only_fp
-    print_ = partial(myprint, silence_except_fp)
-
-    print_(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
-    print_(args)
+    logging.info(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
+    logging.debug(args)
 
     # main functionality
     # get substructure set to speed up process (and not have to get it each time)
@@ -379,7 +377,7 @@ def main():
 
     mol_collection = MolsCollection(args.input, args.repr)
 
-    print_("looping over molecules...")
+    logging.info("looping over molecules...")
     biosynfonies, coverages = [], []
     for i, mol in tqdm(
         # enumerate(yield_mol_function(args.input)), total=total_molecules
@@ -389,7 +387,7 @@ def main():
     ):
         if mol is None:
             with open("biosynfoni.err", "a") as ef:
-                ef.write(f"{i}\n")
+                ef.write(f"{i}\t{args.input}\n")
 
         mol_fp = Biosynfoni(
             mol=mol,
@@ -408,16 +406,16 @@ def main():
                 print("None")
             else:
                 print(*row, sep=",")
-        print_("coverages:")
-        print_(*coverages, sep="\n")
+        logging.info("coverages:")
+        logging.info("\n".join(coverages))
         exit(0)
         return None
 
     if args.coverage:
-        print_("writing coverages...")
+        logging.info("writing coverages...")
         csv_writr(coverages, args.output.replace(".bsf", "_coverages.tsv"), sep="\t")
 
-    print_(f"writing {len(biosynfonies)} biosynfonies to {args.output}...")
+    logging.info(f"writing {len(biosynfonies)} biosynfonies to {args.output}...")
 
     biosynfonies_array = np.array(biosynfonies)
     np.savetxt(fname=args.output, X=biosynfonies_array, fmt="%i", delimiter=",")
@@ -427,9 +425,12 @@ def main():
             f.write("\n".join([x for x in args.input]))
     # save_version(args.version, extra_text="extracted")
     # save version
-    save_version(args.version)
+    try:
+        save_version(args.version)
+    except:
+        logging.warning("could not save version")
 
-    print_("done")
+    logging.info("done")
     exit(0)
     return None
 

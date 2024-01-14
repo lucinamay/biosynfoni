@@ -38,7 +38,7 @@ def get_values(
         sub_info = subs_smarts[sub_id]
         if value_name not in sub_info:
             raise ValueError(
-                f"Value {value_name} not found in substructure {sub_id} of version {fp_version_name}"
+                f"Value {value_name} not found in substructure {sub_id} of version {version}"
             )
         else:
             values.append(sub_info[value_name])

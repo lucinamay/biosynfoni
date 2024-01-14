@@ -15,10 +15,9 @@ description: functions for figuremaking
 """
 from enum import Enum
 import typing as ty
-
+import logging
 
 from rdkit import Chem
-from rdkit.Chem import Draw
 from rdkit.Chem.Draw import rdMolDraw2D, MolsToGridImage
 
 from biosynfoni.subkeys import substructureSmarts
@@ -179,7 +178,7 @@ def _get_highlight_loc_and_col(
             match_indices = []
 
             if len(match) == 2:
-                print(match)
+                logging.debug(match)
 
             for atom_index in match:
                 atom_indices.append(atom_index)
@@ -197,7 +196,7 @@ def _get_highlight_loc_and_col(
                 if start_atom in match_indices and end_atom in match_indices:
                     bonds_to_highlight.append(bond_index)
                     bond_highlight_colors[bond_index] = color
-                    # print(match, bonds_to_highlight)
+                    logging.debug(match, bonds_to_highlight)
     locations = (atoms_to_highlight, bonds_to_highlight)
     colors = (atom_highlight_colors, bond_highlight_colors)
     return locations, colors
@@ -289,7 +288,7 @@ def drawfp(
             emulate_match_for_highlighting[sub_index] = [
                 [atom.GetIdx() for atom in sub_mol.GetAtoms()]
             ]
-            print(emulate_match_for_highlighting)
+            logging.debug(emulate_match_for_highlighting)
             # get atom index lists for each substructure
 
             loc, col = _get_highlight_loc_and_col(
@@ -312,8 +311,8 @@ def drawfp(
         for sub_id in successful_subs
     ]
     # names = [subs_labels[i] for i in indexes]
-    print(len(mols), len(names), len(subs_atoms_to_highlight))
-    print(subs_atoms_to_highlight)
+    logging.debug(len(mols), len(names), len(subs_atoms_to_highlight))
+    logging.debug(subs_atoms_to_highlight)
     subs_atoms_to_highlight = [[], [], [], [], []]
     grid_image = MolsToGridImage(
         mols,
@@ -327,9 +326,8 @@ def drawfp(
         highlightBondColors=subs_bond_highlight_colors,
         useSVG=True,
     )
-    print(grid_image[:10])
     svg_str = grid_image.replace("svg:", "")
-    # print(svg_str)
+    logging.debug(grid_image[:10], svg_str, sep="\n")
     return svg_str
     # # drawing.DrawMolecules(
     # #     mols,

@@ -1,7 +1,10 @@
 from rdkit import Chem
 
 from biosynfoni.concerto_fp import Biosynfoni
-from biosynfoni.moldrawing import _get_highlight_loc_and_col, pathway_colours, Palette
+from biosynfoni.moldrawing import (
+    _get_highlight_loc_and_col,
+    draw,
+)
 from biosynfoni.rdkfnx import BiosynfoniVersion
 
 
@@ -40,3 +43,9 @@ def mol_to_highlight_mapping(mol: Chem.Mol):
     atom_indexes, bond_indexes = atoms_bonds
     atom_colors, bond_colors = atomcols_bondcols
     return atom_indexes, bond_indexes, atom_colors, bond_colors
+
+
+def draw_with_highlights(mol):
+    info = mol_to_highlight_mapping(mol)
+    svg_str = draw(mol, highlight_atoms_bonds_mappings=info)
+    return svg_str
