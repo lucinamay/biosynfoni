@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse, os, logging
 from collections import Counter
-
+import pickle
 
 import numpy as np
 
@@ -775,10 +775,13 @@ def main() -> None:
         # clf.fit(X_train, y_train)
         clf.fit(X, y)
         # save model
-        np.save("full_model.npy", clf)
+        # np.save("full_model.npy", clf) # does not work
 
-    # write decision tree.
-    # export_graphviz(clf.estimators_[0], out_file="tree.dot", feature_names=classes)
+        # write decision tree.
+        # export_graphviz(clf.estimators_[0], out_file="tree.dot", feature_names=classes)
+        pickle.dump(clf, open("model.pkl", "wb"))
+        # save labels for indexes
+        np.savetxt("model_labels.tsv", classes, delimiter="\t", fmt="%s")
 
     # return to initial working directory
     os.chdir(iwd)

@@ -54,10 +54,11 @@ sys.path.append(
 )
 print("IS THIS EVEN SAVINGGGG")
 from biosynfoni import fingerprints as fp
-from biosynfoni import moldrawer
+from biosynfoni import moldrawing
 from biosynfoni.rdkfnx import save_version
 from biosynfoni.inoutput import picklr, jaropener, outfile_namer, output_direr
 from biosynfoni.inoutput import entryfile_dictify as ann
+from biosynfoni import get_highlight_mapping
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
@@ -322,12 +323,17 @@ def get_square(
     return square
 
 
-def draw_molpair(
-    pair: list[Chem.Mol], outfilename: str, highlighting: bool = True
-) -> None:
+def draw_molpair(pair: list[Chem.Mol], annotation: str, highlight: bool = True) -> None:
     for i in range(len(pair)):
-        svg_text = moldrawer.draw(pair[i], matches_for_highlighting=highlighting)
-        with open(f"{outfilename}_{i}.svg", "w") as f:
+        highlighting_info = None
+        if highlight:
+            highlighting_info = get_highlight_mapping(mol=pair[i])
+        svg_text = moldrawing.draw(pair[i], matches_for_highlighting=highlighting_info)
+        svg_str = svg_str.replace(
+            "</svg>",
+            f'<text x="30" y="30" font-size="20" font-family="montserrat">{annotation}</text></svg>',
+        )
+        with open(f"{annotation}_{i}.svg", "w") as f:
             f.write(svg_text)
     return None
 
@@ -405,7 +411,7 @@ def main():
     struct_loc = argv[1]
     degree_of_sep = 1
 
-    biosynfoni_version = fp.DEFAULT_BIOSYNFONI_VERSION
+    biosynfoni_version = fp.defaultVersion
     blocking_principle = True
     if len(argv) == 2 or argv[2] not in SIM_FUNCTIONS.keys():
         metric = "cosine_sim"

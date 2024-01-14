@@ -6,7 +6,7 @@ from rdkit import Chem
 
 sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
 from biosynfoni.inoutput import outfile_namer
-from biosynfoni.rdkfnx import get_subsset, DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.rdkfnx import get_subsset, defaultVersion
 
 
 def intramatch(substructures: list[Chem.Mol]) -> list[list[int]]:
@@ -30,6 +30,6 @@ def intramatch_nonoverlap():
 
 
 def main():
-    substructures = get_subsset(DEFAULT_BIOSYNFONI_VERSION)
+    substructures = get_subsset(defaultVersion)
     intramatches = np.array(intramatch(substructures))
-    intramatches.to_csv(f"{outfile_namer(DEFAULT_BIOSYNFONI_VERSION)}.csv")
+    intramatches.to_csv(f"{outfile_namer(defaultVersion)}.csv")

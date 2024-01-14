@@ -15,9 +15,10 @@ ____________________________________
 
 ConCERTO-fp | CONvert Compound E-Representation TO FingerPrint
 """
-import argparse
+import logging
 from itertools import chain
 from functools import partial
+
 
 import numpy as np
 from rdkit import Chem
@@ -25,21 +26,18 @@ from tqdm import tqdm
 
 
 # my imports
-from biosynfoni import def_biosynfoni
 from biosynfoni.cli import cli
 from biosynfoni.rdkfnx import (
     supplier,
-    get_subs_set,
     save_version,
     nonh_atomcount,
     get_sub_matches,
     smiles_to_mol,
     inchi_to_mol,
 )
+from biosynfoni.rdkfnx import BiosynfoniVersion
 from biosynfoni.inoutput import csv_writr, myprint
-
-
-DEFAULT_BIOSYNFONI_VERSION = def_biosynfoni.DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.subkeys import defaultVersion
 
 
 # =============================  HELPERS  =====================================
@@ -50,7 +48,7 @@ def _count_listitems(nested_list: list) -> int:
         if isinstance(item, list) or isinstance(item, tuple):
             sublist_count = _count_listitems(list(item))  # recursive
             count = count + sublist_count
-        elif item:
+        elif item or item == 0:
             count += 1
     return count
 
@@ -73,7 +71,7 @@ class Biosynfoni:
         self,
         mol: Chem.Mol,
         substructure_set: list = None,
-        version_name: str = DEFAULT_BIOSYNFONI_VERSION,
+        version_name: str = defaultVersion,
         intersub_overlap: bool = False,
         intrasub_overlap: bool = False,
     ) -> None:
@@ -88,28 +86,16 @@ class Biosynfoni:
         }
         self.overlap_matches = self._detect_substructures()
         # self.inter_overlap_matches = self._get_nonoverlaps()
-        self.matches = self._get_nonoverlaps()
+        self.matches = self._filter_matches()
         self.counted_fp = self.get_biosynfoni()
         self.fingerprint = self.counted_fp
         # self.coverage = self._matches_to_coverage()
         self.coverage = None
         self.coverage_per_sub = None
 
-    def get_coverage(self) -> float:
-        """gets non-h atom-based coverage of fingerprints over atoms"""
-        coverage = self._matches_to_coverage()
-        self.coverage = coverage
-        return coverage
-
-    def get_coverage_per_substructure(self) -> list[float]:
-        """gets non-h atom-based coverage of fingerprints over atoms"""
-        coverage_per_sub = self._matches_to_coverage_per_substructure()
-        self.coverage_per_sub = coverage_per_sub
-        return coverage_per_sub
-
     def _set_substructure_set(self, substructure_set) -> None:
         if substructure_set is None:
-            return get_subs_set(self.version)
+            return BiosynfoniVersion(self.version).substructures
         else:
             return substructure_set
 
@@ -133,16 +119,37 @@ class Biosynfoni:
         """
         # per substructure
         filtered_matches = []
+        # sort sub_matches from largest to smallest ("heuristic set coverage")
+        sub_matches.sort(key=len, reverse=True)
+
         for sub_match in sub_matches:
             overlap = False  # reset
             atoms_to_block = _list_unnest_once(filtered_matches)
-            print(sub_match, "|", atoms_to_block)
             for atom in sub_match:
                 if atom in atoms_to_block:
                     overlap = True
                     break
             if not overlap:
                 filtered_matches.append(sub_match)
+        return filtered_matches
+
+    def __filter_intra_smarter(self, sub_matches: list[list[int]]) -> list[list[int]]:
+        filtered_matches = []
+        all_atoms = _list_unnest_once(sub_matches)
+        # sort from small to large index num
+        all_atoms.sort()
+        for atom in all_atoms:
+            # search for the sub_match that contains the atom
+            for sub_match in sub_matches:
+                overlap = False
+                atoms_to_block = _list_unnest_once(filtered_matches)
+                if atom in sub_match:
+                    for atom_of_match in sub_match:
+                        if atom_of_match in atoms_to_block:
+                            overlap = True
+                            break
+                    if not overlap:
+                        filtered_matches.append(sub_match)
         return filtered_matches
 
     def __filter_intersub_overlap(
@@ -153,7 +160,6 @@ class Biosynfoni:
         atoms_to_block = _list_unnest_twice(previous_matches)
         for sub_match in sub_matches:
             overlap = False  # reset
-            print(sub_match, "|", atoms_to_block)
             for atom in sub_match:
                 if atom in atoms_to_block:
                     overlap = True
@@ -162,7 +168,7 @@ class Biosynfoni:
                 filtered_matches.append(sub_match)
         return filtered_matches
 
-    def _get_nonoverlaps(self) -> list[list[list[int]]]:
+    def _filter_matches(self) -> list[list[list[int]]]:
         filtered_matches = []
         for i, substructure in enumerate(self.substructure_set):
             all_sub_matches = self.overlap_matches[i]  # all sub_matches
@@ -206,8 +212,11 @@ class Biosynfoni:
     def _matches_to_coverage(self) -> float:
         """gets non-h atom-based coverage of fingerprints over atoms"""
         matched_atoms = _count_listitems(self.matches)
-        coverage = float(matched_atoms) / float(nonh_atomcount(self.mol))
-        return coverage
+        total_atoms = nonh_atomcount(self.mol)
+
+        logging.debug(f"matched, total: {matched_atoms}, {total_atoms}")
+
+        return float(matched_atoms) / float(nonh_atomcount(self.mol))
 
     def _matches_to_coverage_per_substructure(self) -> list[float]:
         """gets non-h atom-based coverage of fingerprints over atoms"""
@@ -217,6 +226,48 @@ class Biosynfoni:
             float(len(atoms)) / float(mol_size) for atoms in atoms_per_sub
         ]
         return coverage_per_sub
+
+    def get_coverage(self) -> float:
+        """gets non-h atom-based coverage of fingerprints over atoms"""
+        coverage = self._matches_to_coverage()
+        self.coverage = coverage
+        return coverage
+
+    def get_coverage_per_substructure(self) -> list[float]:
+        """gets non-h atom-based coverage of fingerprints over atoms"""
+        coverage_per_sub = self._matches_to_coverage_per_substructure()
+        self.coverage_per_sub = coverage_per_sub
+        return coverage_per_sub
+
+    def _matches_to_connections(self) -> list[float]:
+        """under construction"""
+        connections_bonds = []
+        connections_atoms = []
+        connections_subs = []
+        connections = []
+
+        # get all of the substructure matches-atoms
+        atoms_per_sub = self._matched_atoms_per_substructure()
+        # for each substructure combination, check if there is a bond between them
+        for i, one_sub in enumerate(self.matches):
+            for j, one_sub2 in enumerate(self.matches):
+                for _, sub_matches in enumerate(one_sub):
+                    for _, sub_matches2 in enumerate(one_sub2):
+                        for atom in sub_matches:
+                            for atom2 in sub_matches2:
+                                if atom != atom2:
+                                    bond = self.mol.GetBondBetweenAtoms(atom, atom2)
+                                    if bond:
+                                        connection_dict = {}
+                                        # get atom indices of atom and atom2
+                                        connection_dict["atoms"] = (atom, atom2)
+                                        connection_dict["bond"] = bond.GetIdx()
+                                        connection_dict["sub_index"] = (i, j)
+                                        connections.append(connection_dict)
+
+        sort = sorted(connections, key=lambda x: x["atoms"][0])
+
+        return sort
 
 
 # ------------------------------ multiple mol operations -------------------------------
@@ -287,6 +338,21 @@ class MolsCollection:
 # }
 # return types_functions[input_type]
 
+# =========================== functions to import ==============================
+
+
+def overlapped_fp(mol: Chem.Mol) -> list[int]:
+    """gives the biosynfoni fingerprint for a mol, uses the default version as defined in def_biosynfoni.py
+    defaults to full overlap allowance for Random Forest classification purposes(!)"""
+    substructure_set = BiosynfoniVersion(defaultVersion).substructures
+    mol_fp = Biosynfoni(
+        mol=mol,
+        substructure_set=substructure_set,
+        intersub_overlap=True,
+        intrasub_overlap=True,
+    )
+    return mol_fp.fingerprint
+
 
 # ==============================  MAIN =======================================
 
@@ -294,16 +360,15 @@ class MolsCollection:
 def main():
     args = cli()
     silence_except_fp = args.nosave and not args.verbose  # default False
+    if args.verbose:
+        logging.getLogger("biosynfoni.concerto_fp").setLevel(logging.INFO)
 
-    # set printing on and off depending on print_only_fp
-    print_ = partial(myprint, silence_except_fp)
-
-    print_(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
-    print_(args)
+    logging.info(10 * "=", "\nCONCERTO-FP\n", 10 * "=")
+    logging.debug(args)
 
     # main functionality
     # get substructure set to speed up process (and not have to get it each time)
-    substructure_set = get_subs_set(args.version)
+    substructure_set = BiosynfoniVersion(args.version).substructures
 
     # total_molecules = (
     # len(args.input) if args.repr != "sdf" else len(supplier(args.input[0]))
@@ -312,7 +377,7 @@ def main():
 
     mol_collection = MolsCollection(args.input, args.repr)
 
-    print_("looping over molecules...")
+    logging.info("looping over molecules...")
     biosynfonies, coverages = [], []
     for i, mol in tqdm(
         # enumerate(yield_mol_function(args.input)), total=total_molecules
@@ -322,7 +387,7 @@ def main():
     ):
         if mol is None:
             with open("biosynfoni.err", "a") as ef:
-                ef.write(f"{i}\n")
+                ef.write(f"{i}\t{args.input}\n")
 
         mol_fp = Biosynfoni(
             mol=mol,
@@ -341,16 +406,16 @@ def main():
                 print("None")
             else:
                 print(*row, sep=",")
-        print_("coverages:")
-        print_(*coverages, sep="\n")
+        logging.info("coverages:")
+        logging.info("\n".join(coverages))
         exit(0)
         return None
 
     if args.coverage:
-        print_("writing coverages...")
+        logging.info("writing coverages...")
         csv_writr(coverages, args.output.replace(".bsf", "_coverages.tsv"), sep="\t")
 
-    print_(f"writing {len(biosynfonies)} biosynfonies to {args.output}...")
+    logging.info(f"writing {len(biosynfonies)} biosynfonies to {args.output}...")
 
     biosynfonies_array = np.array(biosynfonies)
     np.savetxt(fname=args.output, X=biosynfonies_array, fmt="%i", delimiter=",")
@@ -360,9 +425,12 @@ def main():
             f.write("\n".join([x for x in args.input]))
     # save_version(args.version, extra_text="extracted")
     # save version
-    save_version(args.version)
+    try:
+        save_version(args.version)
+    except:
+        logging.warning("could not save version")
 
-    print_("done")
+    logging.info("done")
     exit(0)
     return None
 

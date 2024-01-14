@@ -1,7 +1,8 @@
-import argparse
+import argparse, logging
 
 import numpy as np
 import umap
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from utils import set_style
@@ -34,6 +35,88 @@ def clean_labels(fp, labels):
     return fp, labels
 
 
+def umap_2d(embedding, mols_info):
+    annotations = []
+
+    fp = mols_info["fp"]
+    labels = mols_info["labels"]
+    smiles = mols_info["smiles"]
+    colors = mols_info["colors"]
+    labels_cl = mols_info["labels_cl"]
+
+    def onpick(event):
+        print("onpick scatter")
+        ind = event.ind
+        print(
+            "onpick scatter:",
+            ind,
+            fp[ind],
+            labels[ind],
+            smiles[ind],
+            # np.take(embedding[:, 0], ind),
+            # np.take(embedding[:, 1], ind),
+            # np.take(embedding[:, 2], ind),
+        )
+        for i in ind:
+            annot = ax.text(
+                (
+                    embedding[i, 0] + 0.1
+                ),  # x coordinate + 2 to the right to avoid overlap
+                (
+                    embedding[i, 1] + 0.05
+                ),  # y coordinate + 2 to the right to avoid overlap
+                f"{i} {smiles[i]}",  # text
+                size=2,
+                zorder=1,
+                color="k",
+            )
+            annotations.append(annot)
+        # force redraw
+        fig.canvas.draw_idle()
+        return annotations
+
+    # plot umap with different colours for each label, and a legend on the right side
+    fig = plt.figure(figsize=(3, 3))
+    ax = fig.add_subplot(111)
+    s = plt.scatter(
+        embedding[:, 0],
+        embedding[:, 1],
+        # c=labels_i,
+        # cmap="Spectral",
+        c=colors,
+        # alpha=0.5,
+        edgecolors="none",
+        picker=True,
+    )
+    s.set_alpha(0.5)  # set afterwards
+
+    # set background color
+    ax.set_facecolor("white")
+    fig.canvas.mpl_connect("pick_event", onpick)
+    # press 'e' to erase all annotations
+    fig.canvas.mpl_connect(
+        "key_press_event",
+        lambda event: [
+            (annotation.remove() for annotation in annotations),
+            fig.canvas.draw_idle() if event.key == "e" else None,
+        ],
+    )
+    ax.legend(
+        # cannot get to
+        handles=s.legend_elements()[0],
+        # labels=label_to_idx.keys(),
+        labels=labels_cl,
+        loc="lower right",
+        title="Classes",
+        # draw far outside the plot
+        bbox_to_anchor=(1.1, 0.0),
+        borderaxespad=0,
+    )
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+    # ax.set_zlabel("UMAP 3")
+
+
 def main():
     set_style()
     args = cli()
@@ -62,9 +145,17 @@ def main():
     labels = labels[idx]
     smiles = smiles[idx]
 
+    # remove any where there is a * in the smiles
+    idx = np.where(["*" not in smile for smile in smiles])
+    fp = fp[idx]
+    labels = labels[idx]
+    smiles = smiles[idx]
+
     # remove any where the smiles is the same as others
     idx = np.where([smiles[i] not in smiles[:i] for i in range(smiles.shape[0])])
     fp = fp[idx]
+    labels = labels[idx]
+    smiles = smiles[idx]
 
     # # random subsample
     # np.random.seed(42)
@@ -84,8 +175,11 @@ def main():
     # convert labels to indexes
     labels_i = np.array([label_to_idx[label] for label in list(labels)])
     colors = [colour_dict[label] for label in labels]
+    # make colors into matplotlib colors
+    colors = [mpl.colors.to_rgba(color) for color in colors]
 
-    assert fp.shape[0] == labels.shape[0], "fp and labels must have same length"
+    logging.debug(fp.shape, labels_i.shape, smiles.shape)
+    assert fp.shape[0] == labels_i.shape[0], "fp and labels must have same length"
 
     # fit an embedding to data
     reducer = umap.UMAP(n_components=2)
@@ -102,6 +196,8 @@ def main():
     # # show loadings of the embedding
     # print(reducer.embedding_)
 
+    annotations = []
+
     def onpick(event):
         print("onpick scatter")
         ind = event.ind
@@ -115,7 +211,7 @@ def main():
             # np.take(embedding[:, 1], ind),
             # np.take(embedding[:, 2], ind),
         )
-        annotations = []  # make list for removing annotations
+        # annotations = []  # make list for removing annotations
         for i in ind:
             annotation = ax.text(
                 (
@@ -215,7 +311,7 @@ def main():
     fig.canvas.mpl_connect(
         "key_press_event",
         lambda event: [
-            (annotation.remove() for annotation in onpick(event)),
+            (annotation.remove() for annotation in annotations),
             fig.canvas.draw_idle() if event.key == "e" else None,
         ],
     )
@@ -230,12 +326,12 @@ def main():
     # ax.set_zlabel("UMAP 3")
     # plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
     # plt.savefig("umap.png")
-
     # add annotations and legends, making the legend max 1/10th of the plot
-
     ax.legend(
-        # handles=s.legend_elements()[0],
+        # cannot get to
+        handles=s.legend_elements()[0],
         labels=label_to_idx.keys(),
+        # labels=labels_cl,
         loc="lower right",
         title="Classes",
         # draw far outside the plot

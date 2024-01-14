@@ -15,7 +15,7 @@ sys.path.append(
     os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
 )
 from biosynfoni.inoutput import outfile_namer
-from biosynfoni.def_biosynfoni import FP_VERSIONS
+from biosynfoni.subkeys.get_version import FP_VERSIONS
 from utils.figuremaking import heatmap, annotate_heatmap
 
 

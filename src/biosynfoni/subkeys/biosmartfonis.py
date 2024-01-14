@@ -1,4 +1,4 @@
-Substructures = {
+substructureSmarts = {
     # dewick's building blocks (d_), conserved aromaticity, free rest ------
     # shikimate
     "d_indoleC2N_12": {

@@ -15,22 +15,23 @@ ____________________________________
 contains general reusable functionalities depending on RDKit packages,
 mainly supplier-handling
 """
-
+import logging
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
 from rdkit import RDLogger
 
 RDLogger.DisableLog("rdApp.*")  # for muting warnings
 
-from biosynfoni.def_biosynfoni import (
-    SUBSTRUCTURES,
-    FP_VERSIONS,
+from biosynfoni.subkeys import (
+    substructureSmarts,
+    fpVersions,
+    defaultVersion,
     get_smarts,
     get_names,
+    get_values,
 )
 from biosynfoni.inoutput import outfile_namer
-from biosynfoni.moldrawer import drawfp
+from biosynfoni.moldrawing import drawfp, pathway_colours
 
 
 def supplier(sdf_file: str) -> Chem.SDMolSupplier:
@@ -47,8 +48,8 @@ def sdf_writer(outfile: str) -> None:
 # used to be get_subsset
 def get_subs_set(
     fp_version_name: str,
-    subs_set: dict[dict] = SUBSTRUCTURES,
-    fp_versions: dict[list] = FP_VERSIONS,
+    subs_set: dict[dict] = substructureSmarts,
+    fp_versions: dict[list] = fpVersions,
 ) -> list[Chem.Mol]:
     """gives list of rdkit.Chem.Mols of substructures of choice
     input:   fp_version_name (str) -- name of the version
@@ -73,7 +74,9 @@ def get_subs_set(
         substructure_properties = subs_set[substructure_key]
         smartsmol = Chem.MolFromSmarts(substructure_properties["smarts"])
         if smartsmol is None:
-            print(f"{substructure_key} could not be converted to mol: skipped")
+            logging.warning(
+                f"{substructure_key} could not be converted to mol: skipped"
+            )
             continue
         substructures_smarts.append(smartsmol)
 
@@ -81,11 +84,16 @@ def get_subs_set(
 
 
 class BiosynfoniVersion:
-    def __init__(self, fp_version: str):
+    def __init__(self, fp_version: str = defaultVersion):
+        if fp_version.lower() == "default":
+            fp_version = defaultVersion
         self.fp_version = fp_version
         self.substructures = get_subs_set(fp_version)
-        self.smarts = get_smarts(fp_version)
-        self.subs_ids = FP_VERSIONS[fp_version]
+        self.smarts = get_smarts(version=fp_version)
+        self.subs_ids = fpVersions[fp_version]
+        self.subs_names = get_names(version=fp_version)
+        self.subs_pathways = get_values("pathway", fp_version)
+        self.subs_colors = None
 
     def save_smarts(self):
         outfilename = outfile_namer("version", self.fp_version)
@@ -110,10 +118,31 @@ class BiosynfoniVersion:
         svg_text = drawfp(
             subs_set=self.substructures, subs_ids=self.subs_ids, window_size=window_size
         )
-        print(svg_text)
+        logging.debug(svg_text)
         with open(f"{outfilename}.svg", "w") as f:
             f.write(svg_text)
         return None
+
+    def _get_sub_color(self, ind: int):
+        pathway = self.subs_pathways[ind]
+        if pathway:
+            first_pathway = pathway[0]
+            color = pathway_colours[first_pathway]
+        else:
+            color = (0.75, 0.75, 0.75)  # grey
+        return color
+
+    def set_subs_colors(self):
+        colors = []
+        for i in range(len(self.subs_pathways)):
+            colors.append(self._get_sub_color(i))
+        self.subs_colors = colors
+        return None
+
+    def get_subs_colors(self):
+        if self.subs_colors is None:
+            self.set_subs_colors()
+        return self.subs_colors
 
 
 # def save_version(
@@ -133,7 +162,7 @@ class BiosynfoniVersion:
 #     return None
 
 
-def save_version(version: str, window_size=(1000, 1000), extra_text: str = "") -> None:
+def save_version(version: str, window_size=(1000, 1000)) -> None:
     saver = BiosynfoniVersion(version)
     saver.save_smarts()
     saver.save_svg(window_size=window_size)

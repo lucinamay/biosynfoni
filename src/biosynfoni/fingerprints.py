@@ -24,7 +24,7 @@ from rdkit.DataManip import Metric
 from rdkit.Chem import AllChem
 
 # my imports
-from biosynfoni.def_biosynfoni import DEFAULT_BIOSYNFONI_VERSION
+from biosynfoni.subkeys.get_version import defaultVersion
 from biosynfoni.concerto_fp import Biosynfoni
 
 
@@ -56,7 +56,7 @@ def maccs_getter(mol: Chem.Mol) -> np.array:
 
 
 def biosynfoni_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
+    mol: Chem.Mol, version: str = defaultVersion, *args, **kwargs
 ) -> np.array:
     """returns counted fingerprint list"""
     counted_fingerprint = Biosynfoni(
@@ -66,7 +66,7 @@ def biosynfoni_getter(
 
 
 def maccsynfoni_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
+    mol: Chem.Mol, version: str = defaultVersion, *args, **kwargs
 ) -> np.array:
     """returns counted fingerprint list"""
     counted_fingerprint = biosynfoni_getter(mol, version=version, *args, **kwargs)
@@ -75,7 +75,7 @@ def maccsynfoni_getter(
 
 
 def bino_maccs_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
+    mol: Chem.Mol, version: str = defaultVersion, *args, **kwargs
 ) -> np.array:
     binosynfoni = binosynfoni_getter(mol, version=version, *args, **kwargs)
     maccs = maccs_getter(mol)
@@ -83,7 +83,7 @@ def bino_maccs_getter(
 
 
 def binosynfoni_getter(
-    mol: Chem.Mol, version: str = DEFAULT_BIOSYNFONI_VERSION, *args, **kwargs
+    mol: Chem.Mol, version: str = defaultVersion, *args, **kwargs
 ) -> np.array:
     """returns explicit bit vector"""
     counted = biosynfoni_getter(mol, version=version, *args, **kwargs)
