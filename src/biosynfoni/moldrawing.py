@@ -18,7 +18,6 @@ import typing as ty
 
 
 from rdkit import Chem
-from rdkit.Chem import Draw
 from rdkit.Chem.Draw import rdMolDraw2D, MolsToGridImage
 
 from biosynfoni.subkeys import substructureSmarts

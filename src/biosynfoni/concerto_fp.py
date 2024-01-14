@@ -29,7 +29,6 @@ from tqdm import tqdm
 from biosynfoni.cli import cli
 from biosynfoni.rdkfnx import (
     supplier,
-    # get_subs_set,
     save_version,
     nonh_atomcount,
     get_sub_matches,
@@ -38,7 +37,7 @@ from biosynfoni.rdkfnx import (
 )
 from biosynfoni.rdkfnx import BiosynfoniVersion
 from biosynfoni.inoutput import csv_writr, myprint
-from biosynfoni.subkeys import defaultVersion, get_version
+from biosynfoni.subkeys import defaultVersion
 
 
 # =============================  HELPERS  =====================================

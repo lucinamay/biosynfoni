@@ -3,8 +3,6 @@ from rdkit import Chem
 from biosynfoni.concerto_fp import Biosynfoni
 from biosynfoni.moldrawing import (
     _get_highlight_loc_and_col,
-    pathway_colours,
-    Palette,
     draw,
 )
 from biosynfoni.rdkfnx import BiosynfoniVersion
