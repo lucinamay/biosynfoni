@@ -74,7 +74,9 @@ def get_subs_set(
         substructure_properties = subs_set[substructure_key]
         smartsmol = Chem.MolFromSmarts(substructure_properties["smarts"])
         if smartsmol is None:
-            print(f"{substructure_key} could not be converted to mol: skipped")
+            logging.warning(
+                f"{substructure_key} could not be converted to mol: skipped"
+            )
             continue
         substructures_smarts.append(smartsmol)
 
@@ -116,7 +118,7 @@ class BiosynfoniVersion:
         svg_text = drawfp(
             subs_set=self.substructures, subs_ids=self.subs_ids, window_size=window_size
         )
-        print(svg_text)
+        logging.debug(svg_text)
         with open(f"{outfilename}.svg", "w") as f:
             f.write(svg_text)
         return None
