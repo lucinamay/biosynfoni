@@ -13,11 +13,6 @@ ____________________________________
 
 description: functions for figuremaking
 """
-from enum import Enum
-import typing as ty
-
-# import plotly.express as px
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -25,24 +20,151 @@ import pandas as pd
 from utils.colours import colourDict
 
 
-# def df_scatterplot(
-#     df: pd.DataFrame,
-#     col_x: str,
-#     col_y: str,
-#     figtitle: str,
-#     filename: str = "scatterplot",
-#     auto_open: bool = True,
-#     *args,
-#     **kwargs,
-# ) -> None:
-#     fig = px.scatter(df, x=col_x, y=col_y, *args, **kwargs)
-#     fig.update_layout(title=figtitle)
-#     fig.write_html(
-#         f"{filename}.html",
-#         auto_open=auto_open,
-#     )
-#     # fig.close()
-#     return None
+def custom_cmap(default_cmap, last_color=None, first_color=None):
+    cmap = mpl.colormaps[default_cmap]
+    # extract all colors from the .jet map
+    cmaplist = [cmap(i) for i in range(cmap.N)]
+    # force the first color entry to be grey
+    if last_color:
+        cmaplist[-1] = (1.0, 1.0, 0.95, 0)
+    if first_color:
+        cmaplist[0] = (0.95, 0.95, 0.95, 0)
+
+    # create the new map
+    cmap = mpl.colors.LinearSegmentedColormap.from_list("Custom cmap", cmaplist, cmap.N)
+    return cmap
+
+
+def heatmap(
+    data: np.array,
+    row_labels: list,
+    col_labels: list,
+    ax=None,
+    cbar_kw=None,
+    cbarlabel="",
+    **kwargs,
+):
+    """
+    Create a heatmap from a numpy array and two lists of labels.
+
+    Parameters
+    ----------
+    data
+        A 2D numpy array of shape (M, N).
+    row_labels
+        A list or array of length M with the labels for the rows.
+    col_labels
+        A list or array of length N with the labels for the columns.
+    ax
+        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
+        not provided, use current axes or create a new one.  Optional.
+    cbar_kw
+        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
+    cbarlabel
+        The label for the colorbar.  Optional.
+    **kwargs
+        All other arguments are forwarded to `imshow`.
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    if cbar_kw is None:
+        cbar_kw = {}
+
+    # Plot the heatmap
+    im = ax.imshow(data, **kwargs)
+
+    # Create colorbar
+    cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
+    cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
+    # cbar.ax.set_yticks([]) #remove tick labels
+    cbar.outline.set_visible(False)
+
+    # Show all ticks and label them with the respective list entries.
+    ax.set_xticks(np.arange(data.shape[1]), labels=col_labels, size=6)
+    ax.set_yticks(np.arange(data.shape[0]), labels=row_labels, size=6)
+    # ax.set_yticks([])
+
+    # Let the horizontal axes labeling appear on bottom (default)
+    ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True)
+    ax.tick_params(pad=0.5)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right", rotation_mode="anchor")
+
+    # Turn spines off and create white grid.
+    ax.spines[:].set_visible(False)
+
+    ax.set_xticks(np.arange(data.shape[1] + 1) - 0.5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0] + 1) - 0.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=1, alpha=1.0)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    return im, cbar
+
+
+def annotate_heatmap(
+    im,
+    data=None,
+    valfmt="{x:.2f}",
+    textcolors=("black", "white"),
+    threshold=None,
+    **textkw,
+):
+    """
+    A function to annotate a heatmap.
+
+    Parameters
+    ----------
+    im
+        The AxesImage to be labeled.
+    data
+        Data used to annotate.  If None, the image's data is used.  Optional.
+    valfmt
+        The format of the annotations inside the heatmap.  This should either
+        use the string format method, e.g. "$ {x:.2f}", or be a
+        `matplotlib.ticker.Formatter`.  Optional.
+    textcolors
+        A pair of colors.  The first is used for values below a threshold,
+        the second for those above.  Optional.
+    threshold
+        Value in data units according to which the colors from textcolors are
+        applied.  If None (the default) uses the middle of the colormap as
+        separation.  Optional.
+    **kwargs
+        All other arguments are forwarded to each call to `text` used to create
+        the text labels.
+    """
+
+    if not isinstance(data, (list, np.ndarray)):
+        data = im.get_array()
+
+    # Normalize the threshold to the images color range.
+    if threshold is not None:
+        threshold = im.norm(threshold)
+    else:
+        threshold = im.norm(data.max()) / 2.0
+
+    # Set default alignment to center, but allow it to be
+    # overwritten by textkw.
+    kw = dict(horizontalalignment="center", verticalalignment="center")
+    kw.update(textkw)
+
+    # Get the formatter in case a string is supplied
+    if isinstance(valfmt, str):
+        valfmt = mpl.ticker.StrMethodFormatter(valfmt)
+
+    # Loop over the data and create a `Text` for each "pixel".
+    # Change the text's color depending on the data.
+    texts = []
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
+            text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
+            texts.append(text)
+
+    return texts
 
 
 def _set_ax_boxplot_i_colour(ax_boxplot, i, colour, inner_alpha=0.6):
@@ -223,7 +345,7 @@ def scatter_3d(df, col1, col2, col3, m="o"):
 #     return None
 
 
-def label_colourcode(ticklabels: list, colors: list) -> str:
+def set_label_colors(ticklabels: list, colors: list) -> str:
     for label, color in zip(ticklabels, colors):
         # label.set_color(COLOUR_DICT[axis][label.get_text()])
         plt.setp(
@@ -232,11 +354,36 @@ def label_colourcode(ticklabels: list, colors: list) -> str:
             bbox=dict(
                 facecolor=color,
                 alpha=0.5,
-                boxstyle="round, rounding_size=0.8",
+                # boxstyle="round, rounding_size=0.8",
+                boxstyle="round, rounding_size=0.7",
                 edgecolor="none",
             ),
         )  # , height=0.3))
         # t.set_bbox(dict(facecolor=color, alpha=0.5, boxstyle="round"))  # , height=0.3))
+    return None
+
+
+def cat_to_colour(categories: list, col_dict: dict) -> str:
+    colors = []
+    for category in categories:
+        if isinstance(category, list):
+            if len(category) > 0:
+                category = category[0]  # get colour for first one
+            else:
+                category = ""
+        if category in col_dict:
+            color = col_dict[category]
+        else:
+            color = "grey"
+        colors.append(color)
+    return colors
+
+
+def set_label_colors_from_categories(
+    ticklabels: list, categories: list, col_dict: list
+) -> str:
+    colors = cat_to_colour(categories, col_dict)
+    set_label_colors(ticklabels, colors)
     return None
 
 
