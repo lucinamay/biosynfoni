@@ -703,6 +703,7 @@ def get_decision_trees(
         out_file="tree.dot",
         feature_names=feature_names,
     )
+    return None
 
 
 def main() -> None:
@@ -726,14 +727,14 @@ def main() -> None:
     delimiter = "\t" if args.fingerprints.endswith(".tsv") else ","
     X = np.loadtxt(args.fingerprints, delimiter=delimiter, dtype=int)
     # try to reduce dimensionality
-    # indices = np.array(
-    #     [3, 4, 5, 11, 14, 17, 18, 21, 22, 24, 27, 28, 29, 30, 31, 32, 33, 34, 36]
-    # )
-    indices = np.array([3, 4, 5, 11, 14, 17, 18, 21, 22, 24, 27, 28, 29, 30, 33, 34])
-    # make mask where indices are true
-    filtr = np.zeros(X.shape[1], dtype=bool)
-    filtr[indices] = True
-    X = X[:, filtr]
+    # # indices = np.array(
+    # #     [3, 4, 5, 11, 14, 17, 18, 21, 22, 24, 27, 28, 29, 30, 31, 32, 33, 34, 36]
+    # # )
+    # indices = np.array([3, 4, 5, 11, 14, 17, 18, 21, 22, 24, 27, 28, 29, 30, 33, 34])
+    # # make mask where indices are true
+    # filtr = np.zeros(X.shape[1], dtype=bool)
+    # filtr[indices] = True
+    # X = X[:, filtr]
 
     h_labels, cl_idx, y = read_classifications(args.classifications, args.unilabel)
     ids = get_ids(args.names, X.shape[0])
@@ -770,7 +771,7 @@ def main() -> None:
         y_train,
         n_estimators=n_estimators,
         max_depth=max_depth,
-        class_weight="balanced",
+        # class_weight="balanced",
     )
     importances = classifier.feature_importances_
     if args.no_proba:
@@ -791,61 +792,62 @@ def main() -> None:
     # print(f'with {X.shape[1]} features and "balanced" class weights')
     # print(classification_report(y_test, y_pred, zero_division=np.nan))
 
-    # # none predictions. -------------------------------------------------------------
-    # if nones_X.shape[0] == 0:
-    #     if not args.include_none:
-    #         logging.info("no nones in dataset")
-    # else:
-    #     logging.info('get prediction for the "Nones"')
-    #     full_classifier = train_classifier(X, y, n_estimators=n_estimators)
-    #     if args.no_proba:
-    #         ny_pred = predict_one(nones_X, full_classifier)
-    #     else:
-    #         ny_proba = proba(nones_X, full_classifier)
-    #         ny_pred = cutoffr(ny_proba, cutoff=args.cutoff)
+    # none predictions. -------------------------------------------------------------
+    if nones_X.shape[0] == 0:
+        if not args.include_none:
+            logging.info("no nones in dataset")
+    else:
+        logging.info('get prediction for the "Nones"')
+        full_classifier = train_classifier(X, y, n_estimators=n_estimators)
+        if args.no_proba:
+            ny_pred = predict_one(nones_X, full_classifier)
+        else:
+            ny_proba = proba(nones_X, full_classifier)
+            ny_pred = cutoffr(ny_proba, cutoff=args.cutoff)
 
-    #     ny_pred = i_to_cl(ny_pred, class_index, unilabel=args.unilabel)
-    #     nones_preds = np.concatenate([nones_ids[:, None], ny_pred[:, None]], axis=1)
-    #     np.savetxt("nones_predictions.tsv", nones_preds, delimiter="\t", fmt="%s")
-    #     if not args.no_proba:
-    #         nones_probas = np.concatenate([nones_ids[:, np.newaxis], ny_proba], axis=1)
-    #         np.savetxt("nones_probas.tsv", nones_probas, delimiter="\t", fmt="%s")
+        ny_pred = i_to_cl(ny_pred, class_index, unilabel=args.unilabel)
+        nones_preds = np.concatenate([nones_ids[:, None], ny_pred[:, None]], axis=1)
+        np.savetxt("nones_predictions.tsv", nones_preds, delimiter="\t", fmt="%s")
+        if not args.no_proba:
+            nones_probas = np.concatenate([nones_ids[:, np.newaxis], ny_proba], axis=1)
+            np.savetxt("nones_probas.tsv", nones_probas, delimiter="\t", fmt="%s")
 
-    # # k-fold cross validation. ------------------------------------------------------
-    # cms, cl_reps, importances = kfold_preds(
-    #     X,
-    #     y,
-    #     unilabel=args.unilabel,
-    #     n_estimators=n_estimators,
-    #     max_depth=max_depth,
-    #     cutoff=args.cutoff,
-    #     target_names=classes,
-    # )
+    # k-fold cross validation. ------------------------------------------------------
+    cms, cl_reps, importances = kfold_preds(
+        X,
+        y,
+        unilabel=args.unilabel,
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        cutoff=args.cutoff,
+        target_names=classes,
+    )
 
-    # write_classification_report(cl_reps, classes)
-    # write_comb_confusion_matrix(combine_cms(cms), classes)
-    # # write importances with 3 decimals
-    # np.savetxt("importances.tsv", importances, delimiter="\t", fmt="%.3f")
+    write_classification_report(cl_reps, classes)
+    write_comb_confusion_matrix(combine_cms(cms), classes)
+    # write importances with 3 decimals
+    np.savetxt("importances.tsv", importances, delimiter="\t", fmt="%.3f")
 
-    # # write arguments as yaml. ------------------------------------------------------
-    # args_yaml(args, title="arguments.yaml")
+    # write arguments as yaml. ------------------------------------------------------
+    args_yaml(args, title="arguments.yaml")
 
-    # # save model
-    # if args.export:
-    #     # make directory for model
-    #     if not os.path.exists("./model"):
-    #         os.mkdir("./model")
-    #     os.chdir("./model")
+    # save model
+    if args.export:
+        # make directory for model
+        if not os.path.exists("./model"):
+            os.mkdir("./model")
+        os.chdir("./model")
 
-    #     logging.info("exporting full model")
-    #     full_classifier = train_classifier(X, y, n_estimators=n_estimators)
+        logging.info("exporting full model")
+        full_classifier = train_classifier(X, y, n_estimators=n_estimators)
 
-    #     pickle.dump(full_classifier, open("model.pkl", "wb"))
-    #     # save labels for indexes
-    #     np.savetxt("model_labels.tsv", classes, delimiter="\t", fmt="%s")
-    #     # export decision tree
-    #     get_decision_trees(full_classifier)
-    #     os.chdir("../")
+        pickle.dump(full_classifier, open("model.pkl", "wb"))
+        # save labels for indexes
+        np.savetxt("model_labels.tsv", classes, delimiter="\t", fmt="%s")
+        # export decision tree
+        if "full" in args.fingerprints:
+            get_decision_trees(full_classifier)
+        os.chdir("../")
     # return to initial working directory
     os.chdir(iwd)
     exit(0)
