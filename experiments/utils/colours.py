@@ -1,4 +1,4 @@
-COLOUR_DICT = {
+colourDict = {
     "taxonomy": {
         "Viridiplantae": "#B9C311",  # green
         "Bacteria": "#9BC2BA",  # teal
@@ -25,6 +25,7 @@ COLOUR_DICT = {
         "methylerythritol": "#6FB5C6",  # blue
         "sugar": "#FFC4CE",  # pink
         "amino": "#FFEAA0",  # yellow
+        "amino_acid": "#FFEAA0",  # yellow
     },
     "class": {
         "Terpenoids": "#9BC2BA",  # soft bluegreen

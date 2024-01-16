@@ -11,7 +11,7 @@ from scipy.sparse.linalg import svds
 from tqdm import tqdm
 
 from utils import set_style
-from utils.figuremaking import label_colourcode
+from utils.figuremaking import set_label_colors, annotate_heatmap
 
 
 def cli() -> argparse.Namespace:
@@ -33,33 +33,26 @@ def parse_fingerprints(path: str) -> np.array:
     return np.array(fps)
 
 
-def main() -> None:
-    args = cli()
-    fps = parse_fingerprints(args.i)
+def add_minuses(heatmap, array):
+    for i in range(array.shape[0]):
+        for j in range(array.shape[1]):
+            text = ""
+            # if array[i, j] > 0:
+            #     text = "+"
+            if array[i, j] < 0:
+                text = "-"
+            heatmap.text(
+                j + 0.5,
+                i + 0.5,
+                text,
+                horizontalalignment="center",
+                verticalalignment="center",
+                color="white",
+            )
+    return None
 
-    set_style()
 
-    # subsample 1000
-    # fps = fps[:1000]
-
-    # Count the number of times each bit is set.
-    cx = Counter()
-    cxy = Counter()
-
-    for idx in tqdm(range(fps.shape[0])):
-        for bit_idx, bit in enumerate(fps[idx]):
-            if bit > 0:
-                cx[bit_idx] += bit
-
-            for bit_idx2, bit2 in enumerate(fps[idx]):
-                # if bit_idx == bit_idx2:
-                #     continue
-                if bit > 0 and bit2 > 0:
-                    # cxy[(bit_idx, bit_idx2)] += 1
-                    cxy[(bit_idx, bit_idx2)] += min(bit, bit2)
-
-    # Create lookup between key and fingerprint index.
-    x2i, i2x = {}, {}
+def get_labels() -> list[str]:
     keys = [
         "coa",
         "nadh",
@@ -101,6 +94,82 @@ def main() -> None:
         "c9 ring",
         "c10 ring",
     ]
+    return keys
+
+
+def get_colours() -> list[str]:
+    colours = [
+        "grey",
+        "grey",
+        "grey",
+        "#FFEAA0",
+        "#FFEAA0",
+        "#FFC4CE",  # pink
+        "#FFC4CE",  # pink
+        "#FFC4CE",  # pink
+        "#FFC4CE",  # pink
+        "#A783B6",
+        "#A783B6",
+        "#FF8B61",
+        "#FF8B61",
+        "#A783B6",
+        "#A783B6",
+        "#A783B6",
+        "#B9C311",  # green
+        "#FF8B61",
+        "#FF8B61",
+        "#FF8B61",
+        "#FF8B61",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+        "grey",
+    ]
+    return colours
+
+
+def main() -> None:
+    args = cli()
+    fps = parse_fingerprints(args.i)
+
+    set_style()
+
+    # subsample 1000
+    # fps = fps[:1000]
+
+    # Count the number of times each bit is set.
+    cx = Counter()
+    cxy = Counter()
+
+    for idx in tqdm(range(fps.shape[0])):
+        for bit_idx, bit in enumerate(fps[idx]):
+            if bit > 0:
+                cx[bit_idx] += bit
+
+            for bit_idx2, bit2 in enumerate(fps[idx]):
+                # if bit_idx == bit_idx2:
+                #     continue
+                if bit > 0 and bit2 > 0:
+                    # cxy[(bit_idx, bit_idx2)] += 1
+                    cxy[(bit_idx, bit_idx2)] += min(bit, bit2)
+
+    # Create lookup between key and fingerprint index.
+    x2i, i2x = {}, {}
+    keys = get_labels()
     for i, x in enumerate(keys):
         x2i[x] = i
         i2x[i] = x
@@ -128,52 +197,21 @@ def main() -> None:
         cmap="PiYG",  # more colorblind-friendly diverging colormap
         vmin=np.min(mat),
         vmax=np.max(mat),
-        center=0,
+        center=0,  # center of the colormap
     )
+    # hm.text(0.5, 0.5, "test", horizontalalignment="center", verticalalignment="center")
+    # for all negative values, add a minus sign
+    add_minuses(hm, mat)
 
-    colours = [
-        "grey",
-        "grey",
-        "grey",
-        "yellow",
-        "yellow",
-        "pink",
-        "pink",
-        "pink",
-        "pink",
-        "purple",
-        "purple",
-        "orange",
-        "orange",
-        "purple",
-        "purple",
-        "purple",
-        "teal",
-        "orange",
-        "orange",
-        "orange",
-        "orange",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-    ]
+    # set_label_colors(hm.get_xticklabels(), colours)
+    # set_label_colors(hm.get_yticklabels(), colours)
+    colours = get_colours()
+    xt, yt = hm.get_xticklabels(), hm.get_yticklabels()
+    set_label_colors(hm.get_xticklabels(), colours)
+    set_label_colors(hm.get_yticklabels(), colours)
 
-    label_colourcode(hm.get_xticklabels(), colours)
+    # plt.xticks(rotation=90)
+    # plt.yticks(rotation=0)
 
     plt.ylabel("Bit 1")
     plt.xlabel("Bit 2")
