@@ -94,6 +94,7 @@ def umap_2d(embedding, mols_info):
     # set background color
     ax.set_facecolor("white")
     fig.canvas.mpl_connect("pick_event", onpick)
+
     # press 'e' to erase all annotations
     fig.canvas.mpl_connect(
         "key_press_event",
@@ -340,26 +341,35 @@ def main():
     #     fig.canvas.draw_idle()
     #     return annotations
 
-    # plot umap with different colours for each label, and a legend on the right side
-    fig = plt.figure(figsize=(3, 3))
-    ax = fig.add_subplot(111)
-    s = plt.scatter(
-        embedding[:, 0],
-        embedding[:, 1],
-        # c=labels_i,
-        # cmap="Spectral",
-        c=colors,
-        # alpha=0.5,
-        edgecolors="none",
-        picker=True,
-    )
-    s.set_alpha(0.5)  # set afterwards
+    # # plot umap with different colours for each label, and a legend on the right side
+    # fig = plt.figure(figsize=(3, 3))
+    # ax = fig.add_subplot(111)
+    # s = plt.scatter(
+    #     embedding[:, 0],
+    #     embedding[:, 1],
+    #     # c=labels_i,
+    #     # cmap="Spectral",
+    #     c=colors,
+    #     # alpha=0.5,
+    #     edgecolors="none",
+    #     picker=True,
+    # )
+    # s.set_alpha(0.5)  # set afterwards
 
-    # set background color
-    ax.set_facecolor("white")
+    # # set background color
+    # ax.set_facecolor("white")
+
+    mols_info = {
+        "fp": fp,
+        "labels": labels,
+        "smiles": smiles,
+        "colors": colors,
+        "labels_cl": list(label_to_idx.keys()),
+    }
+    umap_2d(embedding, mols_info)
 
     plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
-    # plt.show()
+    plt.show()
     if args.output:
         plt.savefig(args.output)
     else:
