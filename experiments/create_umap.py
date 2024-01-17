@@ -22,6 +22,7 @@ def cli():
         type=str,
         help="fingerprints of synthetic compounds",
     )
+    parser.add_argument("-o", "--output", required=False, help="Output file")
     return parser.parse_args()
 
 
@@ -253,10 +254,11 @@ def main():
     smiles = smiles[idx]
 
     # remove any where there is a * in the smiles
-    idx = np.where(["*" not in smile for smile in smiles])
-    fp = fp[idx]
-    labels = labels[idx]
-    smiles = smiles[idx]
+    if args.smiles is not None:
+        idx = np.where(["*" not in smile for smile in smiles])
+        fp = fp[idx]
+        labels = labels[idx]
+        smiles = smiles[idx]
 
     # remove any where the smiles is the same as others
     idx = np.where([smiles[i] not in smiles[:i] for i in range(smiles.shape[0])])
@@ -358,7 +360,10 @@ def main():
 
     plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
     # plt.show()
-    plt.savefig(f"umap_{args.fingerprint.split('/')[-1]}.png")
+    if args.output:
+        plt.savefig(args.output)
+    else:
+        plt.savefig(f"umap_{args.fingerprint.split('/')[-1]}.png")
 
     # save embedding and labels
     np.savetxt("embedding.txt", embedding, fmt="%s")
