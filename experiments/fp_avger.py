@@ -71,11 +71,11 @@ def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
     return None
 
 
-def fp_plots(fp_arr, bsf_name):
+def fp_plots(fps, bsf_name):
     plt.ioff()
     plt.figure().set_figwidth(15)
     print("making plot")
-    plt.violinplot(dataset=fp_arr, showmeans=True)
+    plt.violinplot(dataset=fps, showmeans=True)
     print("saving plot")
     plt.savefig(f"fp_avg_{bsf_name}.svg")
     plt.close()
@@ -83,31 +83,31 @@ def fp_plots(fp_arr, bsf_name):
 
 
 def heatmap_array(
-    fp_arr: np.array,
+    fps: np.array,
     max_height: int = 30,
     percentages=False,
     accumulative=True,
     end_accumulative=False,
 ):
-    heat_array = np.zeros((max_height, fp_arr.shape[1]))
+    heat_array = np.zeros((max_height, fps.shape[1]))
     for i in range(max_height):
         if accumulative:
-            countrow = np.count_nonzero(fp_arr > i, axis=0)
+            countrow = np.count_nonzero(fps > i, axis=0)
         else:
             if end_accumulative and i == max_height - 1:
                 # for last height, count all remaining values
-                countrow = np.count_nonzero(fp_arr > i, axis=0)
+                countrow = np.count_nonzero(fps > i, axis=0)
             else:
-                countrow = np.count_nonzero((fp_arr == i + 1), axis=0)
+                countrow = np.count_nonzero((fps == i + 1), axis=0)
         heat_array[max_height - 1 - i] = countrow
 
     if percentages:
-        heat_array = heat_array / fp_arr.shape[0] * 100
+        heat_array = heat_array / fps.shape[0] * 100
     return heat_array.astype(int)
 
 
 def fp_heatmap(
-    fp_arr: np.array,
+    fp_hm_array: np.array,
     subslabels: list = [],
     size: tuple[int] = (10, 6),
     percentages: bool = False,
@@ -121,10 +121,10 @@ def fp_heatmap(
         cbarlab = "percentage of compounds"
 
     print("saving heatmap")
-    height = fp_arr.shape[0]
+    height = fp_hm_array.shape[0]
     fig, ax = plt.subplots(figsize=size, dpi=500)
     if not subslabels:
-        subslabels = [f"subs{i}" for i in range(1, fp_arr.shape[1] + 1)]
+        subslabels = [f"subs{i}" for i in range(1, fp_hm_array.shape[1] + 1)]
 
     yaxlabels = [(height + 1 - i) for i in range(1, height + 1)]
     if top_acc_array is not None:
@@ -142,7 +142,7 @@ def fp_heatmap(
         )
 
     im, cbar = heatmap(
-        fp_arr,
+        fp_hm_array,
         # [(height+1-i) for i in range(1, height + 1)],
         yaxlabels,
         subslabels,
@@ -167,9 +167,9 @@ def fp_heatmap(
     return None
 
 
-def over_under_divide(array: np.array, limit: int = 10, percentages: bool = True):
+def over_under_divide(fps: np.array, limit: int = 10, percentages: bool = True):
     full = heatmap_array(
-        array,
+        fps,
         max_height=limit + 1,
         percentages=percentages,
         accumulative=False,
@@ -208,6 +208,19 @@ def main():
     substructure_names = get_names(version=defaultVersion)
     if fps.shape[1] != len(substructure_names):
         substructure_names = [f"{i}" for i in range(1, fps.shape[1] + 1)]
+
+    # if all values in fps are 0 or 1, then it's a binary fingerprint
+    if np.all(np.isin(fps, [0, 1])):
+        fp_heatmap(
+            heatmap_array(fps, max_height=1, percentages=True, accumulative=False),
+            subslabels=substructure_names,
+            title=f"Distribution of {fp_name} substructure counts",
+            color_scheme="Greys",
+            percentages=True,
+            size=(15, 1),
+        )
+        plt.savefig(f"{outfile_namer(fp_name)}_heatmap.png")
+        return None
 
     # coco_mean = fp_stats(coco, coco_name)
     # zinc_mean = fp_stats(zinc, zinc_name)
