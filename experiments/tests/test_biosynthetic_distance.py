@@ -13,7 +13,7 @@ from experiments.metacyc_extract import (
     get_child_rxns,
     make_tree,
     tree_to_chains,
-    choose_first_mols,
+    __choose_first_mols,
     _pw_to_chains_mols,
     chains_per_pathway,
 )
