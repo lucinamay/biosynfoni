@@ -226,7 +226,8 @@ def main():
     substructure_names = fpVersions[defaultVersion]
 
     fp = pd.read_csv(args.fingerprints, sep=",", header=None, dtype=int)
-    fp.columns = substructure_names
+    if fp.shape[1] == len(substructure_names):
+        fp.columns = substructure_names
     db_name = args.fingerprints.split("/")[-1].split(".")[0].split("_")[0]
     fp_name = args.fingerprints.split("/")[-1].split(".")[0].split("_")[1]
 
@@ -303,7 +304,7 @@ def main():
             # errors can occur for some metrics if they have too small sample sets, or with certain combinations:
             try:
                 clustermap = ClusterMap(fp, npcs_series, metric, method)
-                # clustermap.save_clustermap(fmt=filetype)
+                clustermap.save_clustermap(fmt=filetype)
             except:
                 print(f"failed for {method} and {metric}")
             pass
