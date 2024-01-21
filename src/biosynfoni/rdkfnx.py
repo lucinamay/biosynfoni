@@ -67,20 +67,20 @@ def get_subs_set(
     if not fp_version_name:
         raise "No version name provided to select substructure set"
 
-    substructures_smarts = []
+    substructure_mols = []
 
     chosen_version = fp_versions[fp_version_name]
     for substructure_key in chosen_version:
         substructure_properties = subs_set[substructure_key]
-        smartsmol = Chem.MolFromSmarts(substructure_properties["smarts"])
-        if smartsmol is None:
+        subs_mol = Chem.MolFromSmarts(substructure_properties["smarts"])
+        if subs_mol is None:
             logging.warning(
                 f"{substructure_key} could not be converted to mol: skipped"
             )
             continue
-        substructures_smarts.append(smartsmol)
+        substructure_mols.append(subs_mol)
 
-    return substructures_smarts
+    return substructure_mols
 
 
 class BiosynfoniVersion:
@@ -113,10 +113,13 @@ class BiosynfoniVersion:
     #     with open(f"{outfilename}.svg", "w") as f:
     #         f.write(svg_text)
     #     return None
-    def save_svg(self, window_size=(1000, 1000)):
+    def save_svg(self, window_size=(300, 200)):
         outfilename = outfile_namer("version", self.fp_version)
         svg_text = drawfp(
-            subs_set=self.substructures, subs_ids=self.subs_ids, window_size=window_size
+            subs_set=self.substructures,
+            subs_colors=self.get_subs_colors(),
+            subs_labels=self.subs_ids,
+            window_size=window_size,
         )
         logging.debug(svg_text)
         with open(f"{outfilename}.svg", "w") as f:
@@ -162,10 +165,10 @@ class BiosynfoniVersion:
 #     return None
 
 
-def save_version(version: str, window_size=(1000, 1000)) -> None:
-    saver = BiosynfoniVersion(version)
-    saver.save_smarts()
-    saver.save_svg(window_size=window_size)
+def save_version(version: str, window_size=(300, 200)) -> None:
+    ver = BiosynfoniVersion(version)
+    ver.save_smarts()
+    ver.save_svg(window_size=window_size)
     return None
 
 

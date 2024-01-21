@@ -13,6 +13,8 @@ ____________________________________
 
 description: functions for figuremaking
 """
+import logging
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -254,6 +256,8 @@ def scatter_boxplots(
     col_y: str,
     figtitle: str,
     color_by: str = "stepnum",
+    *args,
+    **kwargs,
 ) -> plt.Figure:
     fig = plt.figure()
     # fig, ax = plt.subplots()
@@ -266,12 +270,12 @@ def scatter_boxplots(
         height_ratios=(1, 4),
         # left=0.1, right=0.9, bottom=0.1, top=0.9,
         wspace=-1,
-        hspace=-5,
+        # hspace=-5,
     )
 
     # Create the Axes.
     # for scatterplot
-    ax = fig.add_subplot(gs[1, 0])
+    sc_ax = fig.add_subplot(gs[1, 0])
     # for legend
     legax = fig.add_subplot(gs[0, 1])
 
@@ -293,40 +297,40 @@ def scatter_boxplots(
     all_data_y = [y[~np.isnan(y)] for y in all_data_y]
 
     ax_xobs, ax_yobs = [], []
-    print(all_data_x)
-    print(len(all_data_x))
+    logging.debug(all_data_x)
+    logging.debug(len(all_data_x))
 
-    xax = fig.add_subplot(gs[0, 0], sharex=ax)
-    yax = fig.add_subplot(gs[1, 1], sharey=ax)
+    top_bp_ax = fig.add_subplot(gs[0, 0], sharex=sc_ax)
+    right_bp_ax = fig.add_subplot(gs[1, 1], sharey=sc_ax)
 
-    xax.tick_params(
+    top_bp_ax.tick_params(
         length=0, labelbottom=False, labelsize=5
     )  # , labelleft=False, labelbottom=False, labelsize=0)
-    yax.tick_params(
+    right_bp_ax.tick_params(
         length=0, labelrotation=-30, labelleft=False, labelsize=5
     )  # , labelbottom=False, labelsize=0)
     legax.tick_params(length=0, labelleft=False, labelbottom=False, labelsize=0)
-    ax.tick_params(length=0)  # , labelleft=False, labelbottom=False)
+    sc_ax.tick_params(length=0)  # , labelleft=False, labelbottom=False)
 
     labels = [
-        f"{category}" if category != "-1" else "nonce"
+        f"{category}" if category != "-1" else "control"
         for category in df[color_by].unique()
     ]
-    xplot = xax.boxplot(
+    xplot = top_bp_ax.boxplot(
         all_data_x, vert=False, patch_artist=True, labels=labels
     )  # labels=df[color_by].tolist())#, patch_artist=True
-    yplot = yax.boxplot(
+    yplot = right_bp_ax.boxplot(
         all_data_y, vert=True, patch_artist=True, labels=labels
     )  # labels=df[color_by].tolist())#, patch_artist=True)
-    print(xplot["boxes"])
+    logging.info(xplot["boxes"])
     i = 0
     for category in df[color_by].unique():
         colour = colourDict[color_by][category]
 
-        label = f"{category}" if category != "-1" else "None"
+        label = f"{category}" if category != "-1" else "control"
 
         # ax.scatter(x, y, c=color, s=scale, label=color,alpha=0.3, edgecolors='none')
-        scatterplot = ax.scatter(
+        scatterplot = sc_ax.scatter(
             x=col_x,
             y=col_y,
             data=df[df[color_by] == category],
@@ -335,6 +339,8 @@ def scatter_boxplots(
             alpha=0.5,
             edgecolors="none",
             zorder=3,
+            *args,
+            **kwargs,
         )
 
         # change boxplot colours to match the category colour
@@ -368,18 +374,25 @@ def scatter_boxplots(
     # linewidth = 1
 
     # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
-    ax.set_xlabel(col_x, labelpad=10)
-    ax.set_ylabel(col_y, labelpad=10)
+    sc_ax.set_xlabel("col_x", labelpad=10)
+    sc_ax.set_xlabel(col_x, labelpad=10)
+    sc_ax.set_ylabel(col_y, labelpad=10)
     # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
-    xax.set_title(figtitle, loc="center", pad=20)
+    top_bp_ax.set_title(figtitle, loc="center", pad=20)
 
-    ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
+    sc_ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
     gs.tight_layout(fig)
 
-    plt.show()
+    # plt.show()
     # plt.savefig(f"{filename}.png", dpi=500)
     # fig.close()
     return fig
+
+
+def savefig(fig, filename):
+    fig.savefig(f"{filename}.png", dpi=200)
+    plt.close(fig)
+    return None
 
 
 def scatter_3d(df, col1, col2, col3, m="o"):
@@ -452,71 +465,6 @@ def set_label_colors_from_categories(
     colors = cat_to_colour(categories, col_dict)
     set_label_colors(ticklabels, colors)
     return None
-
-
-def heatmap(
-    data: np.array,
-    row_labels: list,
-    col_labels: list,
-    ax=None,
-    cbar_kw=None,
-    cbarlabel="",
-    **kwargs,
-):
-    """
-    Create a heatmap from a numpy array and two lists of labels.
-
-    Parameters
-    ----------
-    data
-        A 2D numpy array of shape (M, N).
-    row_labels
-        A list or array of length M with the labels for the rows.
-    col_labels
-        A list or array of length N with the labels for the columns.
-    ax
-        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
-        not provided, use current axes or create a new one.  Optional.
-    cbar_kw
-        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
-    cbarlabel
-        The label for the colorbar.  Optional.
-    **kwargs
-        All other arguments are forwarded to `imshow`.
-    """
-
-    if ax is None:
-        ax = plt.gca()
-
-    if cbar_kw is None:
-        cbar_kw = {}
-
-    # Plot the heatmap
-    im = ax.imshow(data, **kwargs)
-
-    # Create colorbar
-    cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
-    cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
-
-    # Show all ticks and label them with the respective list entries.
-    ax.set_xticks(np.arange(data.shape[1]), labels=col_labels)
-    ax.set_yticks(np.arange(data.shape[0]), labels=row_labels)
-
-    # Let the horizontal axes labeling appear on bottom (default)
-    ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True)
-
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor")
-
-    # Turn spines off and create white grid.
-    ax.spines[:].set_visible(False)
-
-    ax.set_xticks(np.arange(data.shape[1] + 1) - 0.5, minor=True)
-    ax.set_yticks(np.arange(data.shape[0] + 1) - 0.5, minor=True)
-    ax.grid(which="minor", color="w", linestyle="-", linewidth=3)
-    ax.tick_params(which="minor", bottom=False, left=False)
-
-    return im, cbar
 
 
 def annotate_heatmap(

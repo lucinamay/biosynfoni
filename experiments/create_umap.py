@@ -22,6 +22,7 @@ def cli():
         type=str,
         help="fingerprints of synthetic compounds",
     )
+    parser.add_argument("-o", "--output", required=False, help="Output file")
     return parser.parse_args()
 
 
@@ -93,6 +94,7 @@ def umap_2d(embedding, mols_info):
     # set background color
     ax.set_facecolor("white")
     fig.canvas.mpl_connect("pick_event", onpick)
+
     # press 'e' to erase all annotations
     fig.canvas.mpl_connect(
         "key_press_event",
@@ -253,10 +255,11 @@ def main():
     smiles = smiles[idx]
 
     # remove any where there is a * in the smiles
-    idx = np.where(["*" not in smile for smile in smiles])
-    fp = fp[idx]
-    labels = labels[idx]
-    smiles = smiles[idx]
+    if args.smiles is not None:
+        idx = np.where(["*" not in smile for smile in smiles])
+        fp = fp[idx]
+        labels = labels[idx]
+        smiles = smiles[idx]
 
     # remove any where the smiles is the same as others
     idx = np.where([smiles[i] not in smiles[:i] for i in range(smiles.shape[0])])
@@ -338,27 +341,39 @@ def main():
     #     fig.canvas.draw_idle()
     #     return annotations
 
-    # plot umap with different colours for each label, and a legend on the right side
-    fig = plt.figure(figsize=(3, 3))
-    ax = fig.add_subplot(111)
-    s = plt.scatter(
-        embedding[:, 0],
-        embedding[:, 1],
-        # c=labels_i,
-        # cmap="Spectral",
-        c=colors,
-        # alpha=0.5,
-        edgecolors="none",
-        picker=True,
-    )
-    s.set_alpha(0.5)  # set afterwards
+    # # plot umap with different colours for each label, and a legend on the right side
+    # fig = plt.figure(figsize=(3, 3))
+    # ax = fig.add_subplot(111)
+    # s = plt.scatter(
+    #     embedding[:, 0],
+    #     embedding[:, 1],
+    #     # c=labels_i,
+    #     # cmap="Spectral",
+    #     c=colors,
+    #     # alpha=0.5,
+    #     edgecolors="none",
+    #     picker=True,
+    # )
+    # s.set_alpha(0.5)  # set afterwards
 
-    # set background color
-    ax.set_facecolor("white")
+    # # set background color
+    # ax.set_facecolor("white")
+
+    mols_info = {
+        "fp": fp,
+        "labels": labels,
+        "smiles": smiles,
+        "colors": colors,
+        "labels_cl": list(label_to_idx.keys()),
+    }
+    umap_2d(embedding, mols_info)
 
     plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
-    # plt.show()
-    plt.savefig(f"umap_{args.fingerprint.split('/')[-1]}.png")
+    plt.show()
+    if args.output:
+        plt.savefig(args.output)
+    else:
+        plt.savefig(f"umap_{args.fingerprint.split('/')[-1]}.png")
 
     # save embedding and labels
     np.savetxt("embedding.txt", embedding, fmt="%s")

@@ -9,16 +9,27 @@ from utils.figuremaking import cat_to_colour
 from utils.colours import colourDict
 from utils import set_style
 
-
+importances = np.loadtxt(argv[1], delimiter="\t", dtype=float)
 bsf_name = defaultVersion
 substructure_names = get_values("name", version=bsf_name)
 pathways = get_pathway(version=bsf_name)
 colors = cat_to_colour(pathways, colourDict["pathways"])
+if len(substructure_names) != importances.shape[1]:
+    print("WARNING: substructure names not equal to importances")
+    substructure_names = [f"{i}" for i in range(importances.shape[1])]
+    colors = ["#888888" for _ in range(importances.shape[1])]
 set_style()
 
-importances = np.loadtxt(argv[1], delimiter="\t", dtype=float)
+
 means = np.mean(importances, axis=0)
-barplot = plt.bar(substructure_names, means)  # , color="#8C8")
+
+# set plot size
+# default: 6.4, 4.8
+ratio = importances.shape[1] / 39
+plt.figure(figsize=(ratio * 6.4, 4.8))
+
+# plot barplot
+barplot = plt.bar(substructure_names, means)
 # add standard deviations as error bars
 stds = np.std(importances, axis=0)
 print(stds.shape)
