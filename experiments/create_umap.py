@@ -6,7 +6,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from utils import set_style
-from utils.colours import COLOUR_DICT as col_dicts
+from utils.colours import colourDict as col_dicts
 
 
 def cli():
@@ -22,6 +22,7 @@ def cli():
         type=str,
         help="fingerprints of synthetic compounds",
     )
+    parser.add_argument("-o", "--output", required=False, help="Output file")
     return parser.parse_args()
 
 
@@ -93,6 +94,7 @@ def umap_2d(embedding, mols_info):
     # set background color
     ax.set_facecolor("white")
     fig.canvas.mpl_connect("pick_event", onpick)
+
     # press 'e' to erase all annotations
     fig.canvas.mpl_connect(
         "key_press_event",
@@ -115,10 +117,117 @@ def umap_2d(embedding, mols_info):
     ax.set_xlabel("UMAP 1")
     ax.set_ylabel("UMAP 2")
     # ax.set_zlabel("UMAP 3")
+    return fig, ax
+
+
+def umap_3d(embedding, mols_info):
+    fp = mols_info["fp"]
+    labels = mols_info["labels"]
+    smiles = mols_info["smiles"]
+    colors = mols_info["colors"]
+    labels_cl = mols_info["labels_cl"]
+    #  def onpick(event):
+    #     print("onpick scatter")
+    #     ind = event.ind
+    #     print(
+    #         "onpick scatter:",
+    #         ind,
+    #         fp[ind],
+    #         labels[ind],
+    #         smiles[ind],
+    #         # np.take(embedding[:, 0], ind),
+    #         # np.take(embedding[:, 1], ind),
+    #         # np.take(embedding[:, 2], ind),
+    #     )
+    #     for i in ind:
+    #         ax.text(
+    #             embedding[i, 0] + 2,  # x coordinate + 2 to the right to avoid overlap
+    #             embedding[i, 1] + 2,  # y coordinate + 2 to the right to avoid overlap
+    #             embedding[i, 2] + 2,  # z coordinate + 2 to the right to avoid overlap
+    #             f"{i} {smiles[i]}",  # text
+    #             size=5,
+    #             zorder=1,
+    #             color="k",
+    #         )
+    #     fig.canvas.draw_idle()  # redraw the canvas
+    #     return None
+
+    # plot umap in three dimensions with adjustable viewing angle ================================
+    fig = plt.figure(figsize=(3, 3))
+    ax = fig.add_subplot(111, projection="3d")
+    s = ax.scatter(
+        embedding[:, 0],
+        embedding[:, 1],
+        embedding[:, 2],
+        # c=labels_i,
+        # cmap="Spectral",
+        c=colors,
+        alpha=0.5,
+        s=3,
+        edgecolors="none",
+        picker=True,
+    )
+    ax.view_init(
+        30, 45
+    )  # ==================== change viewing angle here ====================
+
+    fig.canvas.mpl_connect("pick_event", onpick3)
+
+    # add hover information within the scatterplot, at (10,10,10) from the data point that is hovered over
+
+    # also show the label in the left corner
+    ax.text(
+        0.05,
+        0.95,
+        f"{labels[ind[0]]}",
+        transform=ax.transAxes,
+        size=10,
+        zorder=1,
+        color="k",
+    )
+    fig.canvas.draw_idle()  # redraw the canvas
+
+    fig.canvas.mpl_connect("pick_event", onpick)
+    # press 'e' to erase all annotations
+    fig.canvas.mpl_connect(
+        "key_press_event",
+        lambda event: [
+            (annotation.remove() for annotation in annotations),
+            fig.canvas.draw_idle() if event.key == "e" else None,
+        ],
+    )
+
+    # for i, txt in enumerate(labels):
+    #     ax.annotate(txt, (embedding[i, 0], embedding[i, 1], embedding[i, 2]))
+    #
+
+    # # # Add annotations and legends
+
+    # # plt.xlabel("UMAP 1")
+    # # plt.ylabel("UMAP 2")
+    # # ax.set_zlabel("UMAP 3")
+    # # plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
+    # # plt.savefig("umap.png")
+    # # add annotations and legends, making the legend max 1/10th of the plot
+    # ax.legend(
+    #     # cannot get to
+    #     handles=s.legend_elements()[0],
+    #     labels=label_to_idx.keys(),
+    #     # labels=labels_cl,
+    #     loc="lower right",
+    #     title="Classes",
+    #     # draw far outside the plot
+    #     bbox_to_anchor=(1.1, 0.0),
+    #     borderaxespad=0,
+    # )
+    # ax.set_xlabel("UMAP 1")
+    # ax.set_ylabel("UMAP 2")
+    # ax.set_zlabel("UMAP 3")
 
 
 def main():
     set_style()
+
     args = cli()
 
     colour_dict = col_dicts["class"]
@@ -146,10 +255,11 @@ def main():
     smiles = smiles[idx]
 
     # remove any where there is a * in the smiles
-    idx = np.where(["*" not in smile for smile in smiles])
-    fp = fp[idx]
-    labels = labels[idx]
-    smiles = smiles[idx]
+    if args.smiles is not None:
+        idx = np.where(["*" not in smile for smile in smiles])
+        fp = fp[idx]
+        labels = labels[idx]
+        smiles = smiles[idx]
 
     # remove any where the smiles is the same as others
     idx = np.where([smiles[i] not in smiles[:i] for i in range(smiles.shape[0])])
@@ -157,6 +267,7 @@ def main():
     labels = labels[idx]
     smiles = smiles[idx]
 
+    print(fp.shape, labels.shape, smiles.shape)
     # # random subsample
     # np.random.seed(42)
     # idx = np.random.choice(fp.shape[0], 10000, replace=False)
@@ -193,60 +304,10 @@ def main():
     else:
         embedding = reducer.fit_transform(fp)
 
-    # # show loadings of the embedding
-    # print(reducer.embedding_)
+    # # # show loadings of the embedding
+    # # print(reducer.embedding_)
 
-    annotations = []
-
-    def onpick(event):
-        print("onpick scatter")
-        ind = event.ind
-        print(
-            "onpick scatter:",
-            ind,
-            fp[ind],
-            labels[ind],
-            smiles[ind],
-            # np.take(embedding[:, 0], ind),
-            # np.take(embedding[:, 1], ind),
-            # np.take(embedding[:, 2], ind),
-        )
-        # annotations = []  # make list for removing annotations
-        for i in ind:
-            annotation = ax.text(
-                (
-                    embedding[i, 0] + 0.1
-                ),  # x coordinate + 2 to the right to avoid overlap
-                (
-                    embedding[i, 1] + 0.05
-                ),  # y coordinate + 2 to the right to avoid overlap
-                f"{i} {smiles[i]}",  # text
-                size=2,
-                zorder=1,
-                color="k",
-            )
-            annotations.append(annotation)
-        # force redraw
-        fig.canvas.draw_idle()
-        return annotations
-
-    # plot umap with different colours for each label, and a legend on the right side
-    fig = plt.figure(figsize=(3, 3))
-    ax = fig.add_subplot(111)
-    s = plt.scatter(
-        embedding[:, 0],
-        embedding[:, 1],
-        # c=labels_i,
-        # cmap="Spectral",
-        c=colors,
-        # alpha=0.5,
-        edgecolors="none",
-        picker=True,
-    )
-    s.set_alpha(0.5)  # set afterwards
-
-    # set background color
-    ax.set_facecolor("white")
+    # annotations = []
 
     # def onpick(event):
     #     print("onpick scatter")
@@ -261,89 +322,58 @@ def main():
     #         # np.take(embedding[:, 1], ind),
     #         # np.take(embedding[:, 2], ind),
     #     )
+    #     # annotations = []  # make list for removing annotations
     #     for i in ind:
-    #         ax.text(
-    #             embedding[i, 0] + 2,  # x coordinate + 2 to the right to avoid overlap
-    #             embedding[i, 1] + 2,  # y coordinate + 2 to the right to avoid overlap
-    #             embedding[i, 2] + 2,  # z coordinate + 2 to the right to avoid overlap
+    #         annotation = ax.text(
+    #             (
+    #                 embedding[i, 0] + 0.1
+    #             ),  # x coordinate + 2 to the right to avoid overlap
+    #             (
+    #                 embedding[i, 1] + 0.05
+    #             ),  # y coordinate + 2 to the right to avoid overlap
     #             f"{i} {smiles[i]}",  # text
-    #             size=5,
+    #             size=2,
     #             zorder=1,
     #             color="k",
     #         )
-    #     fig.canvas.draw_idle()  # redraw the canvas
+    #         annotations.append(annotation)
+    #     # force redraw
+    #     fig.canvas.draw_idle()
+    #     return annotations
 
-    # # plot umap in three dimensions with adjustable viewing angle ================================
+    # # plot umap with different colours for each label, and a legend on the right side
     # fig = plt.figure(figsize=(3, 3))
-    # ax = fig.add_subplot(111, projection="3d")
-    # s = ax.scatter(
+    # ax = fig.add_subplot(111)
+    # s = plt.scatter(
     #     embedding[:, 0],
     #     embedding[:, 1],
-    #     embedding[:, 2],
     #     # c=labels_i,
     #     # cmap="Spectral",
     #     c=colors,
-    #     alpha=0.5,
-    #     s=3,
+    #     # alpha=0.5,
     #     edgecolors="none",
     #     picker=True,
     # )
-    # ax.view_init(30, 45) #==================== change viewing angle here ====================
+    # s.set_alpha(0.5)  # set afterwards
 
-    # fig.canvas.mpl_connect("pick_event", onpick3)
+    # # set background color
+    # ax.set_facecolor("white")
 
-    # add hover information within the scatterplot, at (10,10,10) from the data point that is hovered over
+    mols_info = {
+        "fp": fp,
+        "labels": labels,
+        "smiles": smiles,
+        "colors": colors,
+        "labels_cl": list(label_to_idx.keys()),
+    }
+    umap_2d(embedding, mols_info)
 
-    # # also show the label in the left corner
-    # ax.text(
-    #     0.05,
-    #     0.95,
-    #     f"{labels[ind[0]]}",
-    #     transform=ax.transAxes,
-    #     size=10,
-    #     zorder=1,
-    #     color="k",
-    # )
-    # fig.canvas.draw_idle() # redraw the canvas
-
-    fig.canvas.mpl_connect("pick_event", onpick)
-    # press 'e' to erase all annotations
-    fig.canvas.mpl_connect(
-        "key_press_event",
-        lambda event: [
-            (annotation.remove() for annotation in annotations),
-            fig.canvas.draw_idle() if event.key == "e" else None,
-        ],
-    )
-
-    # for i, txt in enumerate(labels):
-    #     ax.annotate(txt, (embedding[i, 0], embedding[i, 1], embedding[i, 2]))
-
-    # # Add annotations and legends
-
-    # plt.xlabel("UMAP 1")
-    # plt.ylabel("UMAP 2")
-    # ax.set_zlabel("UMAP 3")
-    # plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
-    # plt.savefig("umap.png")
-    # add annotations and legends, making the legend max 1/10th of the plot
-    ax.legend(
-        # cannot get to
-        handles=s.legend_elements()[0],
-        labels=label_to_idx.keys(),
-        # labels=labels_cl,
-        loc="lower right",
-        title="Classes",
-        # draw far outside the plot
-        bbox_to_anchor=(1.1, 0.0),
-        borderaxespad=0,
-    )
-    ax.set_xlabel("UMAP 1")
-    ax.set_ylabel("UMAP 2")
-    # ax.set_zlabel("UMAP 3")
     plt.title(f"UMAP of {args.fingerprint.split('/')[-1]}")
     plt.show()
-    plt.savefig("umap.png")
+    if args.output:
+        plt.savefig(args.output)
+    else:
+        plt.savefig(f"umap_{args.fingerprint.split('/')[-1]}.png")
 
     # save embedding and labels
     np.savetxt("embedding.txt", embedding, fmt="%s")

@@ -273,7 +273,8 @@ def draw(
 
 def drawfp(
     subs_set: list[Chem.Mol],
-    subs_ids: list[str],
+    subs_colors: list,
+    subs_labels: list[str],
     window_size: ty.Tuple[int, int] = (1000, 1000),
 ) -> str:
     # drawing = Draw.MolsToGridImage())/
@@ -281,8 +282,8 @@ def drawfp(
     subs_atoms_to_highlight, subs_bonds_to_highlight = [], []
     subs_atom_highlight_colors, subs_bond_highlight_colors = [], []
     for sub_index, sub_mol in enumerate(subs_set):
-        if sub_index < 3:
-            continue
+        # if sub_index < 3:
+        #     continue
         if sub_mol:
             emulate_match_for_highlighting = [[[]] for each_sub in subs_set]
             emulate_match_for_highlighting[sub_index] = [
@@ -292,7 +293,7 @@ def drawfp(
             # get atom index lists for each substructure
 
             loc, col = _get_highlight_loc_and_col(
-                sub_mol, emulate_match_for_highlighting, subs_ids
+                sub_mol, emulate_match_for_highlighting, subs_colors
             )
             atoms_to_highlight, bonds_to_highlight = loc
             atom_highlight_colors, bond_highlight_colors = col
@@ -304,12 +305,9 @@ def drawfp(
             mols.append(sub_mol)
             indexes.append(sub_index)
 
-    successful_subs = [subs_ids[i] for i in indexes]
+    successful_subs = [subs_labels[i] for i in indexes]
     # clean up later
-    names = [
-        substructureSmarts[sub_id]["name"].replace("_", " ")
-        for sub_id in successful_subs
-    ]
+    names = [sub_label.replace("_", " ") for sub_label in successful_subs]
     # names = [subs_labels[i] for i in indexes]
     logging.debug(len(mols), len(names), len(subs_atoms_to_highlight))
     logging.debug(subs_atoms_to_highlight)
@@ -320,8 +318,8 @@ def drawfp(
         subImgSize=window_size,
         legends=names,
         highlightAtomLists=[[i for i in range(len(mol.GetAtoms()))] for mol in mols],
-        # highlightAtomsList=subs_atoms_to_highlight,
-        # highlightBondsList=subs_bonds_to_highlight,
+        # # highlightAtomsList=subs_atoms_to_highlight,
+        # # highlightBondsList=subs_bonds_to_highlight,
         highlightAtomColors=subs_atom_highlight_colors,
         highlightBondColors=subs_bond_highlight_colors,
         useSVG=True,

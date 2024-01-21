@@ -49,3 +49,4 @@ def get_values(
 
 get_smarts = partial(get_values, value_name="smarts")
 get_names = partial(get_values, value_name="name")
+get_pathway = partial(get_values, value_name="pathway")

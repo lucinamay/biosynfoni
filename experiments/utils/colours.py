@@ -25,6 +25,7 @@ colourDict = {
         "methylerythritol": "#6FB5C6",  # blue
         "sugar": "#FFC4CE",  # pink
         "amino": "#FFEAA0",  # yellow
+        "amino_acid": "#FFEAA0",  # yellow
     },
     "class": {
         "Terpenoids": "#9BC2BA",  # soft bluegreen

@@ -224,7 +224,7 @@ def output_direr(dirname: str = "./output") -> tuple[str]:
     init_dir = os.getcwd()
 
     if not os.path.exists(dirname):
-        os.mkdir(dirname)
+        os.makedirs(dirname, exist_ok=True)
     os.chdir(dirname)
     return dirname, init_dir
 

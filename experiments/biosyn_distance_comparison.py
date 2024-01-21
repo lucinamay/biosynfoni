@@ -29,40 +29,38 @@ also supports various distance metrics:
 # ideally, do not have any metacyc-related things in here, but in metacyc_extract.py
 """
 # standard packages
-import sys, os
-import typing as ty
-from enum import Enum, auto
-from sys import argv
+import os, argparse, logging
+from enum import Enum
+from functools import partial
 
 # packages requiring installing
 import numpy as np
 import pandas as pd
-import plotly.express as px
 from rdkit import Chem
+from tqdm import tqdm
 
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
 
 from metacyc_better_taxonomy import BETTER_TAX
 from utils import figuremaking as fm
+from utils import set_style
 
-# sys.path.append(sys.path[0] + "/../src/")
-sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-# for intra-biosynfoni-code running
-sys.path.append(
-    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
-)
-print("IS THIS EVEN SAVINGGGG")
+from biosynfoni.subkeys import defaultVersion
 from biosynfoni import fingerprints as fp
 from biosynfoni import moldrawing
 from biosynfoni.rdkfnx import save_version
-from biosynfoni.inoutput import picklr, jaropener, outfile_namer, output_direr
+from biosynfoni.inoutput import outfile_namer, output_direr
 from biosynfoni.inoutput import entryfile_dictify as ann
 from biosynfoni import get_highlight_mapping
 
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
     "biosynfoni": fp.biosynfoni_getter,
+    "biosynfoni_lessblock": partial(fp.biosynfoni_getter, intersub_overlap=True),
+    "biosynfoni_noblock": partial(
+        fp.biosynfoni_getter, intersub_overlap=True, intrasub_overlap=True
+    ),
     "binosynfoni": fp.binosynfoni_getter,
     "maccs": fp.maccs_getter,
     "morgan": fp.morgan_getter,
@@ -74,9 +72,9 @@ FP_FUNCTIONS = {
 SIM_FUNCTIONS = {
     "c_tanimoto": fp.countanimoto,
     "cosine_sim": fp.cosine_sim,
-    "manhattan_dist": fp.bitvect_to_manhattan,
-    "tanimoto_dist": fp.bitvect_to_tanimoto,
-    "euclidean_dist": fp.bitvect_to_euclidean,
+    "manhattan_sim": fp.manhattan_sim,
+    "tanimoto_sim": fp.tanimoto_sim,
+    "euclidean_sim": fp.euclidean_sim,
 }
 
 # for later:
@@ -91,10 +89,70 @@ SIM_FUNCTIONS = {
 
 # =============================================================================
 
+
+def cli():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "structures_path",
+        type=str,
+        help="path to the metacyc reaction chains with structure strings",
+    )
+    parser.add_argument(
+        "-m",
+        "--metric",
+        choices=SIM_FUNCTIONS.keys(),
+        default="c_tanimoto",
+        help="distance metric to use",
+    )
+    parser.add_argument(
+        "-l",
+        "--lessblock",
+        action="store_true",
+        default=False,
+        help="if passed, removes only intra-substructure overlapping matches (for biosynfoni)",
+    )
+    parser.add_argument(
+        "-n",
+        "--noblock",
+        default=False,
+        action="store_true",
+        help="if passed, allows all overlapping matches (for biosynfoni)",
+    )
+    parser.add_argument(
+        "-b",
+        "--binary",
+        default=False,
+        action="store_true",
+        help="if passed, uses binary fingerprints (a.k.a. binosynfoni)",
+    )
+    parser.add_argument(
+        "-a",
+        "--annotate",
+        type=str,
+        nargs=2,
+        default=None,
+        help="paths to the pathawy_to_taxonomy and taxonomy_to_humanlang files. if passed, annotates the pathways with taxonomic information",
+    )
+    args = parser.parse_args()
+
+    # args.add_text = ""
+    # args.intersub_overlap, args.intrasub_overlap = False, False
+    # if args.lessblock:
+    #     args.intersub_overlap = True
+    #     args.intrasub_overlap = False
+    #     args.add_text = "lessblock"
+    # if args.noblock:
+    #     args.intersub_overlap, args.intrasub_overlap = True, True
+    #     args.add_text = "noblock"
+
+    return args
+
+
 # =============================== distance fnx ================================
 
 
-def _fps_to_distance(fp1, fp2, metric="c_tanimoto"):
+def _fps_to_distance(fp1, fp2, metric="c_tanimoto") -> float:
     """for given molecule pair fp1 and fp2, gives distance"""
     # input handling & checking
     assert isinstance(fp1, np.ndarray) and isinstance(
@@ -105,27 +163,17 @@ def _fps_to_distance(fp1, fp2, metric="c_tanimoto"):
     return distance
 
 
-def similarity(
+def _get_fp(
     mol1: Chem.Mol,
     mol2: Chem.Mol,
     fingerprint: str,
-    metric: str = "c_tanimoto",
-    check_moliness: bool = True,
     *args,
     **kwargs,
 ) -> float:
     """args and kwargs are passed to get_biosynfoni"""
     fingerprint = fingerprint.lower()
-    metric = metric.lower()
 
-    assert fingerprint in FP_FUNCTIONS.keys(), "unsupported fingerprint: {}".format(
-        fingerprint
-    )
-    assert metric in SIM_FUNCTIONS.keys(), "unsupported metric: {}".format(metric)
-    if check_moliness:
-        assert isinstance(mol1, Chem.Mol) and isinstance(
-            mol2, Chem.Mol
-        ), "please provide two Chem.Mol-type molecules"
+    assert fingerprint in FP_FUNCTIONS.keys(), f"unsupported fingerprint: {fingerprint}"
 
     if not (isinstance(mol1, Chem.Mol) and isinstance(mol2, Chem.Mol)):
         return np.nan
@@ -139,6 +187,20 @@ def similarity(
         fp1 = FP_FUNCTIONS[fingerprint](mol1)
         fp2 = FP_FUNCTIONS[fingerprint](mol2)
 
+    return fp1, fp2
+
+
+def similarity(
+    fp1: np.array,
+    fp2: np.array,
+    metric: str = "c_tanimoto",
+) -> float:
+    """args and kwargs are passed to get_biosynfoni"""
+    assert metric in SIM_FUNCTIONS.keys(), f"unsupported metric: {metric}"
+
+    if not (isinstance(fp1, np.ndarray) and isinstance(fp1, np.ndarray)):
+        return np.nan
+
     return _fps_to_distance(fp1, fp2, metric=metric)
 
 
@@ -147,55 +209,56 @@ def similarity(
 # =============================== getting pairs ===============================
 
 
-def get_step_pairs(chain_mols: list, degree_of_sep: int = 1) -> list:
-    """for given list of molecules originating from one reaction,
-    gets the available(non-null) molecule pairs separated by
-    degree of separation"""
+# def __get_step_pairs(chain_mols: list, degree_of_sep: int = 1) -> list:
+#     """for given list of molecules originating from one reaction,
+#     gets the available(non-null) molecule pairs separated by
+#     degree of separation"""
 
-    pairs = []
-    for i in range(len(chain_mols) - degree_of_sep):
-        if chain_mols[i] and chain_mols[i + degree_of_sep]:
-            pairs.append([chain_mols[i], chain_mols[i + degree_of_sep]])
-    return pairs
-
-
-def yield_row_from_file(struct_loc: str) -> list[str]:
-    """yields rows from csv, cleaning up the rows in the process"""
-    struct = pd.read_csv(struct_loc, sep="\t", header=None)
-    # get headers
-    nums = ["{}".format(i - 1) for i in range(len(struct.columns))]
-    nums.pop(0)
-    headers = ["pathway"] + nums
-    struct.columns = headers
-    # clean up
-    struct.replace("", np.nan, inplace=True)  # just in case one was missed
-    filtered = struct.dropna(thresh=2)  # drop completely empty ones
-    final = filtered.replace(np.nan, "")  # replace back for later fnxs
-    # return pathways
-    for i in range(len(final.index)):
-        yield final.iloc[i].tolist()
+#     pairs = []
+#     for i in range(len(chain_mols) - degree_of_sep):
+#         if chain_mols[i] and chain_mols[i + degree_of_sep]:
+#             pairs.append([chain_mols[i], chain_mols[i + degree_of_sep]])
+#     return pairs
 
 
-def dictify_pw_pairs(struct_loc: str, degree_of_sep: int = 1) -> dict[list[list[str]]]:
-    """returns {'pathway-id':[[product,precursor],[precursor,preprecursor]]}"""
-    dictionary = {}
-    for row in yield_row_from_file(struct_loc):
-        pathway_id = row[0]
-        pairs = get_step_pairs(row[1:], degree_of_sep=degree_of_sep)
-        dictionary[pathway_id] = pairs
-    return dictionary
+# def __clean_structure_file(struct_loc: str) -> pd.DataFrame:
+#     """yields rows from csv, cleaning up the rows in the process"""
+#     struct = pd.read_csv(struct_loc, sep="\t", header=None)
+#     # get headers
+#     nums = ["{}".format(i - 1) for i in range(len(struct.columns))]
+#     nums.pop(0)
+#     headers = ["pathway"] + nums
+#     struct.columns = headers
+#     # clean up
+#     struct.replace("", np.nan, inplace=True)  # just in case one was missed
+#     filtered = struct.dropna(thresh=2)  # drop completely empty ones
+#     final = filtered.replace(np.nan, "")  # replace back for later fnxs
+#     return final
 
 
-def _label_pairs(pairs_per_pathway: dict[list[list[str]]]) -> tuple[str, list[str]]:
-    """returns list of (pathway,distances)"""
-    labeled_distances = []
-    for pw_id in pairs_per_pathway.keys():
-        for distance in pairs_per_pathway[pw_id]:
-            labeled_distances.append((pw_id, distance))
-    return labeled_distances
+# def _dictify_pw_pairs(struct_loc: str, degree_of_sep: int = 1) -> dict[list[list[str]]]:
+#     """returns {'pathway-id':[[product,precursor],[precursor,preprecursor]]}"""
+#     dictionary = {}
+#     struct_df = __clean_structure_file(struct_loc)
+#     for _, row in tqdm(struct_df.iterrows(), desc="getting pairs"):
+#         pathway_id = row[0]
+#         pairs = __get_step_pairs(row[1:], degree_of_sep=degree_of_sep)
+#         dictionary[pathway_id] = pairs
+#     return dictionary
 
 
-def str_to_mol(repres: str, clean: bool = True) -> Chem.Mol:
+# def _add_pair_distances(
+#     pairs_per_pathway: dict[list[list[str]]],
+# ) -> tuple[str, list[str]]:
+#     """returns list of (pathway,distances)"""
+#     labeled_distances = []
+#     for pw_id in pairs_per_pathway.keys():
+#         for distance in pairs_per_pathway[pw_id]:
+#             labeled_distances.append((pw_id, distance))
+#     return labeled_distances
+
+
+def _str_to_mol(repres: str, clean: bool = True) -> Chem.Mol:
     mol = ""
     if repres.startswith("InChI="):
         mol = Chem.MolFromInchi(repres)
@@ -210,60 +273,163 @@ def str_to_mol(repres: str, clean: bool = True) -> Chem.Mol:
     if mol:
         return mol
     else:
-        return ""
+        return np.nan
 
 
-def get_pairs_dist_df(
-    labeled_pairs: list[tuple[str, list[str]]],
-    fingerprints: list[str] = FP_FUNCTIONS.keys(),
-    metric="c_tanimoto",
+# def _get_pairs_dist_df(
+#     labeled_pairs: list[tuple[str, list[str]]],
+#     fingerprints: list[str] = FP_FUNCTIONS.keys(),
+#     metric="c_tanimoto",
+#     *args,
+#     **kwargs,
+# ) -> pd.DataFrame:
+#     """gets the distances between molecules, for the given fingerprints
+#     passes any other args and kwargs to biosynfoni-derived fp functions in similarity
+#     only supports inchi_pairs at the moment"""
+#     prec_strings = [x[1][0] for x in labeled_pairs]
+#     prod_strings = [x[1][1] for x in labeled_pairs]
+#     pathways = [x[0] for x in labeled_pairs]
+
+#     df = pd.DataFrame(
+#         {"pathway": pathways, "precursor": prec_strings, "product": prod_strings}
+#     )
+
+#     prec_mols = [_str_to_mol(x) for x in prec_strings]
+#     prod_mols = [_str_to_mol(x) for x in prod_strings]
+#     molpairs = [[prec_mols[i], prod_mols[i]] for i in range(len(prec_mols))]
+
+#     # find way to convert to mol only once instead of continuously
+#     for fp_type in fingerprints:
+#         df[fp_type] = [
+#             similarity(
+#                 x[0],
+#                 x[1],
+#                 fingerprint=fp_type,
+#                 metric=metric,
+#                 check_moliness=False,
+#                 *args,
+#                 **kwargs,
+#             )
+#             for x in molpairs
+#         ]
+#     return df
+
+
+# def get_comparison_df(struct_loc, max_steps=4, metric="c_tanimoto", *args, **kwargs):
+#     df = pd.DataFrame()
+#     for i in tqdm(range(max_steps), desc="getting comparison df"):
+#         degree_of_sep = i + 1
+#         previous_df = df.copy()
+#         pw_pairs = _dictify_pw_pairs(struct_loc, degree_of_sep=degree_of_sep)
+#         labeled_pairs = _add_pair_distances(pw_pairs)
+#         # labeled_pairs = _label_pairs(dictionary)[:100]
+#         df = _get_pairs_dist_df(labeled_pairs, metric=metric, *args, **kwargs)
+#         df["reaction_steps"] = degree_of_sep
+#         df = pd.concat([previous_df, df], axis=0)
+#     return df
+
+
+def _pairs_in_chain(chain_indexes: list[int], separation: int):
+    # get all unique pairs separated by separation in chain_indexes
+    pairs = []
+    for i in range(len(chain_indexes) - separation):
+        pairs.append([chain_indexes[i], chain_indexes[i + separation]])
+    return pairs
+
+
+def _explode_into_sep_i_pairs(df: pd.DataFrame, separation: int) -> pd.DataFrame:
+    pair_indexes = _pairs_in_chain(df.columns, separation=separation)
+    new_df = pd.DataFrame()
+    # make df with pair_indexes and pws as rows, and the two mols as 2 columns
+    for pair in pair_indexes:
+        mol1 = df[pair[0]]
+        mol2 = df[pair[1]]
+        new_df = pd.concat([new_df, pd.DataFrame({"mol1": mol1, "mol2": mol2})], axis=0)
+    # drop rows where either mol is null
+    new_df = new_df.dropna()
+    # sort by index
+    new_df = new_df.sort_index()
+
+    return new_df
+
+
+def _get_random_pairs(df: pd.DataFrame, fraction: float = 0.25) -> pd.DataFrame:
+    random_pairs = pd.DataFrame()
+    for col in df.columns:
+        random_pairs[col] = df[col].sample(frac=fraction).values
+    # random_pairs = pd.DataFrame({"mol1":df["mol1"].sample(frac=fraction).values, "mol2":df["mol"].sample(frac=fraction).values})
+    return random_pairs
+
+
+def _turn_to_mol(df: pd.DataFrame, col: str) -> pd.DataFrame:
+    df[col] = df[col].apply(_str_to_mol)
+    return df
+
+
+def pairs_per_separation(df: pd.DataFrame, max_separation: int = 4) -> pd.DataFrame:
+    # get all pairs separated by separation in chain_indexes
+    pair_dfs = pd.DataFrame()
+    separations = []
+    for i in range(max_separation):
+        this_separation_df = _explode_into_sep_i_pairs(df, separation=i + 1)
+        this_separation_df["separation"] = i + 1
+        pair_dfs = pd.concat([pair_dfs, this_separation_df], axis=0)
+
+    # add in random pairs, 1/4 of current pairs
+    random_pairs = _get_random_pairs(pair_dfs, fraction=0.25)
+    random_pairs["separation"] = -1
+    pair_dfs = pd.concat([pair_dfs, random_pairs], axis=0).astype("category")
+    # turn to mol
+    pair_dfs = _turn_to_mol(pair_dfs, "mol1")
+    pair_dfs = _turn_to_mol(pair_dfs, "mol2")
+    # dropna
+    pair_dfs = pair_dfs.dropna()
+    # add unique indexes for each row
+    # pair_dfs = pair_dfs.reset_index()
+    return pair_dfs
+
+
+def add_fp_to_df(
+    df: pd.DataFrame, fp_types: list = FP_FUNCTIONS.keys(), *args, **kwargs
+) -> pd.DataFrame:
+    for fp_type in tqdm(fp_types, desc="getting fps"):
+        df[fp_type] = df.apply(
+            lambda x: _get_fp(
+                x["mol1"],
+                x["mol2"],
+                fingerprint=fp_type,
+                *args,
+                **kwargs,
+            ),
+            axis=1,
+        )
+    return df
+
+
+def add_similarities_per_fp(
+    molpair_df: pd.DataFrame,
+    fp_names: list[str] = FP_FUNCTIONS.keys(),
+    metric: str = "c_tanimoto",
     *args,
     **kwargs,
 ) -> pd.DataFrame:
     """gets the distances between molecules, for the given fingerprints
     passes any other args and kwargs to biosynfoni-derived fp functions in similarity
     only supports inchi_pairs at the moment"""
-    prec_strings = [x[1][0] for x in labeled_pairs]
-    prod_strings = [x[1][1] for x in labeled_pairs]
-    pathways = [x[0] for x in labeled_pairs]
 
-    df = pd.DataFrame(
-        {"pathway": pathways, "precursor": prec_strings, "product": prod_strings}
-    )
+    df = molpair_df.copy()
 
-    prec_mols = [str_to_mol(x) for x in prec_strings]
-    prod_mols = [str_to_mol(x) for x in prod_strings]
-    molpairs = [[prec_mols[i], prod_mols[i]] for i in range(len(prec_mols))]
-
-    # find way to convert to mol only once instead of continuously
-    for fp_type in fingerprints:
-        df[fp_type] = [
-            similarity(
-                x[0],
-                x[1],
-                fingerprint=fp_type,
+    for fp_type in tqdm(fp_names, desc="getting similarity"):
+        df[fp_type] = df.apply(
+            lambda x: similarity(
+                x[fp_type][0],
+                x[fp_type][1],
                 metric=metric,
-                check_moliness=False,
-                *args,
-                **kwargs,
-            )
-            for x in molpairs
-        ]
+            ),
+            axis=1,
+        )
+        df[fp_type] = df[fp_type].replace(-1, np.nan)
     return df
-
-
-def _get_comparison_df(struct_loc, max_steps=4, metric="c_tanimoto", *args, **kwargs):
-    current_df = pd.DataFrame()
-    for i in range(1, (max_steps + 1), 1):
-        previous_df = current_df.copy()
-        degree_of_sep = i
-        dictionary = dictify_pw_pairs(struct_loc, degree_of_sep=degree_of_sep)
-        labeled_pairs = _label_pairs(dictionary)
-        # labeled_pairs = _label_pairs(dictionary)[:100]
-        current_df = get_pairs_dist_df(labeled_pairs, metric=metric, *args, **kwargs)
-        current_df["reaction_steps"] = i
-        current_df = pd.concat([previous_df, current_df], axis=0)
-    return current_df
 
 
 def annotate_pathways(df, pw_tax_file: str, tax_text_file: str) -> pd.DataFrame:
@@ -286,7 +452,7 @@ def annotate_pathways(df, pw_tax_file: str, tax_text_file: str) -> pd.DataFrame:
         encoding=encoding,
         entry_sep=entry_sep,
     )
-    print(len(pw_tax), len(class_text))
+    logging.info(len(pw_tax), len(class_text))
     ndf["tax_id"] = ndf["pathway"].replace(to_replace=pw_tax)
     ndf["taxonomic_range"] = ndf["tax_id"].replace(to_replace=class_text)
     ndf["taxonomy"] = ndf["taxonomic_range"].replace(to_replace=BETTER_TAX)
@@ -314,7 +480,7 @@ def get_square(
     range2: tuple[float, float],
 ) -> pd.DataFrame:
     """returns the molecule pair's inchis for 'dots' in a given square of the scatter plot"""
-    square = df[
+    square = df.loc[
         (df[col1] >= range1[0])
         & (df[col1] <= range1[1])
         & (df[col2] >= range2[0])
@@ -323,16 +489,21 @@ def get_square(
     return square
 
 
-def draw_molpair(pair: list[Chem.Mol], annotation: str, highlight: bool = True) -> None:
+def draw_molpair(
+    pair: list[Chem.Mol], annotation: str = "", highlighting: bool = True
+) -> None:
     for i in range(len(pair)):
         highlighting_info = None
-        if highlight:
+        if highlighting:
             highlighting_info = get_highlight_mapping(mol=pair[i])
-        svg_text = moldrawing.draw(pair[i], matches_for_highlighting=highlighting_info)
-        svg_str = svg_str.replace(
-            "</svg>",
-            f'<text x="30" y="30" font-size="20" font-family="montserrat">{annotation}</text></svg>',
+        svg_text = moldrawing.draw(
+            pair[i], highlight_atoms_bonds_mappings=highlighting_info
         )
+        if annotation:
+            svg_text = svg_text.replace(
+                "</svg>",
+                f'<text x="30" y="30" font-size="20" font-family="montserrat">{annotation}</text></svg>',
+            )
         with open(f"{annotation}_{i}.svg", "w") as f:
             f.write(svg_text)
     return None
@@ -340,140 +511,154 @@ def draw_molpair(pair: list[Chem.Mol], annotation: str, highlight: bool = True) 
 
 def draw_squares(
     square_df: pd.DataFrame,
-    pair_columns: tuple[str, str] = ("precursor", "product"),
+    pair_columns: tuple[str, str] = ("mol1", "mol2"),
     squarename: str = "origin",
     highlighting: bool = True,
-    add_text: str = "",
 ) -> None:
     """draws the molecules in the squares
     input: (pd.DataFrame) square_df -- the dataframe containing the squares
     (str) pair_columns -- the name of the column containing the molecule pairs
     (str) squarename -- the name of the square
     """
-    for i in square_df.index:
-        pair = [
-            str_to_mol(square_df[pair_columns[0]][i]),
-            str_to_mol(square_df[pair_columns[1]][i]),
-        ]
-        pathway = square_df["pathway"][i]
-        outfilename = outfile_namer(f"{squarename}_{pathway}", add_text)
-        draw_molpair(pair, outfilename, highlighting=highlighting)
+    if square_df.empty:
+        return None
+    for _, row in tqdm(
+        square_df.iterrows(),
+        desc=f"drawing {squarename} squares",
+        total=square_df.shape[0],
+        position=1,
+    ):
+        pair = [row[pair_columns[0]], row[pair_columns[1]]]
+        pathway = row["pathway"]
+        outfilename = outfile_namer(f"{squarename}_{pathway}")
+        draw_molpair(pair, annotation=outfilename, highlighting=highlighting)
     return None
 
 
 def loopsquares(
-    df, x_fp="biosynfoni", y_fps=["rdkit", "maccs", "morgan"], size=0.2, add_text=""
-):
-    for fp_type in ["rdkit", "maccs", "morgan"]:
+    df: pd.DataFrame,
+    x_fp: str = "biosynfoni",
+    y_fps: list[str] = ["rdkit", "maccs", "morgan"],
+    size: int = 0.2,
+) -> None:
+    for i, y_fp in tqdm(
+        enumerate(y_fps), desc="looping squares", leave=False, position=0
+    ):
+        _, iwd = output_direr(f"./{x_fp}_{y_fp}_squares")
         min_val, max_val = 0.0, 1.0
         min_border = 0.0 + size
         max_border = 1.0 - size
         left_bottom = get_square(
             df,
-            "biosynfoni",
-            fp_type,
+            x_fp,
+            y_fp,
             (min_val, min_border),
             (min_val, min_border),
         )
         left_top = get_square(
             df,
-            "biosynfoni",
-            fp_type,
+            x_fp,
+            y_fp,
             (min_val, min_border),
             (max_border, max_val),
         )
         right_bottom = get_square(
             df,
-            "biosynfoni",
-            fp_type,
+            x_fp,
+            y_fp,
             (max_border, max_val),
             (min_val, min_border),
         )
         right_top = get_square(
             df,
-            "biosynfoni",
-            fp_type,
+            x_fp,
+            y_fp,
             (max_border, max_val),
             (max_border, max_val),
         )
-        draw_squares(left_bottom, squarename=f"{fp_type}_origin", add_text=add_text)
-        draw_squares(left_top, squarename=f"{fp_type}_left_top", add_text=add_text)
-        draw_squares(
-            right_bottom, squarename=f"{fp_type}_right_bottom", add_text=add_text
+        exactly_middle = get_square(
+            df,
+            x_fp,
+            y_fp,
+            (0.5, 0.5),
+            (min_val, max_val),
         )
-        draw_squares(right_top, squarename=f"{fp_type}_right_top", add_text=add_text)
+        draw_squares(left_bottom, squarename=f"{y_fp}_origin")
+        draw_squares(left_top, squarename=f"{y_fp}_left_top")
+        draw_squares(right_bottom, squarename=f"{y_fp}_right_bottom")
+        draw_squares(right_top, squarename=f"{y_fp}_right_top")
+        if i == 0:
+            draw_squares(exactly_middle, squarename=f"{x_fp}_middle")
+        os.chdir(iwd)
     return None
 
 
 def main():
-    print("==========\nbiosyn distance\n==========")
+    logging.getLogger(__name__).setLevel(logging.INFO)
+    set_style()
+    logging.info("==========\nbiosyn distance\n==========")
     # struct_loc = "../../../scripts/0927_metacyc_reactions.tsv"
-    struct_loc = argv[1]
-    degree_of_sep = 1
+    args = cli()
 
-    biosynfoni_version = fp.defaultVersion
-    blocking_principle = True
-    if len(argv) == 2 or argv[2] not in SIM_FUNCTIONS.keys():
-        metric = "cosine_sim"
-    else:
-        metric = argv[2]
-    annotate_taxonomy = False
-    coverage_info = True
-    blocking_intersub = False
-    blocking_intrasub = False
-    add_text = ""
-    if not blocking_intersub:
-        add_text = "lessblock"
-        if not blocking_intrasub:
-            add_text = "noblock"
-    if blocking_intersub and blocking_intrasub:
-        add_text = "block"
+    df = pd.read_csv(args.structures_path, sep="\t", header=None, index_col=0)
+    logging.info(f"read {df.shape[0]} pathways from {args.structures_path}")
+    df.index.name = "pathway"
+    rows = df.shape
+    df.replace("", np.nan, inplace=True)
+    df = df.dropna(thresh=2)  # drop where not at least 1 pair of mol
+    logging.info(f"{rows[0]-df.shape[0]} pathways dropped due to lack of mol pairs\n\n")
 
-    # get all the reaction pairs
-    if not os.path.exists(f"{outfile_namer(metric, add_text)}.pickle"):
-        comparison_df = _get_comparison_df(
-            struct_loc,
-            max_steps=4,
-            metric=metric,
-            blocking_intersub=blocking_intersub,
-            blocking_intrasub=blocking_intrasub,
+    _, iwd = output_direr("./biosynthetic_distance")  # move to outputdir
+
+    pairs = pairs_per_separation(df)
+
+    dist_df = f"{outfile_namer(args.metric)}.tsv"
+    mols_pkl = f"{outfile_namer('mols')}.pkl"
+    if not os.path.exists(dist_df) or not os.path.exists(mols_pkl):
+        df = add_fp_to_df(
+            pairs,
+            fp_types=FP_FUNCTIONS.keys(),
         )
-        picklr(comparison_df, outfile_namer(metric, add_text))
-    else:
-        print("reading from pickle file")
-        comparison_df = jaropener(f"{outfile_namer(metric, add_text)}.pickle")
-    annotated_df = comparison_df
+        df = add_similarities_per_fp(df, metric=args.metric)
+        mols = df.copy()
+        # save mols as pickle
+        mols.to_pickle(f"{outfile_namer('mols')}.pkl")
+        # remove mols from df
+        df = df.drop(columns=["mol1", "mol2"])
+        df.to_csv(dist_df, sep="\t", index=True)
+    # df = pd.read_csv(dist_df, sep="\t", index_col=0)
+    mols = pd.read_pickle(f"{outfile_namer('mols')}.pkl")
+    df = mols
+    # save index as column
+    df["pathway"] = df.index
+    logging.debug(df.shape, mols.shape, df.columns)
+    logging.debug(df, pairs, pairs.columns)
 
-    if annotate_taxonomy:
-        # pw_tax_file = "../../../metacyc/pathways_taxid.txt"
-        # tax_text_file = "../../../metacyc/cleaner_classes.dat"
-        annotated_df = annotate_pathways(comparison_df, pw_tax_file, tax_text_file)
+    # if args.annotate:
+    #     # pw_tax_file = "../../../metacyc/pathways_taxid.txt"
+    #     # tax_text_file = "../../../metacyc/cleaner_classes.dat"
+    #     pw_tax_file, tax_text_file = args.annotate
+    #     annotated_df = annotate_pathways(comparison_df, pw_tax_file, tax_text_file)
 
-    annotated_df["stepnum"] = annotated_df["reaction_steps"].apply(str)
+    df["stepnum"] = df["separation"].apply(str)
 
-    _, cwd = output_direr()  # move to outputdir
-    print("getting scatterplots...")
-    fp_combs = get_fp_combinations()
-    for com in fp_combs:
-        fm.df_scatterplot(
-            annotated_df,
-            com[0],
-            com[1],
-            figtitle=f"{metric} for different reaction step numbers {add_text}",
-            filename=outfile_namer(f"{com[0]}_{com[1]}_{metric}"),
-            auto_open=False,
-            # kwargs
-            color="stepnum",
-            color_discrete_map=fm.COLOUR_DICT["stepnum"],
-            # hover_data=["pathway_name", "taxonomic_range", "taxonomy"],
-            marginal_x="box",
-            marginal_y="box",
-        )
+    # logging.info("getting scatterplots...")
+    # fp_combs = get_fp_combinations()
+    # for com in tqdm(fp_combs, desc="getting scatterplots"):
+    #     scatter = fm.scatter_boxplots(
+    #         df,
+    #         col_x=com[0],
+    #         col_y=com[1],
+    #         figtitle=f"{args.metric} for different reaction step numbers",
+    #         color_by="stepnum",
+    #     )
+    #     filename = outfile_namer(f"{com[0]}_{com[1]}_{args.metric}")
+    #     fm.savefig(scatter, filename)
 
-    onestep = annotated_df[annotated_df["stepnum"] == "1"]
+    onestep = df[df["stepnum"] == "1"]
 
-    onestep.to_csv(f'{outfile_namer("onestep", add_text)}.tsv', sep="\t", index=False)
-    print("getting squares...")
+    onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
+    logging.info("getting squares...")
     loopsquares(
         onestep,
         "biosynfoni",
@@ -482,16 +667,13 @@ def main():
     )
 
     # save the biosynfoni version for reference
-    print("saving current biosynfoni version...")
-    # save_version(biosynfoni_version, blocking_principle=blocking_principle)
-    save_version(biosynfoni_version, extra_text=metric)
+    logging.info("saving current biosynfoni version...")
+    save_version(defaultVersion)
 
-    os.chdir(cwd)
-    print("done\nbyebye")
-    #
-    # annotate_pathways(df, pw_tax_file, tax_text_file)
-    # plot_two_cols(df,col1,col2,colour_label='taxonomic_range',shape_label='',\
-    #              hover_data=['pathway_name','taxonomic_range'])
+    os.chdir(iwd)
+    logging.info("done\nbyebye")
+    exit(0)
+    return None
 
 
 if __name__ == "__main__":
