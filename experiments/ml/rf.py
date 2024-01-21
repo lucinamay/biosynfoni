@@ -2,6 +2,7 @@
 import argparse, os, logging
 from collections import Counter
 import pickle
+import time
 
 import numpy as np
 
@@ -805,7 +806,7 @@ def main() -> None:
             ny_proba = proba(nones_X, full_classifier)
             ny_pred = cutoffr(ny_proba, cutoff=args.cutoff)
 
-        ny_pred = i_to_cl(ny_pred, class_index, unilabel=args.unilabel)
+        ny_pred = i_to_cl(ny_pred, cl_idx, unilabel=args.unilabel)
         nones_preds = np.concatenate([nones_ids[:, None], ny_pred[:, None]], axis=1)
         np.savetxt("nones_predictions.tsv", nones_preds, delimiter="\t", fmt="%s")
         if not args.no_proba:
@@ -839,7 +840,15 @@ def main() -> None:
         os.chdir("./model")
 
         logging.info("exporting full model")
+
+        # time the training precisely
+        tic = time.perf_counter()
         full_classifier = train_classifier(X, y, n_estimators=n_estimators)
+        toc = time.perf_counter()
+        logging.info(f"training took {toc-tic} seconds")
+        np.savetxt(
+            "time_train_full.tsv", np.array([toc - tic]), delimiter="\t", fmt="%s"
+        )
 
         pickle.dump(full_classifier, open("model.pkl", "wb"))
         # save labels for indexes
