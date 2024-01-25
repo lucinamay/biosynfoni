@@ -1,4 +1,4 @@
-import os
+import os, logging
 
 
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ def set_style() -> None:
     # parent_path = os.path.dirname(script_path)
     # utils_path = os.path.join(parent_path, "utils")
     utils_path = os.path.join(script_path)
-    print(utils_path)
+    logging.debug(f"utils_path: {utils_path}")
     style_path = os.path.join(utils_path, "biostylefoni.mplstyle")
     # set style
     plt.style.use(style_path)
