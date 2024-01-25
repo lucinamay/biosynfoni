@@ -467,7 +467,7 @@ substructureSmarts = {
             "(O)OCC1C(C(C(O1)[#7]2~[#6]~[#7]~[#6]~3~[#6](~[#7]~[#6]~[#7]~[#6]~3~2)~[#7])O)OP(~O)(O)O)~O"
         ),
         "name": "coenzyme_a",
-        "explanation": "fuzzier coa, according to definition on pubchem",
+        "explanation": "coa with fuzziness, based on definition on pubchem",
         "pathway": [],
         "dewick": False,
         "elements": ["C", "N", "O", "P", "S"],
@@ -476,7 +476,7 @@ substructureSmarts = {
         "aromaticity_defined": 0.5,
         "ideal_detection_order": 0.0,
     },
-    "co_nadh": {
+    "co_nadh_pubchem": {
         "smarts": (
             "C1C=CN(C=C1C(=O)N)C2C(C(C(O2)COP(=O)(O)OP(=O)"
             "(O)OCC3C(C(C(O3)N4C=NC5=C(N=CN=C54)N)O)O)O)O"
@@ -486,18 +486,48 @@ substructureSmarts = {
         "pathway": [],
         "dewick": False,
         "elements": [],
+        "fuzziness": -10.0,
+        "correlated_substructures": [],
+        "aromaticity_defined": 0.5,
+        "ideal_detection_order": 0.0,
+    },
+    "co_nadh": {
+        "smarts": (
+            "[#6]1[#6]~[#6][#7]([#6]~[#6]1[#6](~O)[#7])C2C(C(C(O2)COP(~O)(O)OP(~O)"
+            "(O)OCC3C(C(C(O3)[#7]4[#6]~[#7][#6]5~[#6]([#7]~[#6][#7]~[#6]54)[#7])O)O)O)O"
+        ),
+        "name": "nadh",
+        "explanation": "nadh with fuzziness, based on definition on pubchem",
+        "pathway": [],
+        "dewick": False,
+        "elements": [],
         "fuzziness": 0.0,
         "correlated_substructures": [],
         "aromaticity_defined": 0.5,
         "ideal_detection_order": 0.0,
     },
-    "co_nadph": {
+    "co_nadph_pubchem": {
         "smarts": (
             "C1C=CN(C=C1C(=O)N)C2C(C(C(O2)COP(=O)(O)OP(=O)(O)"
             "OCC3C(C(C(O3)N4C=NC5=C(N=CN=C54)N)OP(=O)(O)O)O)O)O"
         ),
         "name": "nadph",
         "explanation": "strict nadph, no fuzziness, according to definition on pubchem",
+        "pathway": [],
+        "dewick": False,
+        "elements": [],
+        "fuzziness": -10.0,
+        "correlated_substructures": [],
+        "aromaticity_defined": 0.5,
+        "ideal_detection_order": 0.0,
+    },
+    "co_nadph": {
+        "smarts": (
+            "[#6]1[#6]~[#6][#7]([#6]~[#6]1[#6](~O)[#7])[#6]2C(C(C(O2)COP(~O)(O)OP(~O)(O)"
+            "OCC3C(C(C(O3)[#7]4[#6]~[#7][#6]5~[#6]([#7]~[#6][#7]~[#6]54)[#7])OP(~O)(O)O)O)O)O"
+        ),
+        "name": "nadph",
+        "explanation": "nadph with fuzziness, based on definition on pubchem",
         "pathway": [],
         "dewick": False,
         "elements": [],
