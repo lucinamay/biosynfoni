@@ -98,8 +98,8 @@ class BiosynfoniVersion:
     def save_smarts(self):
         outfilename = outfile_namer("version", self.fp_version)
         with open(f"{outfilename}.smarts", "w") as f:
-            for smart in self.smarts:
-                f.write(f"{smart[0]}\t{smart[1]}\n")
+            for i, smart in enumerate(self.smarts):
+                f.write(f"{self.subs_ids[i]}\t{smart}\n")
         return None
 
     # def save_svg(self, window_size=(1000, 1000)):
