@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse
+import argparse, logging
 import math
 from collections import Counter
 
@@ -142,9 +142,46 @@ def get_colours() -> list[str]:
     return colours
 
 
+def _pearson_correlation_matrix(fps: np.array) -> np.array:
+    # randomly subsample 10000
+
+    # fps = fps[np.random.choice(fps.shape[0], 10000, replace=False), 3:]
+    # fps = fps[:, 3:]
+    mat = np.corrcoef(fps, rowvar=False, dtype=np.float16)
+    # print(fps.shape)
+    # print(mat.shape)
+    return mat
+
+
+def correlation_heatmap(fps: np.array) -> None:
+    keys = get_labels()
+    correlations = _pearson_correlation_matrix(fps)
+    np.savetxt("correlations.tsv", correlations, delimiter="\t", fmt="%.2f")
+    logging.warning(correlations.shape)
+    hm = sns.heatmap(
+        correlations,
+        xticklabels=keys,
+        yticklabels=keys,
+        # cmap="coolwarm",
+        cmap="PiYG",  # more colorblind-friendly diverging colormap
+        vmin=np.min(fps),
+        vmax=np.max(fps),
+        center=0,  # center of the colormap
+    )
+    # hm.text(0.5, 0.5, "test", horizontalalignment="center", verticalalignment="center")
+    # for all negative values, add a minus sign
+    add_minuses(hm, fps)
+    colours = get_colours()
+    xt, yt = hm.get_xticklabels(), hm.get_yticklabels()
+    set_label_colors(hm.get_xticklabels(), colours)
+    set_label_colors(hm.get_yticklabels(), colours)
+    return hm
+
+
 def main() -> None:
     args = cli()
     fps = parse_fingerprints(args.i)
+    title_text = args.o.replace(".png", "").replace("_", " ")
 
     set_style()
 
@@ -188,7 +225,7 @@ def main() -> None:
 
     # Visualize matrix.
     fig = plt.figure(figsize=(8, 6))
-    sns.set(font_scale=0.5)
+    # sns.set(font_scale=0.5)
     hm = sns.heatmap(
         mat,
         xticklabels=keys,
@@ -206,7 +243,6 @@ def main() -> None:
     # set_label_colors(hm.get_xticklabels(), colours)
     # set_label_colors(hm.get_yticklabels(), colours)
     colours = get_colours()
-    xt, yt = hm.get_xticklabels(), hm.get_yticklabels()
     set_label_colors(hm.get_xticklabels(), colours)
     set_label_colors(hm.get_yticklabels(), colours)
 
@@ -215,9 +251,19 @@ def main() -> None:
 
     plt.ylabel("Bit 1")
     plt.xlabel("Bit 2")
-    plt.title("Pointwise Mutual Information")
+    plt.title(
+        f"Pointwise Mutual Information - non-overlap Biosynfoni on COCONUT", size=16
+    )
+    # plt.title(f"Pointwise Mutual Information - {title_text}", size=22)
 
     plt.savefig(args.o, bbox_inches="tight")
+    plt.close()
+
+    # get a correlation heatmap as well
+    corr_hm = correlation_heatmap(fps)
+    plt.title("Pearson correlation - non-overlap Biosynfoni on COCONUT", size=16)
+    plt.savefig(args.o.replace(".png", "_correlation.png"), bbox_inches="tight")
+    plt.close()
 
     exit(0)
 
