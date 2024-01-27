@@ -493,15 +493,15 @@ substructureSmarts = {
     },
     "co_nadh": {
         "smarts": (
-            "[#6]1[#6]~[#6][#7]([#6]~[#6]1[#6](~O)[#7])C2C(C(C(O2)COP(~O)(O)OP(~O)"
-            "(O)OCC3C(C(C(O3)[#7]4[#6]~[#7][#6]5~[#6]([#7]~[#6][#7]~[#6]54)[#7])O)O)O)O"
+            "[#6]~1~[#6]~[#6]~[#7](~[#6]~[#6]~1~[#6](~O)~[#7])~[#6]~2~[#6](~[#6](~[#6](~O~2)~[#6]~O~P(~O)(~O)~O~P(~O)"
+            "(~O)~O~[#6]~[#6]~3~[#6](~[#6](~[#6](~O~3)~[#7]~4~[#6]~[#7]~[#6]~5~[#6](~[#7]~[#6]~[#7]~[#6]~5~4)~[#7])~O)~O)~O)~O"
         ),
         "name": "nadh",
         "explanation": "nadh with fuzziness, based on definition on pubchem",
         "pathway": [],
         "dewick": False,
         "elements": [],
-        "fuzziness": 0.0,
+        "fuzziness": 4.0,
         "correlated_substructures": [],
         "aromaticity_defined": 0.5,
         "ideal_detection_order": 0.0,
@@ -523,28 +523,30 @@ substructureSmarts = {
     },
     "co_nadph": {
         "smarts": (
-            "[#6]1[#6]~[#6][#7]([#6]~[#6]1[#6](~O)[#7])[#6]2C(C(C(O2)COP(~O)(O)OP(~O)(O)"
-            "OCC3C(C(C(O3)[#7]4[#6]~[#7][#6]5~[#6]([#7]~[#6][#7]~[#6]54)[#7])OP(~O)(O)O)O)O)O"
+            "[#6]~1~[#6]~[#6]~[#7](~[#6]~[#6]~1~[#6](~O)~[#7])~[#6]~2~[#6]"
+            "(~[#6](~[#6](~O~2)~[#6]~O~P(~O)(~O)~O~P(~O)(~O)~O~[#6]~[#6]~3~[#6]"
+            "(~[#6](~[#6](~O~3)~[#7]~4~[#6]~[#7]~[#6]~5~[#6](~[#7]~[#6]"
+            "~[#7]~[#6]~5~4)~[#7])~O~P(~O)(~O)~O)~O)~O)~O"
         ),
         "name": "nadph",
         "explanation": "nadph with fuzziness, based on definition on pubchem",
         "pathway": [],
         "dewick": False,
         "elements": [],
-        "fuzziness": 0.0,
+        "fuzziness": 4.0,
         "correlated_substructures": [],
         "aromaticity_defined": 0.5,
         "ideal_detection_order": 0.0,
     },
     # amino acids:
-    "allstnd_aminos": {
+    "allstnd_aminos_wrong": {
         "smarts": (
             "[$([$([NX3H,NX4H2+]),$([NX3](C)(C)(C))]1[CX4H]([CH2][CH2][CH2]1)[CX3](=[OX1])[OX2H,OX1-,N]),"
             "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H2][CX3](=[OX1])[OX2H,OX1-,N]),$([$([NX3H2,NX4H3+]),"
             "$([NX3H](C)(C))][CX4H]([*])[CX3](=[OX1])[OX2H,OX1-,N])]"  # from daylight.com A.A. Template for 20 standard a.a.s
         ),
         "name": "standard_amino_acids",
-        "explanation": "all standard amino acids, according to definition on daylight.com's A.A. Template for 20 standard a.a.s",
+        "explanation": "all standard amino acids, according to definition on daylight.com's A.A. Template for 20 standard a.a.s, but without replacing the *",
         "pathway": ["amino_acid"],
         "dewick": False,
         "elements": ["C", "N", "O", "S"],
@@ -553,9 +555,82 @@ substructureSmarts = {
         "aromaticity_defined": 1.0,
         "ideal_detection_order": 0.0,
     },
-    "nonstnd_aminos": {
+    "allstnd_aminos": {
+        "smarts": (
+            "[$([$([NX3H,NX4H2+]),$([NX3](C)(C)(C))]1[CX4H]([CH2][CH2][CH2]1)[CX3](=[OX1])[OX2H,OX1-,N]),"
+            "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H2][CX3](=[OX1])[OX2H,OX1-,N]),$([$([NX3H2,NX4H3+]),"
+            "$([NX3H](C)(C))][CX4H]([$([CH3X4]),$([CH2X4][CH2X4][CH2X4][NHX3][CH0X3](=[NH2X3+,NHX2+0])[NH2X3]),"
+            "$([CH2X4][CX3](=[OX1])[NX3H2]),$([CH2X4][CX3](=[OX1])[OH0-,OH]),"
+            "$([CH2X4][SX2H,SX1H0-]),$([CH2X4][CH2X4][CX3](=[OX1])[OH0-,OH]),"
+            "$([CH2X4][#6X3]1:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),$([#7X3H])]:"
+            "[#6X3H]:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),$([#7X3H])]:[#6X3H]1),"
+            "$([CHX4]([CH3X4])[CH2X4][CH3X4]),$([CH2X4][CHX4]([CH3X4])[CH3X4]),"
+            "$([CH2X4][CH2X4][CH2X4][CH2X4][NX4+,NX3+0]),$([CH2X4][CH2X4][SX2][CH3X4]),"
+            "$([CH2X4][cX3]1[cX3H][cX3H][cX3H][cX3H][cX3H]1),$([CH2X4][OX2H]),"
+            "$([CHX4]([CH3X4])[OX2H]),$([CH2X4][cX3]1[cX3H][nX3H][cX3]2[cX3H][cX3H][cX3H][cX3H][cX3]12),"
+            "$([CH2X4][cX3]1[cX3H][cX3H][cX3]([OHX2,OH0X1-])[cX3H][cX3H]1),$([CHX4]([CH3X4])[CH3X4])])[CX3](=[OX1])[OX2H,OX1-,N])]"  # from daylight.com A.A. Template for 20 standard a.a.s
+        ),
+        "name": "standard_amino_acids",
+        "explanation": "all standard amino acids, according to definition on daylight.com's A.A. Template for 20 standard a.a.s, but without replacing the *",
+        "pathway": ["amino_acid"],
+        "dewick": False,
+        "elements": ["C", "N", "O", "S"],
+        "fuzziness": 0.0,
+        "correlated_substructures": ["nonstnd_aminos"],
+        "aromaticity_defined": 1.0,
+        "ideal_detection_order": 0.0,
+    },
+    "nonstnd_aminos_wrong": {
         "smarts": (
             "[$([NX3,NX4+][CX4H]([*])[CX3](=[OX1])[O,N]);"
+            "!$([$([$([NX3H,NX4H2+]),"
+            "$([NX3](C)(C)(C))]1[CX4H]([CH2][CH2][CH2]1)[CX3](=[OX1])[OX2H,OX1-,N]),"
+            "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H2][CX3](=[OX1])[OX2H,OX1-,N]),"
+            "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H]([$([CH3X4]),"
+            "$([CH2X4][CH2X4][CH2X4][NHX3][CH0X3](=[NH2X3+,NHX2+0])[NH2X3]),"
+            "$([CH2X4][CX3](=[OX1])[NX3H2]),$([CH2X4][CX3](=[OX1])[OH0-,OH]),"
+            "$([CH2X4][SX2H,SX1H0-]),$([CH2X4][CH2X4][CX3](=[OX1])[OH0-,OH]),"
+            "$([CH2X4][#6X3]1:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),"
+            "$([#7X3H])]:[#6X3H]:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),"
+            "$([#7X3H])]:[#6X3H]1),$([CHX4]([CH3X4])[CH2X4][CH3X4]),"
+            "$([CH2X4][CHX4]([CH3X4])[CH3X4]),"
+            "$([CH2X4][CH2X4][CH2X4][CH2X4][NX4+,NX3+0]),"
+            "$([CH2X4][CH2X4][SX2][CH3X4]),"
+            "$([CH2X4][cX3]1[cX3H][cX3H][cX3H][cX3H][cX3H]1),"
+            "$([CH2X4][OX2H]),$([CHX4]([CH3X4])[OX2H]),"
+            "$([CH2X4][cX3]1[cX3H][nX3H][cX3]2[cX3H][cX3H][cX3H][cX3H][cX3]12),"
+            "$([CH2X4][cX3]1[cX3H][cX3H][cX3]([OHX2,OH0X1-])[cX3H][cX3H]1),"
+            "$([CHX4]([CH3X4])[CH3X4])])[CX3](=[OX1])[OX2H,OX1-,N])])]"
+        ),
+        "name": "non-standard_amino_acids",
+        "explanation": (
+            "Wrong version as the * is not replaced. Daylight explanation:"
+            "Generic amino acid but not a 'standard' amino acid"
+            "('standard' refers to the 20 normal side chains)."
+            "Won't hit amino acids that are non-standard due solely to the fact"
+            "that groups are terminally-appended to the polypeptide chain (N or C term)."
+            "format is [$(generic a.a.); !$(not a standard one)]"
+            " Hits single a.a.s and specific residues w/in polypeptides (internal, or terminal)."
+        ),
+        "pathway": ["amino_acid"],
+        "dewick": False,
+        "elements": ["C", "N", "O", "S"],
+        "fuzziness": 0.0,
+        "correlated_substructures": ["allstnd_aminos"],
+        "aromaticity_defined": 1.0,
+        "ideal_detection_order": 0.0,
+    },
+    "nonstnd_aminos": {
+        "smarts": (
+            "[$([NX3,NX4+][CX4H]([$([CH3X4]),$([CH2X4][CH2X4][CH2X4][NHX3][CH0X3](=[NH2X3+,NHX2+0])[NH2X3])"
+            ",$([CH2X4][CX3](=[OX1])[NX3H2]),$([CH2X4][CX3](=[OX1])[OH0-,OH]),$([CH2X4][SX2H,SX1H0-]),"
+            "$([CH2X4][CH2X4][CX3](=[OX1])[OH0-,OH]),$([CH2X4][#6X3]1:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),$([#7X3H])]:"
+            "[#6X3H]:[$([#7X3H+,#7X2H0+0]:[#6X3H]:[#7X3H]),$([#7X3H])]:[#6X3H]1),"
+            "$([CHX4]([CH3X4])[CH2X4][CH3X4]),$([CH2X4][CHX4]([CH3X4])[CH3X4]),"
+            "$([CH2X4][CH2X4][CH2X4][CH2X4][NX4+,NX3+0]),$([CH2X4][CH2X4][SX2][CH3X4]),"
+            "$([CH2X4][cX3]1[cX3H][cX3H][cX3H][cX3H][cX3H]1),$([CH2X4][OX2H]),"
+            "$([CHX4]([CH3X4])[OX2H]),$([CH2X4][cX3]1[cX3H][nX3H][cX3]2[cX3H][cX3H][cX3H][cX3H][cX3]12),"
+            "$([CH2X4][cX3]1[cX3H][cX3H][cX3]([OHX2,OH0X1-])[cX3H][cX3H]1),$([CHX4]([CH3X4])[CH3X4])])[CX3](=[OX1])[O,N]);"
             "!$([$([$([NX3H,NX4H2+]),"
             "$([NX3](C)(C)(C))]1[CX4H]([CH2][CH2][CH2]1)[CX3](=[OX1])[OX2H,OX1-,N]),"
             "$([$([NX3H2,NX4H3+]),$([NX3H](C)(C))][CX4H2][CX3](=[OX1])[OX2H,OX1-,N]),"
