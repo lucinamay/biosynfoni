@@ -48,7 +48,12 @@ def cli():
         help="path to synthetic compounds file",
         default=None,
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.fingerprints = os.path.abspath(args.fingerprints)
+    args.labels = os.path.abspath(args.labels)
+    if args.synthetic:
+        args.synthetic = os.path.abspath(args.synthetic)
+    return args
 
 
 class recursion_depth:
