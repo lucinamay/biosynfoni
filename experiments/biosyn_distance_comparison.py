@@ -68,7 +68,7 @@ FP_FUNCTIONS = {
     "morgan": fp.morgan_getter,
     "rdkit": fp.rdk_fp_getter,
     "maccsynfoni": fp.maccsynfoni_getter,
-    "overlap_binomaccsynfoni": partial(
+    "overlap": partial(
         fp.bino_maccs_getter, intersub_overlap=True, intrasub_overlap=True
     ),
 }
@@ -188,7 +188,7 @@ def _get_fp(
         "biosynfoni",
         "overlap_binosynfoni",
         "maccsynfoni",
-        "overlap_binomaccsynfoni",
+        "overlap",
     ]:
         fp1 = FP_FUNCTIONS[fingerprint](mol1, *args, **kwargs)
         fp2 = FP_FUNCTIONS[fingerprint](mol2, *args, **kwargs)
@@ -677,13 +677,13 @@ def main():
         loopsquares(
             onestep,
             fp,
-            ["rdkit", "maccs", "morgan", "maccsynfoni", "overlap_binomaccsynfoni"],
+            ["rdkit", "maccs", "morgan", "maccsynfoni", "overlap"],
             size=0.2,
         )
     # loopsquares(
     #     onestep,
     #     "biosynfoni",
-    #     ["rdkit", "maccs", "morgan", "maccsynfoni", "overlap_binomaccsynfoni"],
+    #     ["rdkit", "maccs", "morgan", "maccsynfoni", "overlap"],
     #     size=0.2,
     # )
 

@@ -13,5 +13,8 @@ def set_style() -> None:
     logging.debug(f"utils_path: {utils_path}")
     style_path = os.path.join(utils_path, "biostylefoni.mplstyle")
     # set style
-    plt.style.use(style_path)
+    try:
+        plt.style.use(style_path)
+    except:
+        logging.warning("Could not set style to biostylefoni. Prepare for ugly plots")
     return None
