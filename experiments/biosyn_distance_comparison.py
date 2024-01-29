@@ -18,7 +18,7 @@ supports:
     - rdkit
     - maccs
     - biosynfoni
-    - binosynfoni  
+    - overlap_binosynfoni  
 
 also supports various distance metrics:
     - countanimoto
@@ -57,16 +57,20 @@ from biosynfoni import get_highlight_mapping
 # =========================== GLOBALS =========================
 FP_FUNCTIONS = {
     "biosynfoni": fp.biosynfoni_getter,
-    "biosynfoni_lessblock": partial(fp.biosynfoni_getter, intersub_overlap=True),
-    "biosynfoni_noblock": partial(
+    "interoverlap_biosynfoni": partial(fp.biosynfoni_getter, intersub_overlap=True),
+    "overlap_biosynfoni": partial(
         fp.biosynfoni_getter, intersub_overlap=True, intrasub_overlap=True
     ),
-    "binosynfoni": fp.binosynfoni_getter,
+    "overlap_binosynfoni": partial(
+        fp.binosynfoni_getter, intersub_overlap=True, intrasub_overlap=True
+    ),
     "maccs": fp.maccs_getter,
     "morgan": fp.morgan_getter,
     "rdkit": fp.rdk_fp_getter,
     "maccsynfoni": fp.maccsynfoni_getter,
-    "bino_maccs": fp.bino_maccs_getter,
+    "overlap_binomaccsynfoni": partial(
+        fp.bino_maccs_getter, intersub_overlap=True, intrasub_overlap=True
+    ),
 }
 
 SIM_FUNCTIONS = {
@@ -124,7 +128,7 @@ def cli():
         "--binary",
         default=False,
         action="store_true",
-        help="if passed, uses binary fingerprints (a.k.a. binosynfoni)",
+        help="if passed, uses binary fingerprints (a.k.a. overlap_binosynfoni)",
     )
     parser.add_argument(
         "-a",
@@ -180,7 +184,12 @@ def _get_fp(
 
     fp1, fp2 = np.array([]), np.array([])  # init.
 
-    if fingerprint in ["biosynfoni", "binosynfoni", "maccsynfoni", "bino_maccs"]:
+    if fingerprint in [
+        "biosynfoni",
+        "overlap_binosynfoni",
+        "maccsynfoni",
+        "overlap_binomaccsynfoni",
+    ]:
         fp1 = FP_FUNCTIONS[fingerprint](mol1, *args, **kwargs)
         fp2 = FP_FUNCTIONS[fingerprint](mol2, *args, **kwargs)
     else:
@@ -642,29 +651,41 @@ def main():
 
     df["stepnum"] = df["separation"].apply(str)
 
-    # logging.info("getting scatterplots...")
-    # fp_combs = get_fp_combinations()
-    # for com in tqdm(fp_combs, desc="getting scatterplots"):
-    #     scatter = fm.scatter_boxplots(
-    #         df,
-    #         col_x=com[0],
-    #         col_y=com[1],
-    #         figtitle=f"{args.metric} for different reaction step numbers",
-    #         color_by="stepnum",
-    #     )
-    #     filename = outfile_namer(f"{com[0]}_{com[1]}_{args.metric}")
-    #     fm.savefig(scatter, filename)
+    logging.info("getting scatterplots...")
+    fp_combs = get_fp_combinations()
+    for com in tqdm(fp_combs, desc="getting scatterplots"):
+        scatter = fm.scatter_boxplots(
+            df,
+            col_x=com[0],
+            col_y=com[1],
+            figtitle=f"{args.metric} for different reaction step numbers",
+            color_by="stepnum",
+        )
+        filename = outfile_namer(f"{com[0]}_{com[1]}_{args.metric}")
+        fm.savefig(scatter, filename)
 
     onestep = df[df["stepnum"] == "1"]
 
     onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
     logging.info("getting squares...")
-    loopsquares(
-        onestep,
+    for fp in [
         "biosynfoni",
-        ["rdkit", "maccs", "morgan", "maccsynfoni", "bino_maccs"],
-        size=0.2,
-    )
+        "overlap_binosynfoni",
+        "overlap_biosynfoni",
+        "interoverlap_biosynfoni",
+    ]:
+        loopsquares(
+            onestep,
+            fp,
+            ["rdkit", "maccs", "morgan", "maccsynfoni", "overlap_binomaccsynfoni"],
+            size=0.2,
+        )
+    # loopsquares(
+    #     onestep,
+    #     "biosynfoni",
+    #     ["rdkit", "maccs", "morgan", "maccsynfoni", "overlap_binomaccsynfoni"],
+    #     size=0.2,
+    # )
 
     # save the biosynfoni version for reference
     logging.info("saving current biosynfoni version...")
