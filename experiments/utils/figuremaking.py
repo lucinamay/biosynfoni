@@ -21,6 +21,9 @@ import numpy as np
 import pandas as pd
 
 from utils.colours import colourDict
+from utils import set_style
+
+set_style()
 
 
 def custom_cmap(default_cmap, last_color=None, first_color=None):
@@ -389,8 +392,108 @@ def scatter_boxplots(
     return fig
 
 
+def scatter(
+    df: pd.DataFrame,
+    col_x: str,
+    col_y: str,
+    figtitle: str,
+    color_by: str = "stepnum",
+    *args,
+    **kwargs,
+) -> plt.Figure:
+    fig = plt.figure(figsize=(2, 2))
+    fig, ax = plt.subplots()
+
+    # Set aspect of the Axes manually to have points on 0 and 1 show better
+    # ax.set_xlim(-0.05, 1.05)
+    # ax.set_ylim(-0.05, 1.05)
+
+    # Get Data
+    all_data_x = [
+        np.array(df[df[color_by] == category][col_x].to_numpy(dtype=float))
+        for category in df[color_by].unique()
+    ]
+    all_data_x = [x[~np.isnan(x)] for x in all_data_x]
+    # all_data_x = np.random.normal(100, 10, 3426)
+    all_data_y = [
+        np.array(df[df[color_by] == category][col_y].tolist())
+        for category in df[color_by].unique()
+    ]
+    all_data_y = [y[~np.isnan(y)] for y in all_data_y]
+
+    # ax_xobs, ax_yobs = [], []
+    logging.debug(all_data_x)
+    logging.debug(len(all_data_x))
+
+    ax.tick_params(length=0)  # , labelleft=False, labelbottom=False)
+
+    labels = [
+        f"{category}" if category != "-1" else "control"
+        for category in df[color_by].unique()
+    ]
+
+    for i, category in enumerate(df[color_by].unique()):
+        colour = colourDict[color_by][category]
+        label = f"{category}" if category != "-1" else "control"
+
+        # ax.scatter(x, y, c=color, s=scale, label=color,alpha=0.3, edgecolors='none')
+        scatterplot = ax.scatter(
+            x=col_x,
+            y=col_y,
+            data=df[df[color_by] == category],
+            c=colour,
+            label=label,
+            alpha=0.5,
+            edgecolors="none",
+            zorder=3,
+            *args,
+            **kwargs,
+        )
+
+        # # scatter empty df, to get legend in right format in right position
+        # leg = legax.scatter(
+        #     x=col_x,
+        #     y=col_y,
+        #     data=df[df[color_by] == category][0:0],
+        #     c=colour,
+        #     label=label,
+        #     alpha=0.5,
+        #     edgecolors="none",
+        #     s=10,
+        # )
+        # leg.set_facecolor(mpl.colors.to_rgba(colour, alpha=alpha))
+
+    # ==================================================
+
+    ax.legend(loc="lower left", prop={"size": 6}, frameon=False)
+
+    # # info for square drawing
+    # squareside = 0.2
+    # s_color = "#7A7979AA"
+    # s_color = mpl.colors.to_rgba("#7A7979AA", alpha=0.3)
+    # linewidth = 1
+
+    # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
+    ax.set_xlabel(col_x, labelpad=10)
+    ax.set_ylabel(col_y, labelpad=10)
+    # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
+    ax.set_title(figtitle, loc="center", pad=20)
+
+    ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
+
+    # tight_layout
+    fig.tight_layout()
+
+    # plt.show()
+    # plt.savefig(f"{filename}.png", dpi=500)
+    # fig.close()
+    return fig
+
+
 def savefig(fig, filename):
-    fig.savefig(f"{filename}.png", dpi=200)
+    if not filename.endswith(".png"):
+        filename = f"{filename}.png"
+    fig.savefig(filename, dpi=500)
     plt.close(fig)
     return None
 
