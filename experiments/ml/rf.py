@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-import argparse, os, logging
+import argparse, os, logging, pickle, time, tracemalloc
 from collections import Counter
-import pickle
-import time
 
 import numpy as np
 
@@ -552,7 +550,6 @@ def wrongs_array(
     # get wrong predictions.
     w_id, w_test, w_pred = get_wrong_predictions(y_test, y_pred, ids_test)
     # get the classification predictions in strings:
-    print(w_test, class_index)
     w_test_str = i_to_cl(w_test, class_index)
     w_pred_str = i_to_cl(w_pred, class_index)
     wrong = np.array([w_id, w_test_str, w_pred_str]).T
@@ -841,13 +838,26 @@ def main() -> None:
 
         logging.info("exporting full model")
 
+        # measure the memory usage of training
+        tracemalloc.start()
         # time the training precisely
         tic = time.perf_counter()
         full_classifier = train_classifier(X, y, n_estimators=n_estimators)
         toc = time.perf_counter()
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        logging.info(
+            f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         logging.info(f"training took {toc-tic} seconds")
         np.savetxt(
             "time_train_full.tsv", np.array([toc - tic]), delimiter="\t", fmt="%s"
+        )
+        np.savetxt(
+            "memory_train_full.tsv",
+            np.array([peak / 10**6]),
+            delimiter="\t",
+            fmt="%s",
         )
 
         pickle.dump(full_classifier, open("model.pkl", "wb"))
