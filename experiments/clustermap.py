@@ -1,4 +1,4 @@
-import sys, os, argparse
+import sys, os, argparse, logging
 
 import numpy as np
 import seaborn as sns
@@ -12,7 +12,10 @@ from tqdm import tqdm
 
 # matplotlib.use('Agg')       #if in background
 
-from biosynfoni.subkeys import fpVersions, defaultVersion
+from biosynfoni.subkeys import get_names, get_pathway
+from utils import set_style
+from utils.colours import colourDict
+from utils.figuremaking import set_label_colors_from_categories
 
 
 def cli():
@@ -42,7 +45,7 @@ def cli():
         "--synthetic compounds",
         required=False,
         type=str,
-        help="format of output file",
+        help="path to synthetic compounds file",
         default=None,
     )
     return parser.parse_args()
@@ -123,11 +126,19 @@ class ClusterMap:
                 # z_score = 1,
                 # figsize= (len(list(data_frame)), min(200, len(data_frame.index.values))),
                 cmap=cmap,
-                cbar_kws={"shrink": 0.3, "label": "counts"},
+                cbar_kws={
+                    "shrink": 0.3,
+                    "label": "counts",
+                    # "orientation": "horizontal",
+                    # "labelweight": "bold",
+                },
+                cbar_pos=(1.05, 0.2, 0.03, 0.4),
             )
+        # make x tick labels bold
+
         return seacluster
 
-    def get_clusterplot(self, legend_title="NP-Classifier prediction"):
+    def get_clusterplot(self, legend_title="class"):
         """returns plt of clustermap with legend of categories"""
 
         # plt.figure(figsize=(15,6))
@@ -138,9 +149,23 @@ class ClusterMap:
         # seacluster.set_xlim([0,2])
 
         # seacluster.set_title(TITLE, fontsize=16, fontdict={})
-        plt.title(
-            f"Hierarchical clustering of compounds and substructures {self.method}, {self.metric}"
-        )  # + 'z scored')
+        # plt.title(
+        #     f"Hierarchical clustering of compounds and substructures {self.method}, {self.metric}",
+        #     loc="center",
+        # )  # + 'z scored')
+        self.clustermap.fig.suptitle(
+            f"Hierarchical clustering of compounds and substructures {self.method}, {self.metric}",
+            x=0.6,
+            y=1.1,
+            weight="bold",
+            size=18,
+        )
+        self.clustermap.ax_heatmap.set_xticklabels(
+            self.clustermap.ax_heatmap.get_xmajorticklabels(),
+            fontsize=10,
+            fontweight="semibold",
+        )
+        self._set_substructure_colours()
 
         # seacluster = self.seacluster()
 
@@ -149,22 +174,31 @@ class ClusterMap:
 
         # add legend
         handles = self.handles
-        legend_colors = [Patch(facecolor=handles[name]) for name in handles.keys()]
+        legend_colors = [
+            Patch(facecolor=handles[name], edgecolor="#FFFFFF00")
+            for name in handles.keys()
+        ]
+
         plt.legend(
             legend_colors,
             handles.keys(),
             title=legend_title,
-            bbox_to_anchor=(1, 1),
+            bbox_to_anchor=(1, 0.9),
             bbox_transform=plt.gcf().transFigure,
-            loc="upper right",
+            loc="upper left",
+            frameon=False,
+            edgecolor="#FFFFFF",
+            fontsize=10,
         )
+        # set legend title size
+        plt.setp(plt.gca().get_legend().get_title(), fontsize=10)
 
         # plt.show()
         # return dendrogram_linkage
         return
 
-    def save_clustermap(self, fmt="pdf"):
-        out_file = f"clustermap_{self.method}_{self.metric}.pdf"
+    def save_clustermap(self, fmt="png"):
+        out_file = f"clustermap_{self.method}_{self.metric}.{fmt}"
         # self.clusterfig.savefig(out_file, format=fmt)
         self.clustermap.savefig(out_file, format=fmt)
         # plt.savefig(out_file, format=fmt)
@@ -178,18 +212,22 @@ class ClusterMap:
         return self.clustermap.dendrogram_row.linkage
 
     def get_colordict(self):
-        colordict = {
-            "Terpenoids": sns.color_palette("Set3")[6],  # green
-            "Alkaloids": sns.color_palette("Set3")[9],  # purple
-            "Shikimates and Phenylpropanoids": sns.color_palette("Set3")[4],  # blue
-            "Fatty acids": sns.color_palette("Set3")[5],  # orange
-            "Carbohydrates": sns.color_palette("Set3")[7],  # pink
-            "Polyketides": sns.color_palette("Set3")[3],  # light red
-            "Amino acids and Peptides": "bisque",
-            # "No NP-Classifier prediction": "grey",
-            "None": "grey",
-            "Synthetic": "black",
-        }
+        # colordict = {
+        #     "Terpenoids": sns.color_palette("Set3")[6],  # green
+        #     "Alkaloids": sns.color_palette("Set3")[9],  # purple
+        #     "Shikimates and Phenylpropanoids": sns.color_palette("Set3")[4],  # blue
+        #     "Fatty acids": sns.color_palette("Set3")[5],  # orange
+        #     "Carbohydrates": sns.color_palette("Set3")[7],  # pink
+        #     "Polyketides": sns.color_palette("Set3")[3],  # light red
+        #     "Amino acids and Peptides": "bisque",
+        #     # "No NP-Classifier prediction": "grey",
+        #     "None": "grey",
+        #     "Synthetic": "black",
+        # }
+        if self.labels[0][0].isupper():
+            colordict = colourDict["NPClassifier prediction"]
+        else:
+            colordict = colourDict["chebi class"]
         return colordict
 
     def _get_category_colors_handles(self, categories: pd.Series):
@@ -205,6 +243,23 @@ class ClusterMap:
         handles = self.colordict
         return network_colors, handles
 
+    def _set_substructure_colours(self):
+        pathways = get_pathway()
+        substructures = self.df.columns
+        subs_to_pathways = {a: b for a, b in zip(substructures, pathways)}
+        ticklabels = self.clustermap.ax_heatmap.get_xticklabels()
+        # access text from ticklabels
+        pathways = [subs_to_pathways[x.get_text()] for x in ticklabels]
+        if len(pathways) != len(ticklabels):
+            logging.warning(
+                f"cannot set {pathways} substructure for {ticklabels} colours"
+            )
+            return None
+        else:
+            set_label_colors_from_categories(
+                ticklabels, pathways, colourDict["pathways"]
+            )
+
 
 def _cmap_makezerowhite(default_cmap: str = "mako"):
     # define color map:-------------------------------------------------
@@ -219,11 +274,12 @@ def _cmap_makezerowhite(default_cmap: str = "mako"):
 
 
 def main():
+    set_style()
     args = cli()
 
-    filetype = "pdf"
+    filetype = "png"
     # version = input_file.split("/")[-1].split("_")[-1].split(".")[0]
-    substructure_names = fpVersions[defaultVersion]
+    substructure_names = [x.replace("_", " ") for x in get_names()]
 
     fp = pd.read_csv(args.fingerprints, sep=",", header=None, dtype=int)
     if fp.shape[1] == len(substructure_names):
@@ -244,8 +300,8 @@ def main():
     fp = fp[~npcs[0].str.contains(",")]
     npcs = npcs[~npcs[0].str.contains(",")]
 
-    # filter out only-zero columns in df ~~~~~~~~~~~~~~~ CHECK IF THIS APPLIES TO YOUR PURPOSES ~~~~~~~~~~~~~~~
-    fp = fp.loc[:, (fp != 0).any(axis=0)]
+    # # filter out only-zero columns in df ~~~~~~~~~~~~~~~ CHECK IF THIS APPLIES TO YOUR PURPOSES ~~~~~~~~~~~~~~~
+    # fp = fp.loc[:, (fp != 0).any(axis=0)]
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # subsample indexes
@@ -271,11 +327,15 @@ def main():
     #     synthetic_labels = np.array(["synthetic" for _ in range(synthetic_fp.shape[0])])
     #     labels = np.concatenate((labels, synthetic_labels))
 
-    cwd = os.getcwd()
+    iwd = os.getcwd()
     # make a directory in grandparent directory called clustermaps
     # os.chdir("../../")
     os.makedirs(f"clustermaps/{db_name}/{fp_name}", exist_ok=True)
-    os.chdir("clustermaps")
+    os.chdir(f"clustermaps/{db_name}/{fp_name}")
+
+    # # debugging
+    # clustermap = ClusterMap(fp, npcs_series, "euclidean", "average")
+    # clustermap.save_clustermap(fmt=filetype)
 
     for method in tqdm(["average", "complete", "single", "weighted"]):
         for metric in tqdm(
@@ -306,11 +366,11 @@ def main():
                 clustermap = ClusterMap(fp, npcs_series, metric, method)
                 clustermap.save_clustermap(fmt=filetype)
             except:
-                print(f"failed for {method} and {metric}")
+                logging.warning(f"failed for {method} and {metric}")
             pass
         pass
 
-    os.chdir(cwd)
+    os.chdir(iwd)
     return None
 
 
