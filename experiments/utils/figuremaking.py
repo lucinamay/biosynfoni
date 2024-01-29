@@ -21,9 +21,6 @@ import numpy as np
 import pandas as pd
 
 from utils.colours import colourDict
-from utils import set_style
-
-set_style()
 
 
 def custom_cmap(default_cmap, last_color=None, first_color=None):
