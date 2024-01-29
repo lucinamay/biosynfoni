@@ -17,6 +17,7 @@ import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
 from utils.figuremaking import scatter, savefig
+from utils import set_style
 
 
 def __counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
@@ -219,6 +220,7 @@ def save_tsne_settings(
 
 
 def main():
+    set_style()
     logging.info("hello")
     logging.getLogger().setLevel(logging.INFO)
     fingerprintfile = argv[1]
