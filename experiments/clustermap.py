@@ -295,6 +295,8 @@ def main():
         usecols=[0],
     )
 
+    # as all isoprenoids are fatty acids according to chebi:
+    npcs.replace("fatty_acid,isoprenoid", "isoprenoid", inplace=True)
     # filter out multiple-prediction compounds
     npcs.fillna(",", inplace=True)
     fp = fp[~npcs[0].str.contains(",")]
@@ -341,23 +343,23 @@ def main():
         for metric in tqdm(
             [
                 "euclidean",
-                "cityblock",
-                "cosine",
-                "correlation",
-                "hamming",
-                "jaccard",
-                "mahalanobis",
-                "chebyshev",
-                "canberra",
-                "braycurtis",
-                "dice",
-                "kulsinski",
-                "matching",
-                "rogerstanimoto",
-                "russellrao",
-                "sokalmichener",
-                "sokalsneath",
-                "yule",
+                # "cityblock",
+                # "cosine",
+                # "correlation",
+                # "hamming",
+                # "jaccard",
+                # "mahalanobis",
+                # "chebyshev",
+                # "canberra",
+                # "braycurtis",
+                # "dice",
+                # "kulsinski",
+                # "matching",
+                # "rogerstanimoto",
+                # "russellrao",
+                # "sokalmichener",
+                # "sokalsneath",
+                # "yule",
             ],
             leave=False,
         ):
