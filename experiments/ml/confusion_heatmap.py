@@ -182,7 +182,9 @@ def main():
     save_path = "/".join(m_path.split("/")[:-1])
     print(m_path, save_path)
     # save figure
-    plt.savefig(f"{save_path}/cms_{ml_input}.png", dpi=500, bbox_inches="tight")
+    plt.savefig(
+        m_path.replace("_matrix.txt", "_heatmap.png"), dpi=500, bbox_inches="tight"
+    )
     plt.clf()
     plt.close()
     exit(0)
