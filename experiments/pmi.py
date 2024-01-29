@@ -188,6 +188,9 @@ def main() -> None:
     # subsample 1000
     # fps = fps[:1000]
 
+    # # set all >1 to 1
+    # fps[fps > 1] = 1
+
     # Count the number of times each bit is set.
     cx = Counter()
     cxy = Counter()
@@ -252,7 +255,7 @@ def main() -> None:
     plt.ylabel("Bit 1")
     plt.xlabel("Bit 2")
     plt.title(
-        f"Pointwise Mutual Information - non-overlap Biosynfoni on COCONUT", size=16
+        f"Pointwise Mutual Information - non-overlap Biosynfoni on COCONUT", size=12
     )
     # plt.title(f"Pointwise Mutual Information - {title_text}", size=22)
 
@@ -261,7 +264,7 @@ def main() -> None:
 
     # get a correlation heatmap as well
     corr_hm = correlation_heatmap(fps)
-    plt.title("Pearson correlation - non-overlap Biosynfoni on COCONUT", size=16)
+    plt.title("Pearson correlation - non-overlap Biosynfoni on COCONUT", size=12)
     plt.savefig(args.o.replace(".png", "_correlation.png"), bbox_inches="tight")
     plt.close()
 
