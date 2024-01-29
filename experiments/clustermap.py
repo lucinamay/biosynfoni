@@ -40,19 +40,10 @@ def cli():
         help="seed for subsampling",
         default=None,
     )
-    parser.add_argument(
-        "-S",
-        "--synthetic compounds",
-        required=False,
-        type=str,
-        help="path to synthetic compounds file",
-        default=None,
-    )
+
     args = parser.parse_args()
     args.fingerprints = os.path.abspath(args.fingerprints)
     args.labels = os.path.abspath(args.labels)
-    if args.synthetic:
-        args.synthetic = os.path.abspath(args.synthetic)
     return args
 
 
