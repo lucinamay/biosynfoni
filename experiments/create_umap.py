@@ -393,7 +393,7 @@ def main():
             figtitle=f"UMAP of {fp_name} labeled by npclassifier predictions",
             s=2,
         )
-        savefig(sb, f"umap_{fp_name}_additional.png")
+        savefig(sb, f"umap_additional.png")
         df["class"] = labels
         df["class_2"] = labels2
     df.to_csv("embedding.tsv", sep="\t", index=True)
