@@ -5,7 +5,7 @@ Created on Sun Oct  1 21:53:10 2023
 @author: lucina-may
 """
 
-import sys, os, logging
+import sys, os, logging, tracemalloc
 from sys import argv
 from datetime import datetime
 from time import perf_counter
@@ -221,6 +221,7 @@ def save_tsne_settings(
 
 def main():
     set_style()
+    tracemalloc.start()
     logging.info("hello")
     logging.getLogger().setLevel(logging.INFO)
     fingerprintfile = argv[1]
@@ -265,8 +266,10 @@ def main():
         n_iter=tsne_settings["n_iter"],
         fp_name=fp_name,
     )
-
+    tracemalloc.stop()
     logging.info("done")
+    _, peak = tracemalloc.get_traced_memory()
+    np.savetxt("peak_memory.txt", [peak / 10**6], fmt="%.4f")
     os.chdir(iwd)
     exit(0)
     return None

@@ -194,7 +194,7 @@ class ClusterMap:
         # return dendrogram_linkage
         return
 
-    def save_clustermap(self, fmt="png"):
+    def save_clustermap(self, fmt="svg"):
         out_file = f"clustermap_{self.method}_{self.metric}.{fmt}"
         # self.clusterfig.savefig(out_file, format=fmt)
         self.clustermap.savefig(out_file, format=fmt)
@@ -274,7 +274,7 @@ def main():
     set_style()
     args = cli()
 
-    filetype = "png"
+    filetype = "svg"
     # version = input_file.split("/")[-1].split("_")[-1].split(".")[0]
     substructure_names = [x.replace("_", " ") for x in get_names()]
 

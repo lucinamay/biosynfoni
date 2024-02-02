@@ -26,15 +26,15 @@ def cli():
         help="fingerprints of synthetic compounds",
     )
     parser.add_argument(
-        "-o", "--output", required=False, default="umap.png", help="Output file"
+        "-o", "--output", required=False, default="umap.svg", help="Output file"
     )
     parser.add_argument(
         "-a", "--additional", required=False, help="Additional labels file"
     )
 
     args = parser.parse_args()
-    if not args.output.endswith(".png"):
-        args.output = f"{args.output}.png"
+    if not "." in args.output:
+        args.output = f"{args.output}.svg"
 
     args.fingerprint = os.path.abspath(args.fingerprint)
     args.labels = os.path.abspath(args.labels)
@@ -405,7 +405,7 @@ def main():
             # s=3,
             # figsize=(6, 10),
         )
-        savefig(sb, f"umap_additional.png")
+        savefig(sb, f"umap_additional.svg")
         df["class"] = labels
         df["class_2"] = labels2
     df.to_csv("embedding.tsv", sep="\t", index=True)
