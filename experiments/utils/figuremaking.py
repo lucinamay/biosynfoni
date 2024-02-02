@@ -13,6 +13,7 @@ ____________________________________
 
 description: functions for figuremaking
 """
+
 import logging
 
 import matplotlib as mpl
@@ -23,8 +24,19 @@ import pandas as pd
 from utils.colours import colourDict
 
 
+def savefig(fig, filename):
+    if not "." in filename:
+        filename = f"{filename}.png"
+    fig.savefig(filename, dpi=500)
+    plt.close(fig)
+    return None
+
+
 def custom_cmap(default_cmap, last_color=None, first_color=None):
-    cmap = mpl.colormaps[default_cmap]
+    if not isinstance(default_cmap, mpl.colors.Colormap):
+        cmap = mpl.colormaps[default_cmap]
+    else:
+        cmap = default_cmap
     # extract all colors from the .jet map
     cmaplist = [cmap(i) for i in range(cmap.N)]
     # force the first color entry to be grey
@@ -36,6 +48,15 @@ def custom_cmap(default_cmap, last_color=None, first_color=None):
     # create the new map
     cmap = mpl.colors.LinearSegmentedColormap.from_list("Custom cmap", cmaplist, cmap.N)
     return cmap
+
+
+def cleanfmt(text):
+    if isinstance(text, str):
+        return text.replace("_", " ").lower()
+    elif isinstance(text, list):
+        return [x.replace("_", " ").lower() for x in text]
+    else:
+        return text
 
 
 def heatmap(
@@ -85,8 +106,8 @@ def heatmap(
     cbar.outline.set_visible(False)
 
     # Show all ticks and label them with the respective list entries.
-    ax.set_xticks(np.arange(data.shape[1]), labels=col_labels, size=6)
-    ax.set_yticks(np.arange(data.shape[0]), labels=row_labels, size=6)
+    ax.set_xticks(np.arange(data.shape[1]), labels=cleanfmt(col_labels), size=6)
+    ax.set_yticks(np.arange(data.shape[0]), labels=cleanfmt(row_labels), size=6)
     # ax.set_yticks([])
 
     # Let the horizontal axes labeling appear on bottom (default)
@@ -94,7 +115,13 @@ def heatmap(
     ax.tick_params(pad=0.5)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=30, ha="right", rotation_mode="anchor")
+    plt.setp(
+        ax.get_xticklabels(),
+        rotation=90,
+        ha="right",
+        va="center",
+        rotation_mode="anchor",
+    )
 
     # Turn spines off and create white grid.
     ax.spines[:].set_visible(False)
@@ -374,11 +401,10 @@ def scatter_boxplots(
     # linewidth = 1
 
     # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
-    sc_ax.set_xlabel("col_x", labelpad=10)
-    sc_ax.set_xlabel(col_x, labelpad=10)
-    sc_ax.set_ylabel(col_y, labelpad=10)
+    sc_ax.set_xlabel(cleanfmt(col_x), labelpad=10)
+    sc_ax.set_ylabel(cleanfmt(col_y), labelpad=10)
     # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
-    top_bp_ax.set_title(figtitle, loc="center", pad=20)
+    top_bp_ax.set_title(cleanfmt(figtitle), loc="center", pad=20)
 
     sc_ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
     gs.tight_layout(fig)
@@ -398,7 +424,12 @@ def scatter(
     *args,
     **kwargs,
 ) -> plt.Figure:
-    fig = plt.figure(figsize=(2, 2))
+    # check if figsize is given in kwargs, if not, set default figsize
+    if "figsize" not in kwargs:
+        kwargs["figsize"] = (2, 2)
+    fig = plt.figure(figsize=kwargs["figsize"])
+    # remove figsize from kwargs, so it doesn't get passed to scatterplot
+    kwargs.pop("figsize", None)
     fig, ax = plt.subplots()
 
     # Set aspect of the Axes manually to have points on 0 and 1 show better
@@ -462,7 +493,7 @@ def scatter(
 
     # ==================================================
 
-    ax.legend(loc="lower left", prop={"size": 6}, frameon=False)
+    ax.legend(loc="lower left", prop={"size": 6}, frameon=True, edgecolor="#FFFFFFAA")
 
     # # info for square drawing
     # squareside = 0.2
@@ -471,10 +502,10 @@ def scatter(
     # linewidth = 1
 
     # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
-    ax.set_xlabel(col_x, labelpad=10)
-    ax.set_ylabel(col_y, labelpad=10)
+    ax.set_xlabel(cleanfmt(col_x), labelpad=10)
+    ax.set_ylabel(cleanfmt(col_y), labelpad=10)
     # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
-    ax.set_title(figtitle, loc="center", pad=20)
+    ax.set_title(cleanfmt(figtitle), loc="center", pad=20)
 
     ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
 
@@ -485,14 +516,6 @@ def scatter(
     # plt.savefig(f"{filename}.png", dpi=500)
     # fig.close()
     return fig
-
-
-def savefig(fig, filename):
-    if not filename.endswith(".png"):
-        filename = f"{filename}.png"
-    fig.savefig(filename, dpi=500)
-    plt.close(fig)
-    return None
 
 
 def scatter_3d(df, col1, col2, col3, m="o"):
