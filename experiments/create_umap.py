@@ -1,4 +1,4 @@
-import argparse, logging, os
+import argparse, logging, os, tracemalloc
 from time import perf_counter
 
 import numpy as np
@@ -352,18 +352,28 @@ def main():
 
     if args.synthetic:
         s_label = label_to_idx["synthetic"]
-        # fit an embedding to data except class 6
+        tracemalloc.start()
         tic = perf_counter()
+        # fit an embedding to data except class 6
         embedding = reducer.fit_transform(fp[labels_i != s_label])
         toc = perf_counter()
+        tracemalloc.stop()
         # show class 6 on that embedding
         embedding = reducer.transform(fp)
     else:
+        tracemalloc.start()
         tic = perf_counter()
         embedding = reducer.fit_transform(fp)
         toc = perf_counter()
+        tracemalloc.stop()
+
+    curr, peak = tracemalloc.get_traced_memory()
 
     logging.info(f"umap took {toc - tic:0.4f} seconds")
+    logging.info(f"Current memory usage is {curr / 10**6}MB; Peak was {peak / 10**6}MB")
+    np.savetxt(
+        "time_peakmem.tsv", [(toc - tic), (peak / 10**6)], delimiter="\t", fmt="%.4f"
+    )
     # save loadings of the embedding
     np.savetxt("loadings.txt", reducer.embedding_, fmt="%s")
 
@@ -379,8 +389,9 @@ def main():
         col_x="UMAP 0",
         col_y="UMAP 1",
         color_by="class",
-        figtitle=f"UMAP of {fp_name}",
-        s=2,
+        figtitle=f"UMAP of {fp_name.replace('_', ' ')}",
+        # s=3,
+        # figsize=(6, 10),
     )
     savefig(sb, args.output)
     if args.additional:
@@ -390,8 +401,9 @@ def main():
             col_x="UMAP 0",
             col_y="UMAP 1",
             color_by="class",
-            figtitle=f"UMAP of {fp_name} labeled by npclassifier predictions",
-            s=2,
+            figtitle=f"UMAP of {fp_name.replace('_', ' ')} labeled by npclassifier predictions",
+            # s=3,
+            # figsize=(6, 10),
         )
         savefig(sb, f"umap_additional.png")
         df["class"] = labels
