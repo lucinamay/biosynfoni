@@ -26,7 +26,7 @@ from utils.colours import colourDict
 
 def savefig(fig, filename):
     if not "." in filename:
-        filename = f"{filename}.png"
+        filename = f"{filename}.svg"
     fig.savefig(filename, dpi=500)
     plt.close(fig)
     return None
