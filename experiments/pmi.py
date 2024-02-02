@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, logging
+import argparse, logging, os
 import math
 from collections import Counter
 
@@ -18,7 +18,10 @@ def cli() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", required=True, type=str)
     parser.add_argument("-o", required=True, type=str)
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.i = os.path.abspath(args.i)
+    args.o = os.path.abspath(args.o)
+    return args
 
 
 def parse_fingerprints(path: str) -> np.array:
@@ -181,7 +184,7 @@ def correlation_heatmap(fps: np.array) -> None:
 def main() -> None:
     args = cli()
     fps = parse_fingerprints(args.i)
-    title_text = args.o.replace(".png", "").replace("_", " ")
+    title_text = args.o.split(".")[0].replace("_", " ")
 
     set_style()
 
@@ -254,19 +257,21 @@ def main() -> None:
 
     plt.ylabel("Bit 1")
     plt.xlabel("Bit 2")
+    fp_name = " ".join(args.i.split("/")[-1].split(".")[0].split("_")[1:])
+    set_name = args.i.split("/")[-1].split(".")[0].split("_")[0]
     plt.title(
-        f"Pointwise Mutual Information - non-overlap Biosynfoni on COCONUT", size=12
+        f"Pointwise Mutual Information - {fp_name} substructures in {set_name}", size=12
     )
     # plt.title(f"Pointwise Mutual Information - {title_text}", size=22)
 
     plt.savefig(args.o, bbox_inches="tight")
     plt.close()
 
-    # get a correlation heatmap as well
-    corr_hm = correlation_heatmap(fps)
-    plt.title("Pearson correlation - non-overlap Biosynfoni on COCONUT", size=12)
-    plt.savefig(args.o.replace(".png", "_correlation.png"), bbox_inches="tight")
-    plt.close()
+    # # get a correlation heatmap as well
+    # corr_hm = correlation_heatmap(fps)
+    # plt.title("Pearson correlation - non-overlap Biosynfoni on COCONUT", size=12)
+    # plt.savefig(args.o.replace(".png", "_correlation.png"), bbox_inches="tight")
+    # plt.close()
 
     exit(0)
 
