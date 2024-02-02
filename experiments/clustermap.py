@@ -67,13 +67,14 @@ class ClusterMap:
         self.colordict = self.get_colordict()
         self.metric = metric
         self.method = method
-        # calculations:
+        logging.debug(f"calculating distances with {metric} and {method}...")
         self.distances = self.get_distances()
         self.clustering = self.get_clustering()
         # self.distances = None
         # self.clustering = None
         # self.tree = self.get_tree()
         self.colors, self.handles = self._get_category_colors_handles(self.labels)
+        logging.debug(f"plotting clustermap with {metric} and {method}...")
         self.clustermap = self.seacluster()
         self.clusterfig = self.get_clusterplot()
         plt.close()
