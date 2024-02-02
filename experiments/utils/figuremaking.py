@@ -54,7 +54,13 @@ def cleanfmt(text):
     if isinstance(text, str):
         return text.replace("_", " ").lower()
     elif isinstance(text, list):
-        return [x.replace("_", " ").lower() for x in text]
+        newtext = []
+        for t in text:
+            if isinstance(t, str):
+                newtext.append(t.replace("_", " ").lower())
+            else:
+                newtext.append(t)
+        return newtext
     else:
         return text
 
