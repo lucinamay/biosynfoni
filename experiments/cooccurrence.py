@@ -80,7 +80,7 @@ def main():
     # data = np.loadtxt("data.txt", delimiter=",", skiprows=1)
 
     # Test the function
-    # array = np.random.negative_binomial(1, 0.1, 1000)
+    array = np.random.negative_binomial(1, 0.1, 1000)
 
     print(check_cooccurrence(array))
     # plot the array

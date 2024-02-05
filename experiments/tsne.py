@@ -21,6 +21,9 @@ from utils import set_style
 
 
 def __counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
+    """
+    Counted Tanimoto similarity taken from biosynfoni.fingerprints
+    """
     nom = sum(np.minimum(fp1, fp2))  # overlap
     denom = float(sum(np.maximum(fp1, fp2)))  # all bits that are 'on'
     if denom == 0:
@@ -30,10 +33,12 @@ def __counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
 
 
 def _countanimoto(fps: list) -> float:
+    """Counted Tanimoto similarity of list of two fingerprints"""
     return __counted_tanimoto_sim(np.array(fps[0]), np.array(fps[1]))
 
 
 def outfile_namer(filename: str) -> str:
+    "returns a filename with MMDD_ prefix"
     # get MMDD
     now = datetime.now()
     mmdd = now.strftime("%m%d")
@@ -41,14 +46,17 @@ def outfile_namer(filename: str) -> str:
 
 
 def fps_to_array(fingerprint_file: str) -> np.array:
+    """returns numpy array of fingerprint file"""
     return np.loadtxt(fingerprint_file, delimiter=",", dtype=int)
 
 
 def labels_to_array(label_file: str) -> np.array:
+    """returns numpy array of label file"""
     return np.loadtxt(label_file, delimiter="\t", dtype=str)
 
 
 def filter_fps(fps: np.array, labels: np.array) -> tuple[np.array, np.array]:
+    """removes empty labels and fingerprints"""
     labels = np.where(labels == "", "None", labels)
     labels = np.where(labels == "fatty_acid,isoprenoid", "isoprenoid", labels)
     idx = np.where(["," not in label for label in labels])
@@ -58,7 +66,21 @@ def filter_fps(fps: np.array, labels: np.array) -> tuple[np.array, np.array]:
 
 
 def pcaer(data: np.array, n_components: int = 50, random_state=1):
-    "random_state: Pass an int for reproducible results across multiple function calls."
+    """
+    PCA of data
+
+        Args:
+            data: numpy array of data
+            n_components: int, default=50
+            random_state: int, default=1
+        Returns:
+            pcaed: numpy array of PCA transformed data
+            var: numpy array of explained variance ratios
+
+    Remarks:
+        - loadings are written to file
+        -  random_state: Pass an int for reproducible results across multiple function calls.
+    """
     pca = PCA(n_components=n_components, random_state=random_state)
     pca.fit(data)
     pcaed = pca.transform(data)
@@ -91,6 +113,19 @@ def tsner(
     *args,
     **kwargs,
 ) -> pd.DataFrame:
+    """
+    tSNE of data
+
+    Args:
+        data: numpy array of data
+        n_components: int, default=2
+        perplexity: int, default=40
+        n_iter: int, default=300
+        *args: additional arguments to pass to TSNE
+        **kwargs: additional keyword arguments to pass to TSNE
+    Returns:
+        df: pandas DataFrame of tSNE transformed data's first two components
+    """
     # tsne = TSNE(n_components=n_components, *args, **kwargs)
     tsne = TSNE(
         n_components=n_components, perplexity=perplexity, n_iter=n_iter, *args, **kwargs
@@ -104,6 +139,7 @@ def tsner(
 
 
 def get_first_ncps_est(annotfile: str):
+    """Get the first class from first column of the annotation file"""
     npcs = []
     # with open('../arch/0914_COCONUT_DB_rdk_npcs.tsv','r') as cl:
     with open(annotfile, "r") as cl:
@@ -113,18 +149,26 @@ def get_first_ncps_est(annotfile: str):
 
 
 def annotate_df(df: pd.DataFrame, col: str, annot: list) -> pd.DataFrame:
+    """Annotate a dataframe with a list of annotations"""
     df[col] = annot
     df[col] = df[col].replace("", "None")
     return df
 
 
-def get_subset(df: pd.DataFrame, n: int = 10000) -> pd.DataFrame:  # remove
-    subset_df = df.sample(n=n)
-    # print(subset_df.index().tolist)
-    return subset_df
-
-
 def pca_plot(arr, labels: list[str], fp_name="biosynfoni") -> None:
+    """
+    Plot PCA of array
+
+        Args:
+            arr: numpy array of data
+            labels: list of labels
+            fp_name: str, default="biosynfoni"
+        Returns:
+            None
+
+    Remarks:
+        - saves pca plot to file with util.figuremaking.savefig
+    """
     # pca
     logging.info("starting pca...")
     n_components = len(arr[0])
@@ -153,7 +197,6 @@ def pcaed_tsne(
     arr: np.array,
     labels: list[str],
     metric: str = "euclidean",
-    # initial_pca_components: int = 10,
     verbose: int = 0,
     fp_name: str = "biosynfoni",
     perplexity: int = 50,
@@ -161,14 +204,29 @@ def pcaed_tsne(
     *args,
     **kwargs,
 ) -> None:
-    # run initial pca to reduce computational time
+    """
+    Plot tSNE of array (2 components, unchangeable)
+
+        Args:
+            arr: numpy array of data
+            labels: list of labels
+            metric: str, default="euclidean"
+            initial_pca_components: int, default=10
+            verbose: int, default=0
+            fp_name: str, default="biosynfoni"
+            perplexity: int, default=50
+            n_iter: int, default=500
+            *args: additional arguments to pass to TSNE
+            **kwargs: additional keyword arguments to pass to TSNE
+        Returns:
+            None
+
+    Remarks:
+        - saves tSNE plot to file with util.figuremaking.savefig
+        - will run pca if arr.shape[1] > 39 to have same number of components as biosynfoni
+    """
+
     n_components = 39  # to mimic biosynfoni
-
-    # print("running pca for initialisation...")
-    # pcaed, _ = pcaer(arr, n_components=n_components, random_state=333)
-
-    # start with array:
-    # pcaed = arr
     arr = distance_matrix(arr, metric="euclidean")
     time_add = 0
     if arr.shape[1] > n_components:
@@ -211,6 +269,7 @@ def pcaed_tsne(
 def save_tsne_settings(
     dic: dict, filename: str = "tsne_settings", extra: str = ""
 ) -> None:
+    """Save settings to file"""
     with open(f"{filename}.txt", "w") as s:
         for key, val in dic.items():
             s.write(f"{key}:\t{val}\n")

@@ -11,7 +11,9 @@ RDLogger.DisableLog("rdApp.*")
 
 
 def cli():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Extracts a property from an sdf file and writes it to a tsv file."
+    )
     parser.add_argument(
         "sdf_path",
         type=str,
@@ -35,10 +37,15 @@ def cli():
         help="if flag is set, write index of molecule to file",
     )
     args = parser.parse_args()
+
+    args.sdf_path = os.path.abspath(args.sdf_path)
     return args
 
 
 def sdf_prop_getter(supplier_path: str, prop_name: str = "coconut_id") -> list:
+    """
+    Get a property from an sdf file.
+    """
     with Chem.SDMolSupplier(supplier_path) as supl:
         for i, mol in tqdm(enumerate(supl), total=len(supl)):
             if mol is not None:
@@ -54,12 +61,9 @@ def sdf_prop_getter(supplier_path: str, prop_name: str = "coconut_id") -> list:
 def main():
     args = cli()
 
-    # get absolute path
-    sdf_path = os.path.abspath(args.sdf_path)
-
     # read sdf
     props = []
-    for i, prop in sdf_prop_getter(sdf_path, prop_name=args.prop_name):
+    for i, prop in sdf_prop_getter(args.sdf_path, prop_name=args.prop_name):
         if prop is None:
             with open(args.o.replace(".tsv", ".err"), "a") as f:
                 f.write(f"{i}\n")

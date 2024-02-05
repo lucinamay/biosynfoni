@@ -25,14 +25,37 @@ from utils.colours import colourDict
 
 
 def savefig(fig, filename):
+    """
+    Save a figure to a file
+
+        Args:
+            fig (matplotlib.figure.Figure): figure to save
+            filename (str): filename to save to
+
+        Returns:
+            None
+    """
     if not "." in filename:
-        filename = f"{filename}.svg"
+        filename = f"{filename}.png"
     fig.savefig(filename, dpi=500)
+    fig.savefig(f"{filename.split('.')[0]}.png", dpi=500)
     plt.close(fig)
     return None
 
 
 def custom_cmap(default_cmap, last_color=None, first_color=None):
+    """
+    Edit a colormap to have a specific first and last color
+
+        Args:
+            default_cmap (str): name of the colormap to edit
+            last_color (bool): if True, the last color is set to white
+            first_color (bool): if True, the first color is set to white
+
+        Returns:
+            matplotlib.colors.Colormap: the edited colormap
+
+    """
     if not isinstance(default_cmap, mpl.colors.Colormap):
         cmap = mpl.colormaps[default_cmap]
     else:
@@ -51,6 +74,19 @@ def custom_cmap(default_cmap, last_color=None, first_color=None):
 
 
 def cleanfmt(text):
+    """
+    Clean a string or list of strings to be used as labels in a plot
+
+        Args:
+            text (str or list): text to clean
+
+        Returns:
+            str or list: cleaned text
+
+    Remarks:
+        - replaces underscores with spaces
+        - makes all text lowercase
+    """
     if isinstance(text, str):
         return text.replace("_", " ").lower()
     elif isinstance(text, list):
@@ -77,23 +113,23 @@ def heatmap(
     """
     Create a heatmap from a numpy array and two lists of labels.
 
-    Parameters
-    ----------
-    data
-        A 2D numpy array of shape (M, N).
-    row_labels
-        A list or array of length M with the labels for the rows.
-    col_labels
-        A list or array of length N with the labels for the columns.
-    ax
-        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
-        not provided, use current axes or create a new one.  Optional.
-    cbar_kw
-        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
-    cbarlabel
-        The label for the colorbar.  Optional.
-    **kwargs
-        All other arguments are forwarded to `imshow`.
+        Args:
+            data (np.array): 2D array of data for heatmap
+            row_labels (list): list of labels for the rows
+            col_labels (list): list of labels for the columns
+            ax (matplotlib.axes.Axes): a `matplotlib.axes.Axes` object, optional
+            cbar_kw (dict): a dictionary with arguments to pass to `cbar` when creating the colorbar, optional
+            cbarlabel (str): label for the colorbar, optional
+            **kwargs: other arguments are forwarded to `imshow`
+
+        Returns:
+            matplotlib.image.AxesImage: the heatmap
+            matplotlib.colorbar.Colorbar: the colorbar
+
+    Remarks:
+        - adapted from https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
+
+    reate a heatmap from a numpy array and two lists of labels.
     """
 
     if ax is None:
@@ -150,28 +186,23 @@ def annotate_heatmap(
     **textkw,
 ):
     """
-    A function to annotate a heatmap.
+    Annotate a heatmap.
 
-    Parameters
-    ----------
-    im
-        The AxesImage to be labeled.
-    data
-        Data used to annotate.  If None, the image's data is used.  Optional.
-    valfmt
-        The format of the annotations inside the heatmap.  This should either
-        use the string format method, e.g. "$ {x:.2f}", or be a
-        `matplotlib.ticker.Formatter`.  Optional.
-    textcolors
-        A pair of colors.  The first is used for values below a threshold,
-        the second for those above.  Optional.
-    threshold
-        Value in data units according to which the colors from textcolors are
-        applied.  If None (the default) uses the middle of the colormap as
-        separation.  Optional.
-    **kwargs
-        All other arguments are forwarded to each call to `text` used to create
-        the text labels.
+        Args:
+            im (matplotlib.image.AxesImage): the heatmap to be labeled
+            data (np.array): data used to annotate, optional
+            valfmt (str): the format of the annotations inside the heatmap, optional
+            textcolors (tuple): a pair of colors. The first is used for values below a threshold, the second for those above, optional
+            threshold (float): value in data units according to which the colors from textcolors are applied. If None (the default) uses the middle of the colormap as separation, optional
+            shift (int): shift the annotations by a certain amount, optional
+            **kwargs: all other arguments are forwarded to each call to `text` used to create the text labels
+
+        Returns:
+            list: the text labels
+
+    Remarks:
+        - adapted from https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
+
     """
 
     if not isinstance(data, (list, np.ndarray)):
@@ -269,7 +300,25 @@ def annotate_heatmap(
 #     return texts
 
 
-def _set_ax_boxplot_i_colour(ax_boxplot, i, colour, inner_alpha=0.6):
+def _set_ax_boxplot_i_colour(
+    ax_boxplot: matplotlib.container.BarContainer,
+    i: int,
+    colour: str,
+    inner_alpha: float = 0.6,
+):
+    """
+    Set the colour of a boxplot element
+
+        Args:
+            ax_boxplot (matplotlib.container.BarContainer): the boxplot to change
+            i (int): the index of the element to change
+            colour (str): the colour to change to
+            inner_alpha (float): the alpha of the inner colour, optional. Default is 0.6
+
+        Returns:
+            matplotlib.container.BarContainer: the changed boxplot
+
+    """
     translucent = mpl.colors.to_rgba(colour, inner_alpha)
 
     ax_boxplot["boxes"][i].set_facecolor(translucent)
@@ -292,6 +341,21 @@ def scatter_boxplots(
     *args,
     **kwargs,
 ) -> plt.Figure:
+    """
+    Make a scatterplot with boxplots on the axes
+
+        Args:
+            df (pd.DataFrame): dataframe to plot
+            col_x (str): column to plot on the x-axis
+            col_y (str): column to plot on the y-axis
+            figtitle (str): title of the figure
+            color_by (str): column to colour by, optional. Default is "stepnum"
+            *args: other arguments to pass to scatterplot
+            **kwargs: other keyword arguments to pass to scatterplot
+        Returns:
+            plt.Figure: the figure
+
+    """
     fig = plt.figure()
     # fig, ax = plt.subplots()
     # add gridspec for subplots
@@ -415,9 +479,6 @@ def scatter_boxplots(
     sc_ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
     gs.tight_layout(fig)
 
-    # plt.show()
-    # plt.savefig(f"{filename}.png", dpi=500)
-    # fig.close()
     return fig
 
 
@@ -430,6 +491,20 @@ def scatter(
     *args,
     **kwargs,
 ) -> plt.Figure:
+    """
+    Make a scatterplot
+
+        Args:
+            df (pd.DataFrame): dataframe to plot
+            col_x (str): column to plot on the x-axis
+            col_y (str): column to plot on the y-axis
+            figtitle (str): title of the figure
+            color_by (str): column to colour by, optional. Default is "stepnum"
+            *args: other arguments to pass to scatterplot
+            **kwargs: other keyword arguments to pass to scatterplot
+        Returns:
+            plt.Figure: the figure
+    """
     # check if figsize is given in kwargs, if not, set default figsize
     if "figsize" not in kwargs:
         kwargs["figsize"] = (2, 2)
@@ -525,6 +600,20 @@ def scatter(
 
 
 def scatter_3d(df, col1, col2, col3, m="o"):
+    """
+    Make a 3D scatterplot
+
+        Args:
+            df (pd.DataFrame): dataframe to plot
+            col1 (str): column to plot on the x-axis
+            col2 (str): column to plot on the y-axis
+            col3 (str): column to plot on the z-axis
+            m (str): marker to use, optional. Default is "o"
+        Returns:
+            None
+    Remarks:
+        - under construction
+    """
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
 
@@ -538,23 +627,17 @@ def scatter_3d(df, col1, col2, col3, m="o"):
     return None
 
 
-# def violins(df):
-#     df = px.data.tips()
-#     fig = px.violin(
-#         df,
-#         y="count",
-#         x="fingerprint",
-#         color="class",
-#         box=True,
-#         points="all",
-#         hover_data=df.columns,
-#     )
-#     fig.show()
-
-#     return None
-
-
 def set_label_colors(ticklabels: list, colors: list) -> str:
+    """
+    Set the colours of labels
+
+        Args:
+            ticklabels (list): list of labels to change
+            colors (list): list of colours to change to
+
+        Returns:
+            None
+    """
     for label, color in zip(ticklabels, colors):
         # label.set_color(COLOUR_DICT[axis][label.get_text()])
         plt.setp(
@@ -572,7 +655,17 @@ def set_label_colors(ticklabels: list, colors: list) -> str:
     return None
 
 
-def cat_to_colour(categories: list, col_dict: dict) -> str:
+def cat_to_colour(categories: list, col_dict: dict) -> list[str]:
+    """
+    Convert a list of categories to a list of colours
+
+        Args:
+            categories (list): list of categories to convert
+            col_dict (dict): dictionary with categories as keys and colours as values
+
+        Returns:
+            list: list of colours
+    """
     colors = []
     for category in categories:
         if isinstance(category, list):
@@ -591,69 +684,17 @@ def cat_to_colour(categories: list, col_dict: dict) -> str:
 def set_label_colors_from_categories(
     ticklabels: list, categories: list, col_dict: list
 ) -> str:
+    """
+    Set the colours of labels from a list of categories
+
+        Args:
+            ticklabels (list): list of labels to change
+            categories (list): list of categories to convert
+            col_dict (dict): dictionary with categories as keys and colours as values
+
+        Returns:
+            None
+    """
     colors = cat_to_colour(categories, col_dict)
     set_label_colors(ticklabels, colors)
     return None
-
-
-def annotate_heatmap(
-    im,
-    data=None,
-    valfmt="{x:.2f}",
-    textcolors=("black", "white"),
-    threshold=None,
-    **textkw,
-):
-    """
-    A function to annotate a heatmap.
-
-    Parameters
-    ----------
-    im
-        The AxesImage to be labeled.
-    data
-        Data used to annotate.  If None, the image's data is used.  Optional.
-    valfmt
-        The format of the annotations inside the heatmap.  This should either
-        use the string format method, e.g. "$ {x:.2f}", or be a
-        `matplotlib.ticker.Formatter`.  Optional.
-    textcolors
-        A pair of colors.  The first is used for values below a threshold,
-        the second for those above.  Optional.
-    threshold
-        Value in data units according to which the colors from textcolors are
-        applied.  If None (the default) uses the middle of the colormap as
-        separation.  Optional.
-    **kwargs
-        All other arguments are forwarded to each call to `text` used to create
-        the text labels.
-    """
-
-    if not isinstance(data, (list, np.ndarray)):
-        data = im.get_array()
-
-    # Normalize the threshold to the images color range.
-    if threshold is not None:
-        threshold = im.norm(threshold)
-    else:
-        threshold = im.norm(data.max()) / 2.0
-
-    # Set default alignment to center, but allow it to be
-    # overwritten by textkw.
-    kw = dict(horizontalalignment="center", verticalalignment="center")
-    kw.update(textkw)
-
-    # Get the formatter in case a string is supplied
-    if isinstance(valfmt, str):
-        valfmt = mpl.ticker.StrMethodFormatter(valfmt)
-
-    # Loop over the data and create a `Text` for each "pixel".
-    # Change the text's color depending on the data.
-    texts = []
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
-            text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
-            texts.append(text)
-
-    return texts

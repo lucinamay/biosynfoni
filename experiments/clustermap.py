@@ -19,6 +19,9 @@ from utils.figuremaking import set_label_colors_from_categories
 
 
 def cli():
+    """
+    Command line interface for clustermap
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument("fingerprints", help="Fingerprint file")
@@ -81,15 +84,22 @@ class ClusterMap:
         pass
 
     def get_distances(self):
-        """calculates distance with scipy cluster hierarchy"""
+        """
+        calculates distances from data frame using metric
+        """
         return sch.distance.pdist(self.df, metric=self.metric)
 
     def set_distances(self, distances):
+        """
+        sets distances from data frame
+        """
         self.distances = distances
         return None
 
     def get_clustering(self):
-        """calculates dendogram from data frame and distances"""
+        """
+        calculates clustering from distances using method
+        """
         # plt.title(out_file)
         with recursion_depth(10000):
             clustering = sch.linkage(self.distances, method=self.method)
@@ -97,11 +107,19 @@ class ClusterMap:
         return clustering
 
     def get_tree(self):
-        return sch.dendrogram(
+        """returns dendrogram tree"""
+        tree = sch.dendrogram(
             self.clustering, leaf_font_size=2, color_threshold=4, labels=self.indexes
         )
+        return tree
 
     def seacluster(self):
+        """
+        Makes a seaborn clustermap
+
+        Returns:
+        seacluster: seaborn clustermap object
+        """
         # comp_color, comp_handles = get_gnsr_diff_color() #compounds
 
         cmap = _cmap_makezerowhite("mako")
@@ -135,7 +153,7 @@ class ClusterMap:
 
         return seacluster
 
-    def get_clusterplot(self, legend_title="class"):
+    def get_clusterplot(self, legend_title: str = "class") -> plt.gca():
         """returns plt of clustermap with legend of categories"""
 
         # plt.figure(figsize=(15,6))
@@ -192,9 +210,16 @@ class ClusterMap:
 
         # plt.show()
         # return dendrogram_linkage
-        return
+        return plt.gca()
 
-    def save_clustermap(self, fmt="svg"):
+    def save_clustermap(self, fmt: str = "svg") -> None:
+        """saves clustermap to file
+
+        Args:
+            fmt: str, file format
+        Returns:
+            None
+        """
         out_file = f"clustermap_{self.method}_{self.metric}.{fmt}"
         # self.clusterfig.savefig(out_file, format=fmt)
         self.clustermap.savefig(out_file, format=fmt)
@@ -202,13 +227,18 @@ class ClusterMap:
         return None
 
     def get_dendogram_tree(self):
-        # for cutting
+        """returns dendrogram tree object for branch cutting"""
         return self.clustermap.dendrogram_row.dendrogram
 
-    def get_dendogram_linkage(self):
+    def get_dendogram_linkage(self) -> np.ndarray:
+        """returns dendrogram linkage object"""
         return self.clustermap.dendrogram_row.linkage
 
-    def get_colordict(self):
+    def get_colordict(self) -> dict:
+        """returns colour dictionary for categories
+        Returns:
+            colordict: dict, category: color
+        """
         # colordict = {
         #     "Terpenoids": sns.color_palette("Set3")[6],  # green
         #     "Alkaloids": sns.color_palette("Set3")[9],  # purple
@@ -227,7 +257,9 @@ class ClusterMap:
             colordict = colourDict["chebi class"]
         return colordict
 
-    def _get_category_colors_handles(self, categories: pd.Series):
+    def _get_category_colors_handles(
+        self, categories: pd.Series
+    ) -> tuple[pd.DataFrame, dict]:
         """uses colour dictionary to assign colors to the categories"""
         network_dict = {}
         categories.fillna("None", inplace=True)
@@ -241,6 +273,7 @@ class ClusterMap:
         return network_colors, handles
 
     def _set_substructure_colours(self):
+        """sets substructure colours in clustermap"""
         pathways = get_pathway()
         substructures = self.df.columns
         subs_to_pathways = {a: b for a, b in zip(substructures, pathways)}
@@ -258,7 +291,9 @@ class ClusterMap:
             )
 
 
-def _cmap_makezerowhite(default_cmap: str = "mako"):
+def _cmap_makezerowhite(
+    default_cmap: str = "mako",
+) -> mpl.colors.LinearSegmentedColormap:
     # define color map:-------------------------------------------------
     cmap = sns.color_palette(default_cmap, as_cmap=True)  # define the colormap
     # extract all colors from the .jet map

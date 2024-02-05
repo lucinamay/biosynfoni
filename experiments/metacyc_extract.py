@@ -23,9 +23,22 @@ from biosynfoni.inoutput import *
 def extract_linestartswith(
     lines: list, starts: list = [], remove_starts: bool = True, strip_extra: str = " - "
 ) -> dict[list[str]]:
-    """within a collection of lines, only extracts the lines starting with
-    terms in starts, returning them as a list to accomodate multiple values
-    per entry"""
+    """
+    Extracts lines starting with terms in starts, returning them as a list to accomodate multiple values per entry
+
+        Args:
+            lines (list): list of strings
+            starts (list): list of strings to search for at the start of each line
+            remove_starts (bool): whether to remove the start of the line
+            strip_extra (str): string to strip from the start of the line
+        Returns:
+            dict: dictionary with starts as keys and lists of strings as values
+
+    Remark:
+        within a collection of lines, only extracts the lines starting with
+        terms in starts, returning them as a list to accomodate multiple values
+        per entry
+    """
     extraction = {}
     for start in starts:
         extraction[start] = []
@@ -47,6 +60,25 @@ def info_from_entries(
     remove_starts=True,
     strip_extra: str = " - ",
 ) -> pd.DataFrame:
+    """
+    Extracts information from entries in a file
+
+        Args:
+            info_loc (str): location of file
+            info2extract (list): list of strings to search for at the start of each line
+            ignore_start (str): ignore lines starting with this string
+            entry_sep (str): separator for entries
+            encoding (str): file encoding
+            remove_starts (bool): whether to remove the start of the line
+            strip_extra (str): string to strip from the start of the line
+        Returns:
+            pd.DataFrame: dataframe with info2extract as columns
+
+    Remark:
+        within a collection of lines, only extracts the lines starting with
+        terms in starts, returning them as a list to accomodate multiple values
+        per entry
+    """
     entries = entry_parser(
         readr(info_loc, ignore_start=ignore_start, encoding=encoding), sep=entry_sep
     )
@@ -85,7 +117,17 @@ get_compounds = partial(
 def _df_get_all_rxn_layouts(
     df: pd.DataFrame, column_name: str = "reaction_layout"
 ) -> pd.DataFrame:
-    """non-general function to split the reaction-layout column into reaction-id, left, direction, right"""
+    """
+    Splits the reaction-layout column into reaction-id, left, direction, right
+
+        Args:
+            df (pd.DataFrame): dataframe with reaction-layout column
+            column_name (str): name of the reaction-layout column
+        Returns:
+            pd.DataFrame: dataframe with reaction-layout column split into reaction-id, left, direction, right
+    Remark:
+        - specific to pathway-tools dataframe format (metacyc pathway file)
+    """
     # first get separate entry for each REACTION-LAYOUT
     df = df.explode(column_name)
     df["reaction_id"] = df[column_name].str.split(" ", expand=True)[0].str.strip("(")
@@ -108,7 +150,17 @@ def _df_get_all_rxn_layouts(
 def _switch_directions(
     df: pd.DataFrame, subset: tuple[str] = ("left", "right"), on: str = "direction"
 ) -> pd.DataFrame:
-    """switches left and right columns if direction is R2L"""
+    """
+    Switch left and right columns if direction is R2L
+
+        Args:
+            df (pd.DataFrame): dataframe with left, right, direction columns
+            subset (tuple): tuple of strings for left and right column names
+            on (str): name of the direction column
+        Returns:
+            pd.DataFrame: dataframe with left and right columns switched if direction is R2L
+
+    """
     left, right = subset
     df[left], df[right] = np.where(
         df[on] == "R2L", (df[right], df[left]), (df[left], df[right])
@@ -118,6 +170,7 @@ def _switch_directions(
 
 
 def _lower_dunder(df: pd.DataFrame) -> pd.DataFrame:
+    """Converts column names to lowercase and replaces - with _"""
     df.columns = df.columns.str.lower()
     df.columns = df.columns.str.replace("-", "_")
     return df
@@ -126,6 +179,7 @@ def _lower_dunder(df: pd.DataFrame) -> pd.DataFrame:
 def _remove_empties(
     df: pd.DataFrame, subset: list[str] = ["left", "right"]
 ) -> pd.DataFrame:
+    """Removes empty strings from subset columns"""
     df = df.replace(r"^\s*$", np.nan, regex=True)
     df = df.dropna(subset=subset)
     return df
@@ -134,6 +188,7 @@ def _remove_empties(
 def _remove_water(
     df: pd.DataFrame, subset: list[str] = ["left", "right"], water_str: str = "WATER"
 ) -> pd.DataFrame:
+    """Removes water from subset columns"""
     for colname in subset:
         df[colname] = df[colname].str.replace(water_str, "")
     return df
@@ -142,17 +197,20 @@ def _remove_water(
 def _filter_by_num_reactions(
     df: pd.DataFrame, min_num: int = 4, reaction_list_col="reaction_list"
 ) -> pd.DataFrame:
+    """Filters dataframe by minimum number of reactions in reaction_list_col"""
     df = df[df[reaction_list_col].str.len() >= min_num]
     return df
 
 
 def _listcell_to_strcell(df: pd.DataFrame, colname: str) -> pd.DataFrame:
+    """Converts list cell to string cell"""
     assert df[df[colname].str.len() > 1].empty, "error, multiple values in cell"
     df[colname] = df[colname].str[0]
     return df
 
 
 def _rename_col(df: pd.DataFrame, old: str, new: str) -> pd.DataFrame:
+    """Renames column in dataframe"""
     df.rename(columns={old: new}, inplace=True)
     return df
 
@@ -160,6 +218,7 @@ def _rename_col(df: pd.DataFrame, old: str, new: str) -> pd.DataFrame:
 def clean_pw_df(
     df: pd.DataFrame, min_num: int = 4, reaction_list_col="reaction_list"
 ) -> pd.DataFrame:
+    """Cleans pathway dataframe"""
     df = _lower_dunder(df)
     df = _df_get_all_rxn_layouts(df, column_name="reaction_layout")
     df = _switch_directions(df, subset=["left", "right"], on="direction")
@@ -175,6 +234,17 @@ def clean_pw_df(
 
 # ============================== additional pathway filtering/adjusting =====================================
 def mols_per_pathway(pathways: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns dataframe with all mols per pathway
+
+        Args:
+            pathways (pd.DataFrame): dataframe with pathways
+        Returns:
+            pd.DataFrame: dataframe with all mols per pathway
+
+    Remark:
+        - specific to pathway-tools dataframe format but then lowercased and with _ instead of -
+    """
     pw = pathways  # for brevity
 
     def paste(x):
@@ -199,12 +269,22 @@ def mols_per_pathway(pathways: pd.DataFrame) -> pd.DataFrame:
 def filter_pathwayid(
     df: pd.DataFrame, is_in: list[str], col: str = "pathway_id"
 ) -> pd.DataFrame:
+    """Filters dataframe by pathway_id"""
     return df[df[col].isin(is_in)]
 
 
 def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
-    """if more than one product, explode the dataframe downwards, to get one product per row.
-    this makes same precursors/reactions appear more than once"""
+    """
+    Explodes dataframe downwards, to get one product per row
+
+        Args:
+            df (pd.DataFrame): dataframe with pathways
+        Returns:
+            pd.DataFrame: dataframe with one product per row
+    Remark:
+        - if more than one product, explode the dataframe downwards, to get one product per row
+        - this makes same precursors/reactions appear more than once
+    """
     # unfold dataframe downwards if there are more than one right or left primary
     exploded = df.copy()
     # first make into list, then explode
@@ -218,12 +298,14 @@ def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def cmd_clean_classes() -> None:  # under construction
+    """Linux command to clean classes.dat (obsolete)"""
     cmd = 'grep -E "^[A-Za-z]|/{2}" classes.dat | grep -E -v "SYNONYMS" | grep -E -v "COMMENT" | grep -E -v "TYPES" > cleaner_classes.dat '
     subprocess.run(cmd, shell=True)
     return None
 
 
 def get_idandname(dat_entry: list) -> tuple[str]:
+    """Returns idnum and name from dat_entry"""
     idnum, name = "", ""
     for line in dat_entry:
         if line.startswith("UNIQUE-ID"):
@@ -234,6 +316,7 @@ def get_idandname(dat_entry: list) -> tuple[str]:
 
 
 def get_classes_annotation(filename: str = "../metacyc/cleaner_classes.dat") -> dict:
+    """Returns dictionary of classes annotation from filename"""
     annot_entries = entry_parser(
         readr("../metacyc/cleaner_classes.dat", encoding="iso8859-1"), sep="//"
     )
@@ -244,12 +327,14 @@ def get_classes_annotation(filename: str = "../metacyc/cleaner_classes.dat") -> 
 # ----------------------------------------------------------------------------
 # ---------------------------- reaction annotation (obsolete)-----------------
 def cmd_clean_rxns() -> None:
+    """Linux command to clean reactions.dat (obsolete)"""
     cmd = 'grep -E "^[A-Za-z]|/{2}" reactions.dat | grep -E "^UNI|^LEFT|^RIGHT|^REACTION\-DIRECTION|^/{2}" > cleaner_rxns.dat'
     subprocess.run(cmd, shell=True)
     return None
 
 
 def get_preandpost(entry: list[str]) -> tuple[str]:
+    """Returns pre and post from entry"""
     idnum, name = "", ""
     for line in entry:
         if line.startswith("UNIQUE-ID"):
@@ -266,6 +351,15 @@ def get_preandpost(entry: list[str]) -> tuple[str]:
 def file_to_compounds(
     filename: str, column_names: list = ["unique_id", "inchi", "SMILES"]
 ) -> pd.DataFrame:
+    """Returns dataframe from filename
+
+    Args:
+        filename (str): location of file
+        column_names (list): list of column names
+    Returns:
+        pd.DataFrame: dataframe from filename
+
+    """
     usecols = (i for i in range(len(column_names)))
     array = np.loadtxt(filename, dtype=str, delimiter="\t", usecols=usecols)
     df = pd.DataFrame(array, columns=column_names)
@@ -276,8 +370,17 @@ def _sdf_to_records(
     sdf_path: str,
     column_names: list = ["coconut_id", "inchi", "SMILES", "rdk_inchi", "rdk_SMILES"],
 ) -> pd.DataFrame:
-    sdf_path = "/Users/lucina-may/thesis/input/coconut.sdf"
-    coco_props = []
+    """
+    Returns records from sdf_path
+
+        Args:
+            sdf_path (str): location of file
+            column_names (list): list of column names
+        Returns:
+            pd.DataFrame: dataframe from sdf_path
+
+    """
+    sdf_props = []
 
     supplier = Chem.SDMolSupplier(sdf_path)
     for i, mol in tqdm(enumerate(supplier), total=len(supplier)):
@@ -289,11 +392,12 @@ def _sdf_to_records(
             for prop in column_names:
                 if mol.HasProp(prop):
                     this_mol_props[prop] = mol.GetProp(prop)
-        coco_props.append(this_mol_props)
-    return coco_props
+        sdf_props.append(this_mol_props)
+    return sdf_props
 
 
 def sdf_to_compounds(*args, **kwargs) -> pd.DataFrame:
+    """Returns dataframe from sdf file with properties as columns"""
     records = _sdf_to_records(*args, **kwargs)
     return pd.DataFrame(records)
 
@@ -301,6 +405,19 @@ def sdf_to_compounds(*args, **kwargs) -> pd.DataFrame:
 def add_partial_inchi(
     df, inchi_column: str = "inchi", inchi_parts: int = 3
 ) -> pd.DataFrame:
+    """
+    Adds partial inchi to dataframe
+
+        Args:
+            df (pd.DataFrame): dataframe with inchi_column
+            inchi_column (str): name of the inchi column
+            inchi_parts (int): number of parts to keep
+        Returns:
+            pd.DataFrame: dataframe with added partial inchi
+
+    Remark:
+        - partial inchi refers to the first inchi_parts parts of the inchi divided by /
+    """
     newcol = f"{inchi_parts}_{inchi_column}"
     df[newcol] = df[~df[inchi_column].isna()][inchi_column].str.split("/")
     df[newcol] = df[~df[inchi_column].isna()][newcol].apply(
@@ -312,6 +429,16 @@ def add_partial_inchi(
 def takeover_rdk_partials(
     df: pd.DataFrame, columns: dict = {"3_rdk_inchi": "3_inchi"}
 ) -> pd.DataFrame:
+    """
+    Takes over partial inchi from one column to another
+
+        Args:
+            df (pd.DataFrame): dataframe with columns
+            columns (dict): dictionary of columns
+        Returns:
+            pd.DataFrame: dataframe with partial inchi taken over
+
+    """
     for key, val in columns.items():
         df[val].fillna(df[key], inplace=True)
         df.loc[df[key] == df[val], val] = np.nan
@@ -322,6 +449,16 @@ def takeover_rdk_partials(
 def merge_on_partial_inchi(
     coco: pd.DataFrame, meta: pd.DataFrame, on: str = "3_inchi"
 ) -> pd.DataFrame:
+    """
+    Merges dfs on partial inchi
+
+        Args:
+            coco (pd.DataFrame): dataframe
+            meta (pd.DataFrame): dataframe
+            on (str): column name
+        Returns:
+            pd.DataFrame: dataframe
+    """
     df = pd.merge(coco, meta, on=on, how="inner", suffixes=("_coco", "_meta"))
     return df
 
@@ -329,11 +466,25 @@ def merge_on_partial_inchi(
 def merge_on_smiles(
     coco: pd.DataFrame, meta: pd.DataFrame, on: str = "SMILES"
 ) -> pd.DataFrame:
+    """
+    Merges dfs on smiles
+
+        Args:
+            coco (pd.DataFrame): dataframe
+            meta (pd.DataFrame): dataframe
+            on (str): column name
+        Returns:
+            pd.DataFrame: dataframe
+    """
+
     df = pd.merge(coco, meta, on="SMILES", how="inner", suffixes=("_coco", "_meta"))
     return df
 
 
 def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merges the two dataframes resulting from merge_on_partial_inchi and merge_on_smiles
+    """
     on_smiles.rename(columns={"SMILES": "SMILES_meta"}, inplace=True)
     df = pd.merge(
         on_inchi,
@@ -349,6 +500,19 @@ def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFram
 def get_common_compounds(
     coco_mols: pd.DataFrame, meta_mols: pd.DataFrame
 ) -> pd.DataFrame:
+    """
+    Gets common compounds from coco and meta mols
+
+        Args:
+            coco_mols (pd.DataFrame): dataframe
+            meta_mols (pd.DataFrame): dataframe
+        Returns:
+            pd.DataFrame: dataframe with common compounds' coconut and meta ids, inchi and smiles
+
+    Remark:
+        - gets compounds that are in both coco and meta mols
+        - filters on partial inchi OR smiles in common
+    """
     inchi_parts = 3
     meta_mols = add_partial_inchi(
         meta_mols, inchi_column="inchi", inchi_parts=inchi_parts
@@ -383,9 +547,22 @@ def get_common_compounds(
 
 
 def get_pathways_of_interest(
-    pathways: pd.DataFrame, common_compounds: pd.DataFrame
+    pathways: pd.DataFrame, compounds_of_interest: pd.DataFrame
 ) -> pd.DataFrame:
-    common_compound_ids = common_compounds["compound_id"].unique()
+    """
+    Returns pathways containing compounds of interest
+
+        Args:
+            pathways (pd.DataFrame): dataframe
+            common_compounds (pd.DataFrame): dataframe
+        Returns:
+            pd.DataFrame: dataframe of pathways containing compounds of interest
+
+    Remark:
+        - filters pathways on common compounds by "compound_id"
+
+    """
+    common_compound_ids = compounds_of_interest["compound_id"].unique()
     pw_reagents = mols_per_pathway(pathways)
     pw_reagents_oi = df_filter(pw_reagents, col="all_mols", is_in=common_compound_ids)
     pw_names_oi = pw_reagents_oi["pathway_id"].unique()
@@ -417,6 +594,7 @@ def _is_next_rxn(parent_row: pd.Series, child_row: pd.Series) -> bool:
 
 
 def get_overlap_mol(parent_row: pd.Series, child_row: pd.Series) -> str:
+    """returns overlap molecule between two rows of reactions"""
     overlap_mols = []
     for par_mol in _row_products(parent_row):
         for child_mol in _row_precursors(child_row):
@@ -426,6 +604,7 @@ def get_overlap_mol(parent_row: pd.Series, child_row: pd.Series) -> str:
 
 
 def get_beginnings(one_pw: pd.DataFrame):
+    """returns list of reactions that are not products of any other reaction"""
     beginning_rxns = []
     all_rights = []
     for right in one_pw["right"].tolist():
@@ -462,6 +641,22 @@ def get_child_rxns(parent: str, pw: pd.DataFrame, unused_rxns: list[str]) -> lis
 
 
 def make_tree(parent: str, pw: pd.DataFrame, unused: list[str]) -> list[str]:
+    """
+    Returns tree of reactions from parent reaction
+
+        Args:
+            parent (str): reaction id
+            pw (pd.DataFrame): dataframe
+            unused (list): list of unused reactions
+        Returns:
+            list: tree of reactions from parent reaction
+
+    Remark:
+        - recursive function
+        - uses get_child_rxns to get children of parent
+        - uses make_tree to get children of children
+    """
+
     tree = []
 
     if parent in unused:
@@ -492,7 +687,10 @@ def make_tree(parent: str, pw: pd.DataFrame, unused: list[str]) -> list[str]:
     return tree
 
 
-def _list_present(lst: list) -> bool:
+def _contains_list(lst: list) -> bool:
+    """
+    Returns True if lst contains a list
+    """
     for item in lst:
         if isinstance(item, list):
             return True
@@ -500,10 +698,13 @@ def _list_present(lst: list) -> bool:
 
 
 def tree_to_chains(tree):
+    """
+    Extracts rxn chains from tree of reactions
+    """
     chains = []
-    if not _list_present(tree):
+    if not _contains_list(tree):
         return tree
-    elif isinstance(tree[0], str) and _list_present(tree):
+    elif isinstance(tree[0], str) and _contains_list(tree):
         parent = tree[0]
         children = tree[1]
         for chain in tree_to_chains(children):
@@ -520,6 +721,7 @@ def tree_to_chains(tree):
 
 
 def remove_duplicate_chains(chains: list[list[str]]) -> list[list[str]]:
+    """Removes duplicate chains from chains"""
     for i, chain in enumerate(chains):
         if chain in chains[:i]:
             chains[i] = None
@@ -528,6 +730,7 @@ def remove_duplicate_chains(chains: list[list[str]]) -> list[list[str]]:
 
 
 def remove_subchains(chains: list[list[str]]) -> list[list[str]]:
+    """Removes subchains from chains"""
     # check if a chain is a subchain of another chain
     for i, chain in enumerate(chains):
         for j, other_chain in enumerate(chains):
@@ -558,11 +761,26 @@ def __get_chain_mols(pw: pd.DataFrame, rxn_chain: list[str]) -> list[str]:
     return chain_of_mols
 
 
-def __choose_first_mols(chain_of_mols) -> list[str]:
+def __choose_first_mols(chain_of_mols: list[list[str]]) -> list[str]:
+    """returns list of mols for a chain of reactions"""
     return [mols[0] for mols in chain_of_mols]
 
 
 def _pw_to_chains_mols(one_pw: pd.DataFrame) -> list[list[list[str]]]:
+    """
+    Returns list of chains of mols for a pathway
+
+        Args:
+            one_pw (pd.DataFrame): dataframe containing one pathway
+        Returns:
+            list: list of chains of mols for a pathway with [mols for rxn1, mols for rxn2, ...]
+
+    Remark:
+        - uses make_tree to get chains of reactions
+        - uses __get_chain_mols to get mols for a chain of reactions
+        - uses __choose_first_mols to choose first mols for a chain of reactions
+        - sorts chains by length
+    """
     chains = []
     chains_mols = []
     all_rxns = one_pw["reaction_id"].tolist()
@@ -580,6 +798,7 @@ def _pw_to_chains_mols(one_pw: pd.DataFrame) -> list[list[list[str]]]:
 
 
 def chains_per_pathway(pw: pd.DataFrame) -> pd.DataFrame:
+    """Returns dataframe with chains of mols per pathway"""
     pw_chains = {}
     for pw_id in pw["pathway_id"].unique():
         chains_mols = _pw_to_chains_mols(pw[pw["pathway_id"] == pw_id])
@@ -615,6 +834,9 @@ def chains_per_pathway(pw: pd.DataFrame) -> pd.DataFrame:
 def compound_id_to_structure(
     df: pd.DataFrame, dict1: dict, dict2: dict, dict3: dict
 ):  # under construction
+    """
+    Returns dataframe with structure for compound_id from dict1, dict2, dict3
+    """
     newdf = df.copy()
     # fill all cells as nan
     newdf = newdf.applymap(lambda x: np.nan)
@@ -630,17 +852,20 @@ def compound_id_to_structure(
 
 
 def df_filter(df: pd.DataFrame, col: str, is_in: list) -> pd.DataFrame:
+    """Filters dataframe by col"""
     mask = df[col].isin(is_in)
     df_of_interest = df[mask]
     return df_of_interest
 
 
 def get_indexes(df: pd.DataFrame) -> list[int]:
+    """Returns list of indexes from dataframe"""
     unique_index = df.index.unique()
     return unique_index
 
 
 def remove_cols(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """Removes columns from dataframe"""
     new = df
     for i in cols:
         new = new.drop(columns=i).drop_duplicates()
@@ -648,6 +873,7 @@ def remove_cols(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 
 def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
+    """Annotates dataframe with replace_dict"""
     return df.replace(to_replace=replace_dict)
 
 
@@ -660,12 +886,25 @@ def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
 
 
 def mergeinchis(df: pd.DataFrame) -> pd.DataFrame:
+    """Merges inchi columns in dataframe (obsolete)"""
     newdf = df
     newdf["InChi"] = newdf["INCHI"].fillna(newdf["NON-STANDARD-INCHI"])
     return newdf
 
 
 def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
+    """
+    Makes dictionary from dataframe for conversion
+
+        Args:
+            df (pd.DataFrame): dataframe
+            allcapskeys (bool): whether to make keys all caps
+        Returns:
+            dict: dictionary for conversion
+
+    Remark:
+        - fills inchi, smiles and non-standard-inchi columns
+    """
     ndf = df
     ndf["filled"] = ndf["INCHI"].fillna(ndf["SMILES"]).fillna(ndf["NON-STANDARD-INCHI"])
     ndf["filled"].fillna("")

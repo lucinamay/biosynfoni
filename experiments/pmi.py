@@ -21,6 +21,7 @@ def cli() -> argparse.Namespace:
     args = parser.parse_args()
     args.i = os.path.abspath(args.i)
     args.o = os.path.abspath(args.o)
+    args.o = args.o.replace(".csv", ".png")
     return args
 
 
@@ -245,6 +246,10 @@ def main() -> None:
     # hm.text(0.5, 0.5, "test", horizontalalignment="center", verticalalignment="center")
     # for all negative values, add a minus sign
     add_minuses(hm, mat)
+
+    # make ticklabels bold
+    hm.set_yticklabels(hm.get_yticklabels(), fontweight="bold")
+    hm.set_xticklabels(hm.get_xticklabels(), fontweight="bold")
 
     # set_label_colors(hm.get_xticklabels(), colours)
     # set_label_colors(hm.get_yticklabels(), colours)

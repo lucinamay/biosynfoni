@@ -7,7 +7,7 @@ ytick.color:  "#606060"
 
 font.family: "sans-serif"
 font.sans-serif : "Montserrat"
-font.weight: "regular"
+font.weight: "semibold"
 
 
 axes.labelweight: "regular"

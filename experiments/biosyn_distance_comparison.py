@@ -661,9 +661,10 @@ def main():
             figtitle=f"{args.metric} for different reaction step numbers",
             color_by="stepnum",
         )
-        filename = outfile_namer(f"{com[0]}_{com[1]}_{args.metric}")
+        filename = outfile_namer(f"{com[0]}_{com[1]}_{args.metric}.png")
         fm.savefig(scatter, filename)
 
+    exit()
     onestep = df[df["stepnum"] == "1"]
 
     onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)

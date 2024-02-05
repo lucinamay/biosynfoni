@@ -82,7 +82,7 @@ array = np.array(coco_taxonomy["biosynfoni_3"].to_list())
 tsne_df = tsner(array)
 components = tsne_df.columns.to_list()
 tsne_df["kingdom"] = coco_taxonomy["kingdom"]
-fm.plot_two_cols(
+fm.heatmap(
     tsne_df,
     components[0],
     components[1],

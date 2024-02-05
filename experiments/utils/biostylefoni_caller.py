@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 
 
 def set_style() -> None:
+    """
+    Set the style of the plot to biostylefoni
+    """
     # get path of this script
     script_path = os.path.dirname(os.path.realpath(__file__))
     # parent_path = os.path.dirname(script_path)

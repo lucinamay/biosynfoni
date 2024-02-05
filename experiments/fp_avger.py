@@ -28,7 +28,10 @@ from utils.colours import colourDict
 
 
 def cli():
-    parser = argparse.ArgumentParser()
+    """Command line interface for fingerprint average plotter"""
+    parser = argparse.ArgumentParser(
+        description="Plot fingerprint pull-up plot (i.e. fingerprint count per substructure)"
+    )
     # parser.add_argument("fingerprintfile_coco", type=str)
     # parser.add_argument("fingerprintfile_zinc", type=str)
     # parser.add_argument("bsf_name", type=str, default=defaultVersion)
@@ -55,6 +58,15 @@ def cli():
 
 
 def write_stats(fp_arr: np.array) -> np.array:
+    """
+    Write stats of fingerprint array to file
+
+        Args:
+            fp_arr (np.array): fingerprint array
+
+        Returns:
+            np.array: mean fingerprint count per substructure
+    """
     mean_fp = fp_arr.mean(axis=0)
     std_fp = fp_arr.std(axis=0)
     median_fp = np.median(fp_arr, axis=0)
@@ -69,6 +81,16 @@ def write_stats(fp_arr: np.array) -> np.array:
 
 
 def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
+    """
+    Make a plot of the mean fingerprint count per substructure for two compound collections
+
+        Args:
+            fp_mean_arr1 (np.array): mean fingerprint count per substructure for compound collection 1
+            fp_mean_arr2 (np.array): mean fingerprint count per substructure for compound collection 2
+            filename (str): name of file to save plot
+        Returns:
+            None
+    """
     plt.figure()
     logging.info("making plot")
 
@@ -90,7 +112,16 @@ def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
     return None
 
 
-def fp_plots(fps, bsf_name):
+def fp_violin(fps, bsf_name):
+    """
+    Make a violin plot of the fingerprint count per substructure for a compound collection
+
+        Args:
+            fps (np.array): fingerprint array
+            bsf_name (str): name of compound collection
+        Returns:
+            None
+    """
     plt.ioff()
     plt.figure().set_figwidth(15)
     logging.info("making plot")
@@ -108,6 +139,24 @@ def heatmap_array(
     accumulative=True,
     end_accumulative=False,
 ):
+    """
+    Make an array for a heatmap of fingerprint count per substructure
+
+        Args:
+            fps (np.array): fingerprint array
+            max_height (int): maximum height of heatmap
+            percentages (bool): whether to return in percentages
+            accumulative (bool): whether to return accumulative counts
+            end_accumulative (bool): whether to return accumulative counts only for the last height
+        Returns:
+            np.array: array for heatmap (height x substructures)
+
+    Remarks:
+        - if accumulative is True, then the heatmap will show the number of compounds that have at least that many substructures
+        - if accumulative is False, then the heatmap will show the number of compounds that have exactly that many substructures
+        - if end_accumulative is True, then the heatmap will show the number of compounds that have at least that many substructures for the last height
+
+    """
     heat_array = np.zeros((max_height, fps.shape[1]))
     for i in range(max_height):
         if accumulative:
@@ -136,6 +185,24 @@ def fp_heatmap(
     top_acc_array=None,
     standard_colour: bool = False,
 ):
+    """
+    Plot a heatmap of fingerprint count per substructure
+
+        Args:
+            fp_hm_array (np.array): array for heatmap (height x substructures)
+            subslabels (list): list of substructure labels
+            size (tuple): size of plot
+            percentages (bool): whether to return in percentages
+            annotate (bool): whether to annotate the heatmap
+            color_scheme (str): colour scheme for heatmap
+            title (str): title of plot
+            top_acc_array (np.array): array for heatmap of top accumulative counts.
+                                        if None, then no top accumulative counts will be plotted.
+                                        default is None.
+            standard_colour (bool): whether to colour substructure labels according to biosynfoni pathway
+        Returns:
+            matplotlib.figure.Figure: figure of heatmap
+    """
     cbarlab = "number of compounds"
     if percentages:
         cbarlab = "% of compounds"
@@ -205,6 +272,9 @@ def fp_heatmap(
 
 
 def over_under_divide(fps: np.array, limit: int = 10, percentages: bool = True):
+    """
+    Divide the heatmap array into two arrays: one for values under the limit, and one for values over the limit.
+    """
     full = heatmap_array(
         fps,
         max_height=limit + 1,
@@ -219,6 +289,19 @@ def over_under_divide(fps: np.array, limit: int = 10, percentages: bool = True):
 
 
 def fp_heatmap_accumulative(fp_arr: np.array, limit: int = 10, *args, **kwargs):
+    """
+    Make a heatmap of fingerprint count per substructure, with accumulative end counts
+
+        Args:
+            fp_arr (np.array): fingerprint array
+            limit (int): maximum height of heatmap
+        Returns:
+            matplotlib.figure.Figure: figure of heatmap
+
+    Remarks:
+        - the heatmap will show the number of compounds that have at least that many substructures for the last height
+        - this helps reduce the height of the heatmap, as the top accumulative counts are often much higher than the rest
+    """
     under, over = over_under_divide(fp_arr, limit, percentages=True)
     hm = fp_heatmap(
         under,
@@ -231,9 +314,9 @@ def fp_heatmap_accumulative(fp_arr: np.array, limit: int = 10, *args, **kwargs):
 
 
 def main():
-    print("hello")
+    logging.info("hello")
     set_style()
-    ft = "svg"
+    ft = "png"
     args = cli()
     fps = np.loadtxt(args.fingerprints, dtype=int, delimiter=",")
 

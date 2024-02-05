@@ -13,10 +13,12 @@ RDLogger.DisableLog("rdApp.*")
 
 
 def cleanup(query: str) -> str:
+    """Clean up query for use as column name."""
     return "_".join(query.lower().split(" "))
 
 
 def get_properties(sdf: Chem.SDMolSupplier, query: list) -> dict:
+    """Get properties from sdf file."""
     all_props = dict()
     for ind, mol in tqdm(enumerate(sdf)):
         if mol:

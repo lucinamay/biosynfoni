@@ -13,7 +13,10 @@ from tqdm import tqdm
 #     """custom metric for distance matrix"""
 #     return np.sum((X[:, None, :] - Y[None, :, :]) ** 2, axis=-1) ** 0.5
 def cli():
-    parser = argparse.ArgumentParser()
+    """Command line interface for distance matrix calculation"""
+    parser = argparse.ArgumentParser(
+        description="Calculate distance matrix from fingerprint file"
+    )
     parser.add_argument("fingerprint", help="Fingerprint file")
     parser.add_argument(
         "-m",
@@ -27,6 +30,16 @@ def cli():
 
 
 def counted_tanimoto_sim(fp1: np.array, fp2: np.array) -> float:
+    """
+    Tanimoto similarity for two fingerprints
+
+        Args:
+            fp1: np.array
+            fp2: np.array
+
+        Returns:
+            float: Tanimoto similarity
+    """
     nom = sum(np.minimum(fp1, fp2))  # overlap
     denom = float(sum(np.maximum(fp1, fp2)))  # all bits that are 'on'
     if denom == 0:

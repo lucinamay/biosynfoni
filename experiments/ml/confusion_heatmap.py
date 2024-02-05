@@ -1,4 +1,4 @@
-import argparse
+import argparse, logging
 import os
 
 import matplotlib as mpl
@@ -7,7 +7,12 @@ import numpy as np
 
 
 def cli():
-    parser = argparse.ArgumentParser()
+    """
+    Parse command line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Create a heatmap from a confusion matrix"
+    )
     parser.add_argument(
         "matrix_path",
         type=str,
@@ -18,6 +23,9 @@ def cli():
 
 
 def set_style() -> None:
+    """
+    Set the style of the plot to biostylefoni
+    """
     # get path of this script
     script_path = os.path.dirname(os.path.realpath(__file__))
     parent_path = os.path.dirname(script_path)
@@ -31,7 +39,13 @@ def set_style() -> None:
 
 def parse_cms_files(m_path: str) -> tuple[np.array, np.array]:
     """
-    takes a path to a file with confusion matrices and returns an array of confusion matrices and an array of the names of the categories
+    Parse the confusion matrices and names from a file
+
+    Args:
+        m_path (str): path to file with confusion matrices
+
+    Returns:
+        tuple[np.array, np.array]: array of confusion matrices and array of names (i.e. )
     """
     cms = np.loadtxt(
         m_path,
@@ -56,7 +70,13 @@ def parse_cms_files(m_path: str) -> tuple[np.array, np.array]:
 
 def get_matrices(cms: np.array) -> tuple[list[np.array], list[np.array]]:
     """
-    takes an array of confusion matrices and returns a list of matrices and a list of normalised matrices
+    Take an array of confusion matrices and return a list of matrices and a list of normalised matrices
+
+    Args:
+        cms (np.array): array of confusion matrices
+
+    Returns:
+        tuple[list[np.array], list[np.array]]: a list of matrices and a list of normalised matrices
     """
     matrices = []
     norm_matrices = []
@@ -180,7 +200,7 @@ def main():
 
     # get path to folder where confusion matrices are, using os.path.dirname
     save_path = "/".join(m_path.split("/")[:-1])
-    print(m_path, save_path)
+    logging.info(m_path, save_path)
     # save figure
     plt.savefig(
         m_path.replace("_matrix.txt", "_heatmap.png"), dpi=500, bbox_inches="tight"
@@ -188,6 +208,7 @@ def main():
     plt.clf()
     plt.close()
     exit(0)
+    return None
 
 
 if __name__ == "__main__":

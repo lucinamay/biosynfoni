@@ -109,7 +109,15 @@ def cli() -> argparse.Namespace:
 
 
 def _read_unilabels(classifications_path: str) -> tuple[list, dict]:
-    """returns list of classification types"""
+    """
+    From the file, parse the classifications for the first tab-separated field and return list of classification types
+
+        Args:
+            classifications_path (str): path to file with classifications
+
+        Returns:
+            tuple[list, dict]: list of classification types and dictionary of classification types
+    """
     # parse labels from input file
     classification_types = Counter()
     labels_names = []
@@ -135,9 +143,17 @@ def _read_unilabels(classifications_path: str) -> tuple[list, dict]:
 
 
 def _read_multilabels(classifications_path: str) -> tuple[list, dict]:
-    """from the file, parse the classifications for the first tab-separated field,
-    and extract the individual labels separated by commas, putting them in a multilabel
-    classification table
+    """
+    From the file, parse the classifications for the first tab-separated field and return list of classification types and dictionary of classification types
+
+        Args:
+            classifications_path (str): path to file with classifications
+
+        Returns:
+            tuple[list, dict]: list of classification types and dictionary of classification types
+
+
+    extracts the individual labels separated by commas, putting them in a multilabel classification table
     """
     classification_types = Counter()
     labels_names = []
@@ -157,14 +173,28 @@ def _read_multilabels(classifications_path: str) -> tuple[list, dict]:
 
 
 def _unilabel_to_numeric(labels_names: list, class_index: dict) -> np.array:
-    """for a list labels, return integer values assigned to each label"""
-    # Assign every key from classification type to an integer.
-    y = np.array([class_index[label] for label in labels_names])
-    return y
+    """
+    For a list of labels, return integer values assigned to each label
+
+        Args:
+            labels_names (list): list of labels
+            class_index (dict): dictionary of classification types
+        Returns:
+            np.array: array of integer values assigned to each label
+    """
+    return np.array([class_index[label] for label in labels_names])
 
 
 def _multilabels_to_binary(labels_names: list, class_index: dict) -> np.array:
-    """from the list of labels, make a binary table of labels"""
+    """
+    From the list of labels, make a binary table of labels
+
+        Args:
+            labels_names (list): list of labels
+            class_index (dict): dictionary of classification types
+        Returns:
+            np.array: binary table of labels
+    """
     # Labels.
     y = np.zeros((len(labels_names), len(class_index.keys())), dtype=int)
     for i, labels in enumerate(labels_names):
@@ -174,6 +204,16 @@ def _multilabels_to_binary(labels_names: list, class_index: dict) -> np.array:
 
 
 def read_classifications(cl_path: str, unilabel: bool) -> tuple:
+    """
+    Read classifications from file and return label names, class index and y
+
+        Args:
+            cl_path (str): path to file with classifications
+            unilabel (bool): if True, will read unilabels, if False, will read multilabels
+
+        Returns:
+            tuple: label names, class index, y
+    """
     if unilabel:
         label_names, class_index = _read_unilabels(cl_path)
         y = _unilabel_to_numeric(label_names, class_index)
@@ -184,7 +224,16 @@ def read_classifications(cl_path: str, unilabel: bool) -> tuple:
 
 
 def i_to_cl(y: np.array, class_index: dict, unilabel: bool = False) -> tuple:
-    """for each row, get indexes of column with value 1"""
+    """
+    For an array of integer values, return the corresponding classification names
+
+        Args:
+            y (np.array): array of integer values (or binary values if multilabel)
+            class_index (dict): dictionary of classification types
+            unilabel (bool): if True, will return single classification, if False, will return multiple classifications. Default: False
+        Returns:
+            tuple: array of classification names
+    """
     if unilabel:
         # single prediction, with integer corresponding to class
         ind_cl = {i: cl for cl, i in class_index.items()}
@@ -201,6 +250,15 @@ def i_to_cl(y: np.array, class_index: dict, unilabel: bool = False) -> tuple:
 
 
 def get_ids(names_path: str, size: int) -> np.array:
+    """
+    Get ids from file or create ids from size
+
+        Args:
+            names_path (str): path to file with ids
+            size (int): size of fingerprints
+        Returns:
+            np.array: array of ids
+    """
     if names_path:
         ids = np.loadtxt(names_path, dtype=str, delimiter="\t", usecols=0)
     else:
@@ -215,7 +273,18 @@ def get_ids(names_path: str, size: int) -> np.array:
 
 
 def separate_nones(label_names: list[list], class_index: dict, x_y_andco: list):
-    """x_y_andco: (X, y, ids, ...) (...-> anything else that needs to be separated into nones set)"""
+    """
+    Separate "None" classifications from the data
+
+        Args:
+            label_names (list[list]): list of classification names
+            class_index (dict): dictionary of classification types
+            x_y_andco (list): list of arrays to separate
+        Returns:
+            tuple: label names, class index,
+
+    * x_y_andco: (X, y, ids, ...) (...-> anything else that needs to be separated into nones set)
+    """
     none_indices = []
     for i, name in enumerate(label_names):
         if name == ["None"]:
@@ -246,28 +315,22 @@ def separate_nones(label_names: list[list], class_index: dict, x_y_andco: list):
     return label_names, class_index, x_y_andco, nones
 
 
-# def subsampler(
-#     X: np.array,
-#     y: np.array,
-#     size: int = 10000,
-#     random_seed: int = None,
-# ) -> tuple:
-#     logging.info(f"Subsampling {size}. Random seed: {random_seed}")
-#     if isinstance(random_seed, int):
-#         np.random.seed(random_seed)
-#     indices = np.random.choice(X.shape[0], size=size, replace=False)
-#     X = X[indices]
-#     y = y[indices]
-#     logging.info(f"{X.shape}, {y.shape}")
-#     return X, y
-
-
 def subsampler(
     arrays_to_subsample: tuple[np.array],
     size: int = 10000,
     random_seed: int = None,
 ) -> tuple:
-    """subsample arrays in list, keeping same indices"""
+    """
+    Subsample arrays in list, keeping same indices
+
+        Args:
+            arrays_to_subsample (tuple[np.array]): tuple of arrays to subsample
+            size (int): size of subsample
+            random_seed (int): random seed for reproducibility
+        Returns:
+            tuple: subsampled arrays
+
+    """
     if isinstance(random_seed, int):
         np.random.seed(random_seed)
     indices = np.random.choice(
@@ -281,20 +344,16 @@ def subsampler(
     return tuple(subsampled_arrays)
 
 
-# def train_test_split(X: np.array, y: np.array, fract: float = 0.8) -> tuple:
-#     """regular train test split"""
-#     # Split into train and test.
-#     indices = np.random.permutation(X.shape[0])
-#     X = X[indices]
-#     y = y[indices]
-#     train_size = int(fract * X.shape[0])
-#     X_train, X_test = X[:train_size], X[train_size:]
-#     y_train, y_test = y[:train_size], y[train_size:]
-#     print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-#     return X_train, X_test, y_train, y_test
-
-
 def train_test_split(arrays_to_split: tuple[np.array], fract: float = 0.8) -> tuple:
+    """
+    Split arrays into train and test sets
+
+        Args:
+            arrays_to_split (tuple[np.array]): tuple of arrays to split
+            fract (float): fraction of data to use for training
+        Returns:
+            tuple: train and test sets
+    """
     indices = np.random.permutation(arrays_to_split[0].shape[0])
     arrays = []
     for array in arrays_to_split:
@@ -424,6 +483,15 @@ def train_classifier(
     *args,
     **kwargs,
 ) -> RandomForestClassifier:
+    """
+    Train random forest classifier
+
+        Args:
+            X_train (np.array): training data
+            y_train (np.array): training labels
+        Returns:
+            RandomForestClassifier: trained classifier
+    """
     # Train random forest classifier.
     n_jobs = -1  # use all cores
     clf = RandomForestClassifier(n_jobs=n_jobs, *args, **kwargs)
@@ -434,8 +502,16 @@ def train_classifier(
 def predict_one(
     X_test: np.array,
     classifier: RandomForestClassifier,
-) -> tuple[list, list]:
-    # Train random forest classifier.
+) -> np.array:
+    """
+    Predict label with RF
+
+        Args:
+            X_test (np.array): test data
+            classifier (RandomForestClassifier): trained classifier
+        Returns:
+            np.array: array of predicted labels
+    """
     y_pred = classifier.predict(X_test)
     return np.array(y_pred)
 
@@ -443,8 +519,18 @@ def predict_one(
 def proba(
     X_test: np.array,
     classifier: RandomForestClassifier,
-) -> tuple[list, list]:
-    """predict probabilities with RF. Can cause errors if the sample is too small (<1000) and causes 1.0 probabilities for a class)"""
+) -> np.array:
+    """
+    Predict probabilities with RF.
+
+        Args:
+            X_test (np.array): test data
+            classifier (RandomForestClassifier): trained classifier
+        Returns:
+            np.array: array of predicted probabilities
+
+    Can cause errors if the sample is too small (<1000) and causes 1.0 probabilities for a class)
+    """
     probabilities = np.array(classifier.predict_proba(X_test))
     # only probability of "yes class"
     only_class_membership = probabilities[:, :, 1]
@@ -452,13 +538,16 @@ def proba(
     return class_probabilities
 
 
-def classify(X, y, other_data, n_estimators=1000, max_depth=100):
-    # under construction
-    return None
-
-
 def cutoffr(y_proba: np.array, cutoff: float = 0.5) -> np.array:
-    """bitifies the probabilities with given cutoff (>= cutoff = 1, < cutoff = 0)"""
+    """
+    Round probabilities to 0 or 1 based on cutoff
+
+        Args:
+            y_proba (np.array): array of probabilities
+            cutoff (float): cutoff for classification. should be between 0.0 and 1.0. (default: 0.5)
+        Returns:
+            np.array: array of predicted labels
+    """
     # make copy of y_proba to not affect the probability array
     y_rounded = np.copy(y_proba)
     # change all values below cutoff to 0 and above/equal cutoff to 1
@@ -468,7 +557,16 @@ def cutoffr(y_proba: np.array, cutoff: float = 0.5) -> np.array:
 
 
 def kfold_yielder(X: np.array, y: np.array, k: int = 5) -> tuple:
-    """splits X and y into k folds and yields train and test sets for each fold"""
+    """
+    Yield train and test sets for each fold
+
+        Args:
+            X (np.array): data
+            y (np.array): labels
+            k (int): number of folds
+        Returns (generator):
+            tuple: train and test sets for each fold (X_train, X_test, y_train, y_test)
+    """
     k = 5
     kf = KFold(n_splits=k, shuffle=True)
     for train_index, test_index in kf.split(X):
@@ -479,7 +577,18 @@ def kfold_yielder(X: np.array, y: np.array, k: int = 5) -> tuple:
 
 
 def kfold_yielder_ids(X: np.array, y: np.array, ids: np.array, k: int = 5) -> tuple:
-    """splits X, y and ids into k folds and yields train and test sets for each fold"""
+    """
+    Yield train and test sets for each fold, including ids
+
+        Args:
+            X (np.array): data
+            y (np.array): labels
+            ids (np.array): ids
+            k (int): number of folds
+        Returns (generator):
+            tuple: train and test sets for each fold (X_train, X_test, y_train, y_test, ids_train, ids_test)
+
+    """
     k = 5
     kf = KFold(n_splits=k, shuffle=True)
     for train_index, test_index in kf.split(X):
@@ -499,7 +608,22 @@ def kfold_preds(
     max_depth: int = 100,
     cutoff: float = 0.5,
     target_names=None,
-):
+) -> tuple:
+    """
+    Perform k-fold cross validation and return confusion matrices and classification reports
+
+        Args:
+            X (np.array): data
+            y (np.array): labels
+            k (int): number of folds
+            unilabel (bool): if True, will run single label classification instead of multilabel classification. Default: False
+            n_estimators (int): number of trees in the forest. Default: 1000
+            max_depth (int): maximum depth of the tree. Default: 100
+            cutoff (float): cutoff for classification. Default: 0.5
+            target_names (list): list of target names for multilabel classification
+        Returns:
+            tuple: confusion matrices and classification reports
+    """
     # Perform k-fold cross validation.
     cms = []  # confusion matrices
     cl_reps = []  # classification reports
@@ -533,6 +657,17 @@ def kfold_preds(
 def get_wrong_predictions(
     y_test: np.array, y_pred: np.array, ids_test: np.array
 ) -> tuple:
+    """
+    Get wrong predictions
+
+        Args:
+            y_test (np.array): test labels
+            y_pred (np.array): predicted labels
+            ids_test (np.array): test ids
+        Returns:
+            tuple: array of ids, test labels and predicted labels
+    """
+
     y_test, y_pred, ids_test = np.array(y_test), np.array(y_pred), np.array(ids_test)
     wrong = np.where(y_test != y_pred)
 
@@ -547,6 +682,17 @@ def get_wrong_predictions(
 def wrongs_array(
     ids_test: np.array, y_test: np.array, y_pred: np.array, class_index: dict
 ) -> np.array:
+    """
+    Get wrong predictions in a numpy array
+
+        Args:
+            ids_test (np.array): test ids
+            y_test (np.array): test labels
+            y_pred (np.array): predicted labels
+            class_index (dict): dictionary of classification types
+        Returns:
+            np.array: array of wrong predictions
+    """
     # get wrong predictions.
     w_id, w_test, w_pred = get_wrong_predictions(y_test, y_pred, ids_test)
     # get the classification predictions in strings:
@@ -563,6 +709,17 @@ def write_comb_confusion_matrix(
     title: str = "confusion_matrix.txt",
     unilabel: bool = False,
 ) -> None:
+    """
+    Write confusion matrix to file
+
+        Args:
+            cm (np.array): confusion matrix
+            classification_types (list): list of classification types
+            title (str): title of file. Default: "confusion_matrix.txt"
+            unilabel (bool): if True, will write unilabel confusion matrix, if False, will write multilabel confusion matrix. Default: False
+        Returns:
+            None
+    """
     with open(title, "w") as fo:
         if unilabel:
             fo.write("\t".join(classification_types))
@@ -578,6 +735,16 @@ def write_comb_confusion_matrix(
 def write_unilab_confusion_matrices(
     cms: list, classification_types: list, title: str = "confusion_matrices.txt"
 ) -> None:
+    """
+    Write unilabel confusion matrices to file
+
+        Args:
+            cms (list): list of confusion matrices
+            classification_types (list): list of classification types
+            title (str): title of file. Default: "confusion_matrices.txt"
+        Returns:
+            None
+    """
     with open(title, "w") as fo:
         fo.write(f"\n{classification_types}\n")
         fo.write("\n")
@@ -592,6 +759,17 @@ def write_unilab_confusion_matrices(
 def write_multilab_confusion_matrices(
     cms: list, classification_types: list, title: str = "confusion_matrices.txt"
 ) -> None:
+    """
+    Write multilabel confusion matrices to file
+
+        Args:
+            cms (list): list of confusion matrices
+            classification_types (list): list of classification types
+            title (str): title of file. Default: "confusion_matrices.txt"
+        Returns:
+            None
+    """
+
     with open(title, "w") as fo:
         fo.write(f"\n{classification_types}\n")
         fo.write("\n")
@@ -604,6 +782,14 @@ def write_multilab_confusion_matrices(
 
 
 def combine_cms(cms: list[np.ndarray]) -> np.ndarray:
+    """
+    Combine confusion matrices
+
+        Args:
+            cms (list[np.ndarray]): list of confusion matrices
+        Returns:
+            np.ndarray: combined confusion matrix
+    """
     combined = np.zeros(cms[0].shape)
     for cm in cms:
         combined += cm
@@ -613,6 +799,16 @@ def combine_cms(cms: list[np.ndarray]) -> np.ndarray:
 def write_classification_report(
     classification_results: list, classes: list, title="classification_report.txt"
 ) -> None:
+    """
+    Write classification report to file
+
+        Args:
+            classification_results (list): list of classification reports
+            classes (list): list of classification types
+            title (str): title of file. Default: "classification_report.txt"
+        Returns:
+            None
+    """
     with open(title, "w") as fo:
         fo.write("\n")
         fo.write("\t".join(classes))
@@ -625,6 +821,15 @@ def write_classification_report(
 
 
 def args_yaml(args: argparse.Namespace, title: str = "arguments.yaml") -> None:
+    """
+    Write arguments as yaml to file
+
+        Args:
+            args (argparse.Namespace): arguments
+            title (str): title of file. Default: "arguments.yaml"
+        Returns:
+            None
+    """
     args_dict = vars(args)
     # Write arguments as yaml.
     with open(title, "w") as fo:
@@ -634,6 +839,16 @@ def args_yaml(args: argparse.Namespace, title: str = "arguments.yaml") -> None:
 
 
 def handle_outdirs(db_name: str, fp_name: str, unilabel: bool) -> str:
+    """
+    Make directories for output
+
+        Args:
+            db_name (str): database name
+            fp_name (str): fingerprint name
+            unilabel (bool): if True, will make unilabel directory
+        Returns:
+            str: initial working directory
+    """
     iwd = os.getcwd()
     if not os.path.exists("./rf"):
         os.mkdir("./rf")
@@ -654,6 +869,17 @@ def handle_outdirs(db_name: str, fp_name: str, unilabel: bool) -> str:
 def get_decision_trees(
     classifier: RandomForestClassifier, title: str = "decision_trees"
 ):
+    """
+    Get decision trees from random forest classifier
+
+        Args:
+            classifier (RandomForestClassifier): trained classifier
+            title (str): title of file. Default: "decision_trees"
+        Returns:
+            None
+
+    Should be updated to have updated feature names
+    """
     # write decision tree.
     feature_names = [
         "coenzyme_a",
