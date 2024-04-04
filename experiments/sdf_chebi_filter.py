@@ -32,13 +32,13 @@ def get_properties(sdf: Chem.SDMolSupplier, query: list) -> dict:
 
 
 def main():
-    supplier_path = "/Users/lucina-may/thesis/chebiclasses/ChEBI_complete_3star.sdf"
+    sdf_path = "/Users/lucina-may/thesis/chebiclasses/ChEBI_complete_3star.sdf"
     classification_path = (
         "/Users/lucina-may/thesis/chebiclasses/chebi_classifications.tsv"
     )
 
     # read sdf
-    sdf = Chem.SDMolSupplier(supplier_path)
+    sdf = Chem.SDMolSupplier(sdf_path)
     # get properties as dictionary
     prop_query = [
         "ChEBI ID",
