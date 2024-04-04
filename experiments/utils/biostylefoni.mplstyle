@@ -6,8 +6,8 @@ xtick.color:  "#606060"
 ytick.color:  "#606060"
 
 font.family: "sans-serif"
-font.sans-serif : "Montserrat"
-font.weight: "semibold"
+font.sans-serif : "Montserrat, Helvetica, DejaVu Sans"
+font.weight: "regular"
 
 
 axes.labelweight: "regular"
