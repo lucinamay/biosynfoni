@@ -5,17 +5,65 @@ Created on Fri Sep 22 16:15:34 2023
 
 @author: lucina-may
 """
-import sys, subprocess, os, logging
+import sys, subprocess, os, logging, argparse
 from sys import argv
 from functools import partial
+
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from rdkit import Chem
 
-sys.path.append("../src/")
 from biosynfoni.inoutput import *
+
+
+def cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-p",
+        "--pathways_path",
+        # metavar = "pathways.dat",
+        type=str,
+        help="path to MetaCyc pathways.dat file",
+        
+    )
+    parser.add_argument(
+        "-c",
+        "--compounds_path",
+        # metavar="compound-links.dat",
+        type=str,
+        help="path to MetaCyc compound-links.dat file containing info per compound",
+    )
+    parser.add_argument(
+        "-f",
+        "--filter",
+        # metavar = "filter_for_these.sdf",
+        required=False,
+        default=None,
+        help = ("[under_construction] (optional) path to .sdf file with compounds",
+                " to filter pathways on (for inclusion). Default: no filter",)
+    )
+    parser.add_argument(
+        "-o",
+        "--output_path",
+        # metavar="output",
+        type=str,
+        help="path to output .tsv file. Default: metacyc_chains.tsv",
+        default="metacyc_chains.tsv",
+    )
+    parser.add_argument(
+        "-s",
+        "--smiles",
+        action="store_true",
+        default=False,
+        help=(
+            "[under construction]: output as smiles instead of MetaCyc IDs",
+            "(first column will still be MetaCyc pathway IDs)",
+        ),
+    )
+    return parser.parse_args()
+    
 
 # ============================== input handling ===============================
 
@@ -393,6 +441,7 @@ def _sdf_to_records(
                 if mol.HasProp(prop):
                     this_mol_props[prop] = mol.GetProp(prop)
         sdf_props.append(this_mol_props)
+
     return sdf_props
 
 
@@ -419,10 +468,16 @@ def add_partial_inchi(
         - partial inchi refers to the first inchi_parts parts of the inchi divided by /
     """
     newcol = f"{inchi_parts}_{inchi_column}"
-    df[newcol] = df[~df[inchi_column].isna()][inchi_column].str.split("/")
-    df[newcol] = df[~df[inchi_column].isna()][newcol].apply(
+    # # create mask for rows with inchi that are strings
+    # inchi_present = ~df[inchi_column].isna()
+    # # create mask for rows with inchi that are strings
+    inchi_present = df[inchi_column].apply(lambda x: isinstance(x, str) and x.startswith("InChI="))
+    df[newcol] = df[inchi_present][inchi_column].apply(lambda x: x.split("/"))
+    # df[newcol] = df[~df[inchi_column].isna()][inchi_column].str.split("/") # gives error with coco_mols, saying they are not always string values
+    df[newcol] = df[inchi_present][newcol].apply(
         lambda x: "/".join(x[:inchi_parts])
-    )
+    ).astype(str)
+    df[newcol] = df[newcol].fillna("")
     return df
 
 
@@ -440,7 +495,7 @@ def takeover_rdk_partials(
 
     """
     for key, val in columns.items():
-        df[val].fillna(df[key], inplace=True)
+        df[val] = df[val].fillna(df[key])
         df.loc[df[key] == df[val], val] = np.nan
         assert df[df[key] == df[val]].empty, "error in takeover_rdk_partials merging"
     return df
@@ -498,7 +553,8 @@ def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFram
 
 
 def get_common_compounds(
-    coco_mols: pd.DataFrame, meta_mols: pd.DataFrame
+    coco_mols: pd.DataFrame, meta_mols: pd.DataFrame,
+    inchi_parts: int = 3
 ) -> pd.DataFrame:
     """
     Gets common compounds from coco and meta mols
@@ -513,19 +569,18 @@ def get_common_compounds(
         - gets compounds that are in both coco and meta mols
         - filters on partial inchi OR smiles in common
     """
-    inchi_parts = 3
     meta_mols = add_partial_inchi(
         meta_mols, inchi_column="inchi", inchi_parts=inchi_parts
     )
     coco_mols = add_partial_inchi(
         coco_mols, inchi_column="inchi", inchi_parts=inchi_parts
-    )
+    ) # gives error!
     coco_mols = add_partial_inchi(
         coco_mols, inchi_column="rdk_inchi", inchi_parts=inchi_parts
     )
     coco_mols = takeover_rdk_partials(coco_mols, columns={"3_rdk_inchi": "3_inchi"})
 
-    log_col = "3_inchi"
+    log_col = f"{inchi_parts}_inchi"
     logging.info(
         f"{len(coco_mols[~coco_mols[log_col].isna()])} coco mols have inchi"
     )  # 406529
@@ -562,7 +617,7 @@ def get_pathways_of_interest(
         - filters pathways on common compounds by "compound_id"
 
     """
-    common_compound_ids = compounds_of_interest["compound_id"].unique()
+    common_compound_ids = compounds_of_interest["unique_id"].unique() # filters on MetaCyc ID
     pw_reagents = mols_per_pathway(pathways)
     pw_reagents_oi = df_filter(pw_reagents, col="all_mols", is_in=common_compound_ids)
     pw_names_oi = pw_reagents_oi["pathway_id"].unique()
@@ -923,28 +978,42 @@ def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
 
 
 def main():
-    pathways_path = "/Users/lucina-may/thesis/metacyc/pathways.dat"
-    pathways = get_pathways(pathways_path)
+    args = cli()
+
+    # pathways_path = "/Users/lucina-may/thesis/metacyc/pathways.dat"
+    
+    pathways = get_pathways(args.pathways_path)
     pathways = clean_pw_df(pathways)
 
-    common_compound_path = "/Users/lucina-may/thesis/metacyc/coco_meta.tsv"
-    if not os.path.exists(common_compound_path):
-        coco_mols_path = "/Users/lucina-may/thesis/metacyc/coconut-links.tsv"
-        meta_mols_path = "/Users/lucina-may/thesis/metacyc/compound-links.dat"
+    if isinstance(args.filter, str):
+        # create temporary save directory to not have to redo the filtering
+        tmp_dir = "metacyc_extract_temp"
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+        # common_compound_path = "/Users/lucina-may/thesis/metacyc/coco_meta.tsv"
+        common_compound_path = os.path.join(tmp_dir, "coco_meta.tsv")
+        if not os.path.exists(common_compound_path):
+            # coco_mols_path = "/Users/lucina-may/thesis/metacyc/coconut-links.tsv"
+            # meta_mols_path = "/Users/lucina-may/thesis/metacyc/compound-links.dat"
+            meta_mols_path = args.compounds_path
+            coco_mols_path = os.path.join(tmp_dir, "coconut-links.tsv")
 
-        if not os.path.exists(coco_mols_path):
-            coco_sdf = "/Users/lucina-may/thesis/input/coconut.sdf"
-            coco_mols = sdf_to_compounds(sdf_path=coco_sdf)  # standard query
-            coco_mols.to_csv(coco_mols_path, sep="\t", index=False)
+            if not os.path.exists(coco_mols_path):
+                # coco_sdf = "/Users/lucina-may/thesis/input/coconut.sdf"
+                coco_sdf = args.filter
+                coco_mols = sdf_to_compounds(sdf_path=coco_sdf)  # standard query
+                coco_mols.to_csv(coco_mols_path, sep="\t", index=False)
 
-        coco_mols = pd.read_csv(coco_mols_path, sep="\t")
-        meta_mols = file_to_compounds(meta_mols_path)
-        compounds = get_common_compounds(coco_mols, meta_mols)
+            coco_mols = pd.read_csv(coco_mols_path, sep="\t")
+            meta_mols = file_to_compounds(meta_mols_path)
+            compounds = get_common_compounds(coco_mols, meta_mols, inchi_parts=3)
 
-        compounds.to_csv(common_compound_path, sep="\t", index=False)
-    compounds = pd.read_csv(common_compound_path, sep="\t")
+            compounds.to_csv(common_compound_path, sep="\t", index=False)
+        compounds = pd.read_csv(common_compound_path, sep="\t")
 
-    pathways_oi = get_pathways_of_interest(pathways, compounds)
+        pathways_oi = get_pathways_of_interest(pathways, compounds)
+    else:
+        pathways_oi = pathways
 
     pw_chains = chains_per_pathway(pathways_oi)
 
