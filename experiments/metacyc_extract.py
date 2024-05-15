@@ -434,7 +434,7 @@ def _sdf_to_records(
     for i, mol in tqdm(enumerate(supplier), total=len(supplier)):
         this_mol_props = {q: "" for q in column_names}
         if mol is None:
-            print("molecule {} could not be read".format(i))
+            logging.warning("molecule {} could not be read".format(i))
             continue
         else:
             for prop in column_names:
@@ -961,7 +961,11 @@ def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
         - fills inchi, smiles and non-standard-inchi columns
     """
     ndf = df
-    ndf["filled"] = ndf["INCHI"].fillna(ndf["SMILES"]).fillna(ndf["NON-STANDARD-INCHI"])
+    ndf.columns = ndf.columns.str.upper()
+    ndf.columns = ndf.columns.str.replace("_", "-")
+
+    # ndf["filled"] = ndf["INCHI"].fillna(ndf["smiles"])#.fillna(ndf["non-standard-inchi"])
+    ndf["filled"] = ndf["SMILES"]#.fillna(ndf["INCHI"]).fillna(ndf["NON-STANDARD-INCHI"])
     ndf["filled"].fillna("")
     dic = pd.Series(ndf["filled"].values, index=ndf["UNIQUE-ID"]).to_dict()
     full_dic = {}
@@ -972,6 +976,7 @@ def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
             else:
                 full_dic[key] = val
     return full_dic
+
 
 
 # ============================================================================
@@ -985,6 +990,8 @@ def main():
     pathways = get_pathways(args.pathways_path)
     pathways = clean_pw_df(pathways)
 
+    meta_mols = file_to_compounds(args.compounds_path)
+
     if isinstance(args.filter, str):
         # create temporary save directory to not have to redo the filtering
         tmp_dir = "metacyc_extract_temp"
@@ -995,7 +1002,7 @@ def main():
         if not os.path.exists(common_compound_path):
             # coco_mols_path = "/Users/lucina-may/thesis/metacyc/coconut-links.tsv"
             # meta_mols_path = "/Users/lucina-may/thesis/metacyc/compound-links.dat"
-            meta_mols_path = args.compounds_path
+            # meta_mols_path = args.compounds_path
             coco_mols_path = os.path.join(tmp_dir, "coconut-links.tsv")
 
             if not os.path.exists(coco_mols_path):
@@ -1005,7 +1012,7 @@ def main():
                 coco_mols.to_csv(coco_mols_path, sep="\t", index=False)
 
             coco_mols = pd.read_csv(coco_mols_path, sep="\t")
-            meta_mols = file_to_compounds(meta_mols_path)
+            # meta_mols = file_to_compounds(meta_mols_path) # moved out of if
             compounds = get_common_compounds(coco_mols, meta_mols, inchi_parts=3)
 
             compounds.to_csv(common_compound_path, sep="\t", index=False)
@@ -1016,9 +1023,14 @@ def main():
         pathways_oi = pathways
 
     pw_chains = chains_per_pathway(pathways_oi)
+    # change unique_ids to smiles with moldict
+    if args.smiles:
+        mol_dict = to_conversion_dict(meta_mols)
+        pw_chains_smiles = pw_chains.replace(mol_dict)
+        pw_chains_smiles.to_csv("metacyc_chains_smiles.tsv", sep="\t", index=True)
+
 
     pw_chains.to_csv("metacyc_chains.tsv", sep="\t", index=True)
-
     exit()
 
 
