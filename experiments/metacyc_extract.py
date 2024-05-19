@@ -50,7 +50,7 @@ def cli():
         # metavar="output",
         type=str,
         help="path to output .tsv file. Default: metacyc_chains.tsv",
-        default="metacyc_chains.tsv",
+        default="metacyc_chains",
     )
     parser.add_argument(
         "-s",
@@ -58,7 +58,7 @@ def cli():
         action="store_true",
         default=False,
         help=(
-            "[under construction]: output as smiles instead of MetaCyc IDs",
+            "also outputs as smiles instead of only as MetaCyc IDs",
             "(first column will still be MetaCyc pathway IDs)",
         ),
     )
@@ -314,11 +314,11 @@ def mols_per_pathway(pathways: pd.DataFrame) -> pd.DataFrame:
     return pw_mols
 
 
-def filter_pathwayid(
-    df: pd.DataFrame, is_in: list[str], col: str = "pathway_id"
-) -> pd.DataFrame:
-    """Filters dataframe by pathway_id"""
-    return df[df[col].isin(is_in)]
+# def filter_pathwayid(
+#     df: pd.DataFrame, is_in: list[str], col: str = "pathway_id"
+# ) -> pd.DataFrame:
+#     """Filters dataframe by pathway_id"""
+#     return df[df[col].isin(is_in)]
 
 
 def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
@@ -341,68 +341,17 @@ def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
     return exploded
 
 
-# ============================ obtain annotations ============================
-# ---------------------------- classes annotation ----------------------------
-
-
-def cmd_clean_classes() -> None:  # under construction
-    """Linux command to clean classes.dat (obsolete)"""
-    cmd = 'grep -E "^[A-Za-z]|/{2}" classes.dat | grep -E -v "SYNONYMS" | grep -E -v "COMMENT" | grep -E -v "TYPES" > cleaner_classes.dat '
-    subprocess.run(cmd, shell=True)
-    return None
-
-
-def get_idandname(dat_entry: list) -> tuple[str]:
-    """Returns idnum and name from dat_entry"""
-    idnum, name = "", ""
-    for line in dat_entry:
-        if line.startswith("UNIQUE-ID"):
-            idnum = line.split(" - ")[-1]
-        elif line.startswith("COMMON-NAME"):
-            name = line.split(" - ")[-1]
-    return idnum, name
-
-
-def get_classes_annotation(filename: str = "../metacyc/cleaner_classes.dat") -> dict:
-    """Returns dictionary of classes annotation from filename"""
-    annot_entries = entry_parser(
-        readr("../metacyc/cleaner_classes.dat", encoding="iso8859-1"), sep="//"
-    )
-    annot = dictify(per_entry(annot_entries, get_idandname))
-    return annot
-
-
-# ----------------------------------------------------------------------------
-# ---------------------------- reaction annotation (obsolete)-----------------
-def cmd_clean_rxns() -> None:
-    """Linux command to clean reactions.dat (obsolete)"""
-    cmd = 'grep -E "^[A-Za-z]|/{2}" reactions.dat | grep -E "^UNI|^LEFT|^RIGHT|^REACTION\-DIRECTION|^/{2}" > cleaner_rxns.dat'
-    subprocess.run(cmd, shell=True)
-    return None
-
-
-def get_preandpost(entry: list[str]) -> tuple[str]:
-    """Returns pre and post from entry"""
-    idnum, name = "", ""
-    for line in entry:
-        if line.startswith("UNIQUE-ID"):
-            idnum = line.split(" - ")[-1]
-        elif line.startswith("COMMON-NAME"):
-            name = line.split(" - ")[-1]
-    return idnum, name
-
-
 # ----------------------------------------------------------------------------
 # ---------------------------- compound annotation ---------------------------
 
 
-def file_to_compounds(
+def dat_to_df(
     filename: str, column_names: list = ["unique_id", "inchi", "SMILES"]
 ) -> pd.DataFrame:
     """Returns dataframe from filename
 
     Args:
-        filename (str): location of file
+        filename (str): location of file (MetaCyc's 'compound-links.dat')
         column_names (list): list of column names
     Returns:
         pd.DataFrame: dataframe from filename
@@ -411,27 +360,28 @@ def file_to_compounds(
     usecols = (i for i in range(len(column_names)))
     array = np.loadtxt(filename, dtype=str, delimiter="\t", usecols=usecols)
     df = pd.DataFrame(array, columns=column_names)
+    
     return df
 
 
 def _sdf_to_records(
     sdf_path: str,
     column_names: list = ["coconut_id", "inchi", "SMILES", "rdk_inchi", "rdk_SMILES"],
-) -> pd.DataFrame:
+) -> list[dict]:
     """
-    Returns records from sdf_path
+    Returns df from sdf_path
 
         Args:
             sdf_path (str): location of file
-            column_names (list): list of column names
+            column_names (list): list of column names to extract from sdf Props
         Returns:
-            pd.DataFrame: dataframe from sdf_path
+            list: list of dictionaries with column_names as keys for conversion to dataframe
 
     """
     sdf_props = []
 
     supplier = Chem.SDMolSupplier(sdf_path)
-    for i, mol in tqdm(enumerate(supplier), total=len(supplier)):
+    for i, mol in tqdm(enumerate(supplier), total=len(supplier), desc="reading sdf"):
         this_mol_props = {q: "" for q in column_names}
         if mol is None:
             logging.warning("molecule {} could not be read".format(i))
@@ -452,7 +402,7 @@ def sdf_to_compounds(*args, **kwargs) -> pd.DataFrame:
 
 
 def add_partial_inchi(
-    df, inchi_column: str = "inchi", inchi_parts: int = 3
+    df: pd.DataFrame, inchi_column: str = "inchi", inchi_parts: int = 3
 ) -> pd.DataFrame:
     """
     Adds partial inchi to dataframe
@@ -460,7 +410,7 @@ def add_partial_inchi(
         Args:
             df (pd.DataFrame): dataframe with inchi_column
             inchi_column (str): name of the inchi column
-            inchi_parts (int): number of parts to keep
+            inchi_parts (int): number of parts to keep (3 describes up to and including atom connectivity)
         Returns:
             pd.DataFrame: dataframe with added partial inchi
 
@@ -468,12 +418,10 @@ def add_partial_inchi(
         - partial inchi refers to the first inchi_parts parts of the inchi divided by /
     """
     newcol = f"{inchi_parts}_{inchi_column}"
-    # # create mask for rows with inchi that are strings
-    # inchi_present = ~df[inchi_column].isna()
-    # # create mask for rows with inchi that are strings
+    # create mask for rows with inchi that are strings
     inchi_present = df[inchi_column].apply(lambda x: isinstance(x, str) and x.startswith("InChI="))
+    
     df[newcol] = df[inchi_present][inchi_column].apply(lambda x: x.split("/"))
-    # df[newcol] = df[~df[inchi_column].isna()][inchi_column].str.split("/") # gives error with coco_mols, saying they are not always string values
     df[newcol] = df[inchi_present][newcol].apply(
         lambda x: "/".join(x[:inchi_parts])
     ).astype(str)
@@ -489,7 +437,7 @@ def takeover_rdk_partials(
 
         Args:
             df (pd.DataFrame): dataframe with columns
-            columns (dict): dictionary of columns
+            columns (dict): dictionary of columns, 
         Returns:
             pd.DataFrame: dataframe with partial inchi taken over
 
@@ -595,6 +543,11 @@ def get_common_compounds(
     logging.info(f"{len(on_inchi)} compounds have a partial inchi in common")
     logging.info(f"{len(on_smiles)} compounds have a smiles in common")
     logging.info(f"{len(coco_meta)} compounds in common")  # 406529
+
+    print(f"{len(on_inchi)} compounds have a partial inchi in common")
+    print(f"{len(on_smiles)} compounds have a smiles in common")
+    print(f"{len(coco_meta)} compounds in common")  # 406529
+
     return coco_meta[["coconut_id", "unique_id", "inchi", "SMILES"]]
 
 
@@ -750,6 +703,7 @@ def _contains_list(lst: list) -> bool:
         if isinstance(item, list):
             return True
     return False
+    
 
 
 def tree_to_chains(tree):
@@ -913,23 +867,23 @@ def df_filter(df: pd.DataFrame, col: str, is_in: list) -> pd.DataFrame:
     return df_of_interest
 
 
-def get_indexes(df: pd.DataFrame) -> list[int]:
-    """Returns list of indexes from dataframe"""
-    unique_index = df.index.unique()
-    return unique_index
+# def get_indexes(df: pd.DataFrame) -> list[int]:
+#     """Returns list of indexes from dataframe"""
+#     unique_index = df.index.unique()
+#     return unique_index
 
 
-def remove_cols(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-    """Removes columns from dataframe"""
-    new = df
-    for i in cols:
-        new = new.drop(columns=i).drop_duplicates()
-    return new
+# def remove_cols(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+#     """Removes columns from dataframe"""
+#     new = df
+#     for i in cols:
+#         new = new.drop(columns=i).drop_duplicates()
+#     return new
 
 
-def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
-    """Annotates dataframe with replace_dict"""
-    return df.replace(to_replace=replace_dict)
+# def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
+#     """Annotates dataframe with replace_dict"""
+#     return df.replace(to_replace=replace_dict)
 
 
 # def filter_by_rxn_len(df: pd.DataFrame, length: int = 4) -> pd.DataFrame:
@@ -940,12 +894,28 @@ def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
 #     return new
 
 
-def mergeinchis(df: pd.DataFrame) -> pd.DataFrame:
-    """Merges inchi columns in dataframe (obsolete)"""
-    newdf = df
-    newdf["InChi"] = newdf["INCHI"].fillna(newdf["NON-STANDARD-INCHI"])
-    return newdf
+# def mergeinchis(df: pd.DataFrame) -> pd.DataFrame:
+#     """Merges inchi columns in dataframe (obsolete)"""
+#     newdf = df
+#     newdf["InChi"] = newdf["INCHI"].fillna(newdf["NON-STANDARD-INCHI"])
+#     return newdf
 
+def _str_to_valid_smiles(structure_string: str, clean: bool = False) -> Chem.Mol:
+    mol = ""
+    if structure_string.startswith("InChI="):
+        mol = Chem.MolFromInchi(structure_string)
+    elif clean:
+        mol = Chem.MolFromSmiles(
+            structure_string.split(
+                "[a ",
+            )[0]
+        ) # remove any non-specific parts of the smiles string
+    else:
+        mol = Chem.MolFromSmiles(structure_string)
+    if mol:
+        return Chem.MolToSmiles(mol)
+    else:
+        return ""
 
 def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
     """
@@ -965,19 +935,16 @@ def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
     ndf.columns = ndf.columns.str.replace("_", "-")
 
     # ndf["filled"] = ndf["INCHI"].fillna(ndf["smiles"])#.fillna(ndf["non-standard-inchi"])
-    ndf["filled"] = ndf["SMILES"]#.fillna(ndf["INCHI"]).fillna(ndf["NON-STANDARD-INCHI"])
-    ndf["filled"].fillna("")
+    # ndf["filled"] = ndf["SMILES"].fillna(ndf["INCHI"]).fillna(ndf["NON-STANDARD-INCHI"])
+    ndf["filled"] = ndf["INCHI"].fillna(ndf["SMILES"]).fillna("")#.fillna(ndf["NON-STANDARD-INCHI"])
     dic = pd.Series(ndf["filled"].values, index=ndf["UNIQUE-ID"]).to_dict()
     full_dic = {}
     for key, val in dic.items():
         if isinstance(val, str) and val:
             if allcapskeys:
-                full_dic[key.upper()] = val
-            else:
-                full_dic[key] = val
-    return full_dic
-
-
+                key = key.upper()
+            full_dic[key] = val
+    return {key: _str_to_valid_smiles(val) for key, val in full_dic.items()}
 
 # ============================================================================
 
@@ -986,11 +953,12 @@ def main():
     args = cli()
 
     # pathways_path = "/Users/lucina-may/thesis/metacyc/pathways.dat"
-    
+    output_dir = os.path.dirname(args.output_path)
+
     pathways = get_pathways(args.pathways_path)
     pathways = clean_pw_df(pathways)
 
-    meta_mols = file_to_compounds(args.compounds_path)
+    meta_mols = dat_to_df(args.compounds_path)
 
     if isinstance(args.filter, str):
         # create temporary save directory to not have to redo the filtering
@@ -1024,14 +992,19 @@ def main():
 
     pw_chains = chains_per_pathway(pathways_oi)
     # change unique_ids to smiles with moldict
-    if args.smiles:
+    if args.smiles or args.filter:
         mol_dict = to_conversion_dict(meta_mols)
-        pw_chains_smiles = pw_chains.replace(mol_dict)
-        pw_chains_smiles.to_csv("metacyc_chains_smiles.tsv", sep="\t", index=True)
+        pd.DataFrame.from_dict(mol_dict, orient="index").to_csv(f"{args.output_path}_moldict.tsv", sep="\t", index=True)
+        pw_chains_structs = pw_chains.replace(mol_dict)
+        pw_chains_structs.to_csv(f"{args.output_path}_structs.tsv", sep="\t", index=True)
 
 
-    pw_chains.to_csv("metacyc_chains.tsv", sep="\t", index=True)
-    exit()
+    pw_chains.to_csv(f'{args.output_path}.tsv', sep="\t", index=True)
+
+    
+
+
+    exit(0)
 
 
 if __name__ == "__main__":
