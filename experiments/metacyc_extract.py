@@ -31,17 +31,17 @@ def cli():
     parser.add_argument(
         "-c",
         "--compounds_path",
-        # metavar="compound-links.dat",
+        # metavar="compounds.dat",
         type=str,
-        help="path to MetaCyc compound-links.dat file containing info per compound",
+        help="path to MetaCyc compounds.dat file containing info per compound",
     )
     parser.add_argument(
         "-f",
         "--filter",
-        # metavar = "filter_for_these.sdf",
+        # metavar = "compounds_to_filter_for.sdf",
         required=False,
         default=None,
-        help = ("[under_construction] (optional) path to .sdf file with compounds",
+        help = ("(optional) path to .sdf file with compounds",
                 " to filter pathways on (for inclusion). Default: no filter",)
     )
     parser.add_argument(
@@ -62,7 +62,13 @@ def cli():
             "(first column will still be MetaCyc pathway IDs)",
         ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.pathways_path = os.path.abspath(args.pathways_path)
+    args.compounds_path = os.path.abspath(args.compounds_path)
+    if args.filter:
+        args.filter = os.path.abspath(args.filter)
+    args.output_path = os.path.abspath(args.output_path)
+    return args
     
 
 # ============================== input handling ===============================
@@ -92,7 +98,7 @@ def extract_linestartswith(
         extraction[start] = []
     for line in lines:
         for start in starts:
-            if line.startswith(start):
+            if line.startswith(f"{start} "): # to avoid ones not exactly starting with start
                 extraction[start].append(
                     line.strip().replace(start, "").replace(strip_extra, "").strip()
                 )
@@ -157,6 +163,59 @@ get_compounds = partial(
     info_from_entries,
     info2extract=["UNIQUE-ID", "SMILES", "INCHI", "NON-STANDARD-INCHI"],
 )
+
+def _str_to_valid_mol(structure_string: str, clean: bool = False) -> Chem.Mol:
+    mol = ""
+    if structure_string.startswith("InChI="):
+        mol = Chem.MolFromInchi(structure_string)
+    elif clean:
+        mol = Chem.MolFromSmiles(
+            structure_string.split(
+                "[a ",
+            )[0]
+        ) # remove any non-specific parts of the smiles string
+    else:
+        mol = Chem.MolFromSmiles(structure_string)
+    if mol:
+        return mol
+    else:
+        return ""
+
+def write_compounds(df: pd.DataFrame) -> dict:
+    """
+    Makes valid dataframe for conversion of UNIQUE-ID to INCHI and SMILES
+
+        Args:
+            df (pd.DataFrame): dataframe
+            allcapskeys (bool): whether to make keys all caps
+        Returns:
+            dict: dictionary for conversion
+
+    Remark:
+        - fills inchi, smiles and non-standard-inchi columns
+    """
+    df.columns = df.columns.str.upper()
+    df.columns = df.columns.str.replace("_", "-")
+    df = df.set_index("UNIQUE-ID")
+    if "NON-STANDARD-INCHI" not in df.columns:
+        df["NON-STANDARD-INCHI"] = np.nan
+
+
+    df["mol"] = df["INCHI"].fillna(df["SMILES"]).fillna(df["NON-STANDARD-INCHI"]).fillna(np.nan)
+    #print mol values if isinstance list
+    # df["mol"].apply(lambda x: print(x) if isinstance(x, list) else x)
+
+    df["mol"] = df["mol"].apply(lambda x: _str_to_valid_mol(x) if isinstance(x, str) else np.nan)
+    df["INCHI"] = df["mol"].apply(lambda x: Chem.MolToInchi(x) if isinstance(x, Chem.Mol) else np.nan)
+    df["SMILES"] = df["mol"].apply(lambda x: Chem.MolToSmiles(x) if isinstance(x, Chem.Mol) else np.nan)
+    df.drop(columns=["NON-STANDARD-INCHI", "mol"], inplace=True)
+
+    df.columns = df.columns.str.lower()
+    df.columns = df.columns.str.replace("-", "_")
+    df.index.name = "unique_id"
+    
+    df.to_csv("meta_compounds.tsv", sep="\t", index=True)
+    return df
 
 
 # ============================== formatting df =====================================
@@ -314,13 +373,6 @@ def mols_per_pathway(pathways: pd.DataFrame) -> pd.DataFrame:
     return pw_mols
 
 
-# def filter_pathwayid(
-#     df: pd.DataFrame, is_in: list[str], col: str = "pathway_id"
-# ) -> pd.DataFrame:
-#     """Filters dataframe by pathway_id"""
-#     return df[df[col].isin(is_in)]
-
-
 def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
     """
     Explodes dataframe downwards, to get one product per row
@@ -342,161 +394,55 @@ def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------------------
-# ---------------------------- compound annotation ---------------------------
-
-
-def dat_to_df(
-    filename: str, column_names: list = ["unique_id", "inchi", "SMILES"]
-) -> pd.DataFrame:
-    """Returns dataframe from filename
-
-    Args:
-        filename (str): location of file (MetaCyc's 'compound-links.dat')
-        column_names (list): list of column names
-    Returns:
-        pd.DataFrame: dataframe from filename
-
+def sdf_to_compounds(sdf_path: str) -> pd.DataFrame:
     """
-    usecols = (i for i in range(len(column_names)))
-    array = np.loadtxt(filename, dtype=str, delimiter="\t", usecols=usecols)
-    df = pd.DataFrame(array, columns=column_names)
-    
-    return df
-
-
-def _sdf_to_records(
-    sdf_path: str,
-    column_names: list = ["coconut_id", "inchi", "SMILES", "rdk_inchi", "rdk_SMILES"],
-) -> list[dict]:
-    """
-    Returns df from sdf_path
+    Returns dataframe from sdf file with properties as columns
 
         Args:
             sdf_path (str): location of file
-            column_names (list): list of column names to extract from sdf Props
-        Returns:
-            list: list of dictionaries with column_names as keys for conversion to dataframe
-
     """
-    sdf_props = []
-
     supplier = Chem.SDMolSupplier(sdf_path)
-    for i, mol in tqdm(enumerate(supplier), total=len(supplier), desc="reading sdf"):
-        this_mol_props = {q: "" for q in column_names}
-        if mol is None:
-            logging.warning("molecule {} could not be read".format(i))
+    # df = pd.DataFrame(len(supplier), columns=["coconut_id", "inchi", "smiles"])
+    sdf_props = []
+    for mol in tqdm(supplier, total=len(supplier), desc="reading sdf"):
+        if not mol:
             continue
-        else:
-            for prop in column_names:
-                if mol.HasProp(prop):
-                    this_mol_props[prop] = mol.GetProp(prop)
+
+        this_mol_props = {"coconut_id": np.nan}
+        if mol.HasProp("coconut_id"):
+            coco_id = mol.GetProp("coconut_id")
+        this_mol_props["coconut_id"] = coco_id
+        this_mol_props["inchi"] = Chem.MolToInchi(mol)
+        this_mol_props["smiles"] = Chem.MolToSmiles(mol)
         sdf_props.append(this_mol_props)
 
-    return sdf_props
-
-
-def sdf_to_compounds(*args, **kwargs) -> pd.DataFrame:
-    """Returns dataframe from sdf file with properties as columns"""
-    records = _sdf_to_records(*args, **kwargs)
-    return pd.DataFrame(records)
-
-
-def add_partial_inchi(
-    df: pd.DataFrame, inchi_column: str = "inchi", inchi_parts: int = 3
-) -> pd.DataFrame:
-    """
-    Adds partial inchi to dataframe
-
-        Args:
-            df (pd.DataFrame): dataframe with inchi_column
-            inchi_column (str): name of the inchi column
-            inchi_parts (int): number of parts to keep (3 describes up to and including atom connectivity)
-        Returns:
-            pd.DataFrame: dataframe with added partial inchi
-
-    Remark:
-        - partial inchi refers to the first inchi_parts parts of the inchi divided by /
-    """
-    newcol = f"{inchi_parts}_{inchi_column}"
-    # create mask for rows with inchi that are strings
-    inchi_present = df[inchi_column].apply(lambda x: isinstance(x, str) and x.startswith("InChI="))
-    
-    df[newcol] = df[inchi_present][inchi_column].apply(lambda x: x.split("/"))
-    df[newcol] = df[inchi_present][newcol].apply(
-        lambda x: "/".join(x[:inchi_parts])
-    ).astype(str)
-    df[newcol] = df[newcol].fillna("")
+    df = pd.DataFrame(sdf_props)
+    df.index = df["coconut_id"]
     return df
 
-
-def takeover_rdk_partials(
-    df: pd.DataFrame, columns: dict = {"3_rdk_inchi": "3_inchi"}
-) -> pd.DataFrame:
-    """
-    Takes over partial inchi from one column to another
-
-        Args:
-            df (pd.DataFrame): dataframe with columns
-            columns (dict): dictionary of columns, 
-        Returns:
-            pd.DataFrame: dataframe with partial inchi taken over
-
-    """
-    for key, val in columns.items():
-        df[val] = df[val].fillna(df[key])
-        df.loc[df[key] == df[val], val] = np.nan
-        assert df[df[key] == df[val]].empty, "error in takeover_rdk_partials merging"
-    return df
-
-
-def merge_on_partial_inchi(
-    coco: pd.DataFrame, meta: pd.DataFrame, on: str = "3_inchi"
-) -> pd.DataFrame:
-    """
-    Merges dfs on partial inchi
-
-        Args:
-            coco (pd.DataFrame): dataframe
-            meta (pd.DataFrame): dataframe
-            on (str): column name
-        Returns:
-            pd.DataFrame: dataframe
-    """
-    df = pd.merge(coco, meta, on=on, how="inner", suffixes=("_coco", "_meta"))
-    return df
-
-
-def merge_on_smiles(
-    coco: pd.DataFrame, meta: pd.DataFrame, on: str = "SMILES"
-) -> pd.DataFrame:
-    """
-    Merges dfs on smiles
-
-        Args:
-            coco (pd.DataFrame): dataframe
-            meta (pd.DataFrame): dataframe
-            on (str): column name
-        Returns:
-            pd.DataFrame: dataframe
-    """
-
-    df = pd.merge(coco, meta, on="SMILES", how="inner", suffixes=("_coco", "_meta"))
-    return df
+def _partial_inchi(inchi:str, parts:int = 3)->str:
+    """returns partial inchi, where parts is the number of parts to keep. 3 is up to and including atom connectivity"""
+    parts = inchi.split("/")
+    return "/".join(parts[:3])
 
 
 def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFrame:
     """
     Merges the two dataframes resulting from merge_on_partial_inchi and merge_on_smiles
     """
-    on_smiles.rename(columns={"SMILES": "SMILES_meta"}, inplace=True)
+    print(on_inchi.columns, on_smiles.columns, "\n\n")
+    on_inchi.rename(columns={"smiles_meta": "smiles"}, inplace=True)
+    # on_smiles.rename(columns={"inchi_meta": "inchi"}, inplace=True)
+    print(on_inchi.columns, on_smiles.columns)
+    print(on_inchi.head(), on_smiles.head())
     df = pd.merge(
         on_inchi,
         on_smiles,
-        on=["coconut_id", "unique_id", "inchi_meta", "SMILES_meta"],
+        on=["coconut_id", "unique_id", "inchi_meta", "smiles"],
         how="outer",
-        suffixes=("_inchi", "_SMILES"),
+        suffixes=("_inchi", "_smiles"),
     )
-    df.rename(columns={"SMILES_meta": "SMILES", "inchi_meta": "inchi"}, inplace=True)
+    df.rename(columns={"inchi_meta": "inchi"}, inplace=True)
     return df
 
 
@@ -517,38 +463,35 @@ def get_common_compounds(
         - gets compounds that are in both coco and meta mols
         - filters on partial inchi OR smiles in common
     """
-    meta_mols = add_partial_inchi(
-        meta_mols, inchi_column="inchi", inchi_parts=inchi_parts
-    )
-    coco_mols = add_partial_inchi(
-        coco_mols, inchi_column="inchi", inchi_parts=inchi_parts
-    ) # gives error!
-    coco_mols = add_partial_inchi(
-        coco_mols, inchi_column="rdk_inchi", inchi_parts=inchi_parts
-    )
-    coco_mols = takeover_rdk_partials(coco_mols, columns={"3_rdk_inchi": "3_inchi"})
+    #get the index as a column
+    meta_mols = meta_mols.reset_index()
+    coco_mols = coco_mols.reset_index()
 
-    log_col = f"{inchi_parts}_inchi"
+    p_i = "partial_inchi"
+    meta_mols[p_i] = meta_mols["inchi"].apply(lambda x: _partial_inchi(x, parts=inchi_parts) if isinstance(x, str) else np.nan)
+    coco_mols[p_i] = coco_mols["inchi"].apply(lambda x: _partial_inchi(x, parts=inchi_parts) if isinstance(x, str) else np.nan)
+
+
     logging.info(
-        f"{len(coco_mols[~coco_mols[log_col].isna()])} coco mols have inchi"
-    )  # 406529
-    logging.info(
-        f"{len(meta_mols[~meta_mols[log_col].isna()])} meta mols have inchi"
-    )  # 19173
+        (f"{len(coco_mols[~coco_mols[p_i].isna()])} coco mols have inchi",
+        f"{len(meta_mols[~meta_mols[p_i].isna()])} meta mols have inchi"))  # 406529
+  
+    same_p_inchi = pd.merge(coco_mols, meta_mols, on=p_i, how="inner", suffixes=("_coco", "_meta"))
+    same_smiles = pd.merge(coco_mols, meta_mols, on="smiles", how="inner", suffixes=("_coco", "_meta"))
+    coco_meta = merge_merges(same_p_inchi, same_smiles)
 
-    on_inchi = merge_on_partial_inchi(coco_mols, meta_mols)
-    on_smiles = merge_on_smiles(coco_mols, meta_mols)
-    coco_meta = merge_merges(on_inchi, on_smiles)
+    meta_mols = meta_mols.set_index("unique_id")
+    coco_mols = coco_mols.set_index("coconut_id")
 
-    logging.info(f"{len(on_inchi)} compounds have a partial inchi in common")
-    logging.info(f"{len(on_smiles)} compounds have a smiles in common")
+    logging.info(f"{len(same_p_inchi)} compounds have a partial inchi in common")
+    logging.info(f"{len(same_smiles)} compounds have a smiles in common")
     logging.info(f"{len(coco_meta)} compounds in common")  # 406529
 
-    print(f"{len(on_inchi)} compounds have a partial inchi in common")
-    print(f"{len(on_smiles)} compounds have a smiles in common")
+    print(f"{len(same_p_inchi)} compounds have a partial inchi in common")
+    print(f"{len(same_smiles)} compounds have a smiles in common")
     print(f"{len(coco_meta)} compounds in common")  # 406529
 
-    return coco_meta[["coconut_id", "unique_id", "inchi", "SMILES"]]
+    return coco_meta[["coconut_id", "unique_id", "inchi", "smiles"]]
 
 
 # ------------------------ get relevant pathways -----------------------------
@@ -862,89 +805,10 @@ def compound_id_to_structure(
 
 def df_filter(df: pd.DataFrame, col: str, is_in: list) -> pd.DataFrame:
     """Filters dataframe by col"""
+    # return df[df[col].isin(is_in)] @todo: check if this is correct
     mask = df[col].isin(is_in)
     df_of_interest = df[mask]
     return df_of_interest
-
-
-# def get_indexes(df: pd.DataFrame) -> list[int]:
-#     """Returns list of indexes from dataframe"""
-#     unique_index = df.index.unique()
-#     return unique_index
-
-
-# def remove_cols(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-#     """Removes columns from dataframe"""
-#     new = df
-#     for i in cols:
-#         new = new.drop(columns=i).drop_duplicates()
-#     return new
-
-
-# def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
-#     """Annotates dataframe with replace_dict"""
-#     return df.replace(to_replace=replace_dict)
-
-
-# def filter_by_rxn_len(df: pd.DataFrame, length: int = 4) -> pd.DataFrame:
-#     mask = np.array([len(x) > 3 for x in colval_per_index(df)])
-#     all_ind = np.array(df.index.unique())
-#     long_enough = all_ind[mask]
-#     new = df[df.index.isin(long_enough)]
-#     return new
-
-
-# def mergeinchis(df: pd.DataFrame) -> pd.DataFrame:
-#     """Merges inchi columns in dataframe (obsolete)"""
-#     newdf = df
-#     newdf["InChi"] = newdf["INCHI"].fillna(newdf["NON-STANDARD-INCHI"])
-#     return newdf
-
-def _str_to_valid_smiles(structure_string: str, clean: bool = False) -> Chem.Mol:
-    mol = ""
-    if structure_string.startswith("InChI="):
-        mol = Chem.MolFromInchi(structure_string)
-    elif clean:
-        mol = Chem.MolFromSmiles(
-            structure_string.split(
-                "[a ",
-            )[0]
-        ) # remove any non-specific parts of the smiles string
-    else:
-        mol = Chem.MolFromSmiles(structure_string)
-    if mol:
-        return Chem.MolToSmiles(mol)
-    else:
-        return ""
-
-def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
-    """
-    Makes dictionary from dataframe for conversion
-
-        Args:
-            df (pd.DataFrame): dataframe
-            allcapskeys (bool): whether to make keys all caps
-        Returns:
-            dict: dictionary for conversion
-
-    Remark:
-        - fills inchi, smiles and non-standard-inchi columns
-    """
-    ndf = df
-    ndf.columns = ndf.columns.str.upper()
-    ndf.columns = ndf.columns.str.replace("_", "-")
-
-    # ndf["filled"] = ndf["INCHI"].fillna(ndf["smiles"])#.fillna(ndf["non-standard-inchi"])
-    # ndf["filled"] = ndf["SMILES"].fillna(ndf["INCHI"]).fillna(ndf["NON-STANDARD-INCHI"])
-    ndf["filled"] = ndf["INCHI"].fillna(ndf["SMILES"]).fillna("")#.fillna(ndf["NON-STANDARD-INCHI"])
-    dic = pd.Series(ndf["filled"].values, index=ndf["UNIQUE-ID"]).to_dict()
-    full_dic = {}
-    for key, val in dic.items():
-        if isinstance(val, str) and val:
-            if allcapskeys:
-                key = key.upper()
-            full_dic[key] = val
-    return {key: _str_to_valid_smiles(val) for key, val in full_dic.items()}
 
 # ============================================================================
 
@@ -952,37 +816,32 @@ def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
 def main():
     args = cli()
 
-    # pathways_path = "/Users/lucina-may/thesis/metacyc/pathways.dat"
-    output_dir = os.path.dirname(args.output_path)
+    output_dir = os.path.abspath(os.path.dirname(args.output_path))
+    temp_dir = os.path.join(output_dir, "intermediate_files")
+    iwd = os.getcwd()
+    os.makedirs(temp_dir, exist_ok=True)
+    os.chdir(temp_dir)
 
     pathways = get_pathways(args.pathways_path)
     pathways = clean_pw_df(pathways)
 
-    meta_mols = dat_to_df(args.compounds_path)
+    meta_mols = get_compounds(args.compounds_path)
+    for col in meta_mols.columns:
+        meta_mols = _listcell_to_strcell(meta_mols, col)
+    write_compounds(meta_mols)
+    meta_mols = pd.read_csv("meta_compounds.tsv", sep="\t", index_col="unique_id")
 
     if isinstance(args.filter, str):
-        # create temporary save directory to not have to redo the filtering
-        tmp_dir = "metacyc_extract_temp"
-        if not os.path.exists(tmp_dir):
-            os.makedirs(tmp_dir)
-        # common_compound_path = "/Users/lucina-may/thesis/metacyc/coco_meta.tsv"
-        common_compound_path = os.path.join(tmp_dir, "coco_meta.tsv")
+        common_compound_path = os.path.join(temp_dir, "coco_meta.tsv")
         if not os.path.exists(common_compound_path):
-            # coco_mols_path = "/Users/lucina-may/thesis/metacyc/coconut-links.tsv"
-            # meta_mols_path = "/Users/lucina-may/thesis/metacyc/compound-links.dat"
-            # meta_mols_path = args.compounds_path
-            coco_mols_path = os.path.join(tmp_dir, "coconut-links.tsv")
-
+            coco_mols_path = os.path.join(temp_dir, "coconut_compounds.tsv")
             if not os.path.exists(coco_mols_path):
-                # coco_sdf = "/Users/lucina-may/thesis/input/coconut.sdf"
                 coco_sdf = args.filter
                 coco_mols = sdf_to_compounds(sdf_path=coco_sdf)  # standard query
-                coco_mols.to_csv(coco_mols_path, sep="\t", index=False)
+                coco_mols.to_csv(coco_mols_path, sep="\t", index=True)
 
-            coco_mols = pd.read_csv(coco_mols_path, sep="\t")
-            # meta_mols = file_to_compounds(meta_mols_path) # moved out of if
+            coco_mols = pd.read_csv(coco_mols_path, sep="\t", index_col="coconut_id")
             compounds = get_common_compounds(coco_mols, meta_mols, inchi_parts=3)
-
             compounds.to_csv(common_compound_path, sep="\t", index=False)
         compounds = pd.read_csv(common_compound_path, sep="\t")
 
@@ -992,18 +851,21 @@ def main():
 
     pw_chains = chains_per_pathway(pathways_oi)
     # change unique_ids to smiles with moldict
+    
+    # go to parent directory
+    os.chdir(output_dir)
     if args.smiles or args.filter:
-        mol_dict = to_conversion_dict(meta_mols)
-        pd.DataFrame.from_dict(mol_dict, orient="index").to_csv(f"{args.output_path}_moldict.tsv", sep="\t", index=True)
+        mol_dict = pd.Series(meta_mols["smiles"].values, index=meta_mols.index).to_dict()
+        #@todo: add in all unique_ids that are in pathways.dat but not in compounds.dat
+        # mol_dict = to_conversion_dict(meta_mols)
+        # pd.DataFrame.from_dict(mol_dict, orient="index").to_csv(f"{args.output_path}_moldict.tsv", sep="\t", index=True)
         pw_chains_structs = pw_chains.replace(mol_dict)
-        pw_chains_structs.to_csv(f"{args.output_path}_structs.tsv", sep="\t", index=True)
+        pw_chains_structs.to_csv(f"{args.output_path}_smiles.tsv", sep="\t", index=True)
 
 
     pw_chains.to_csv(f'{args.output_path}.tsv', sep="\t", index=True)
-
     
-
-
+    os.chdir(iwd)
     exit(0)
 
 
