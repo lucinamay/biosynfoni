@@ -603,19 +603,22 @@ def loopsquares(
 
 
 def main():
-    logging.getLogger(__name__).setLevel(logging.INFO)
+    #@TODO: incorporate the distances along the longest chain
     set_style()
+    logging.getLogger(__name__).setLevel(logging.INFO)
     logging.info("==========\nbiosyn distance\n==========")
     # struct_loc = "../../../scripts/0927_metacyc_reactions.tsv"
+    
     args = cli()
 
     df = pd.read_csv(args.structures_path, sep="\t", header=None, index_col=0)
-    logging.info(f"read {df.shape[0]} pathways from {args.structures_path}")
     df.index.name = "pathway"
-    rows = df.shape
+    logging.info(f"read {df.shape[0]} pathways from {args.structures_path}")
+    
+    old_n_rows = df.shape
     df.replace("", np.nan, inplace=True)
     df = df.dropna(thresh=2)  # drop where not at least 1 pair of mol
-    logging.info(f"{rows[0]-df.shape[0]} pathways dropped due to lack of mol pairs\n\n")
+    logging.info(f"{old_n_rows[0]-df.shape[0]} pathways dropped due to lack of mol pairs\n\n")
 
     _, iwd = output_direr("./biosynthetic_distance")  # move to outputdir
 
@@ -635,11 +638,11 @@ def main():
         # remove mols from df
         df = df.drop(columns=["mol1", "mol2"])
         df.to_csv(dist_df, sep="\t", index=True)
-    # df = pd.read_csv(dist_df, sep="\t", index_col=0)
+    
     mols = pd.read_pickle(f"{outfile_namer('mols')}.pkl")
     df = mols
-    # save index as column
     df["pathway"] = df.index
+    
     logging.debug(df.shape, mols.shape, df.columns)
     logging.debug(df, pairs, pairs.columns)
 
@@ -653,20 +656,19 @@ def main():
 
     logging.info("getting scatterplots...")
     fp_combs = get_fp_combinations()
-    for com in tqdm(fp_combs, desc="getting scatterplots"):
+    for combination in tqdm(fp_combs, desc="getting scatterplots"):
         scatter = fm.scatter_boxplots(
             df,
-            col_x=com[0],
-            col_y=com[1],
+            col_x=combination[0],
+            col_y=combination[1],
             figtitle=f"{args.metric} for different reaction step numbers",
             color_by="stepnum",
         )
-        filename = outfile_namer(f"{com[0]}_{com[1]}_{args.metric}.png")
+        filename = outfile_namer(f"{combination[0]}_{combination[1]}_{args.metric}.png")
         fm.savefig(scatter, filename)
 
-    exit()
-    onestep = df[df["stepnum"] == "1"]
 
+    onestep = df[df["stepnum"] == "1"]
     onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
     logging.info("getting squares...")
     for fp in [
