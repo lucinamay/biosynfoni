@@ -1,3 +1,43 @@
 [build-system]
 requires = ["setuptools>=68.1.2"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "biosynfoni"
+version = "0.1.0-alpha"
+description = "a *biosynformatic* fingerprint to explore natural product distance and diversity"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENCE"}
+keywords = ["bioinformatics", "cheminformatics", "metabolomics", "natural-products", "molecular-fingerprint", "metabolites", "biosynthetic-distance"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License ::  MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy",
+    "rdkit",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+experiments = [
+    "matplotlib",
+    "pandas",
+    "scikit-learn",
+    "umap",
+    "seaborn",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/lucinamay/biosynfoni"
+
+[project.scripts]
+biosynfoni = "biosynfoni.concerto_fp:main"
