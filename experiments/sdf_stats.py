@@ -9,7 +9,10 @@ from rdkit.Chem import Descriptors, rdMolDescriptors, rdchem
 
 
 def cli():
-    parser = argparse.ArgumentParser()
+    """Command line interface."""
+    parser = argparse.ArgumentParser(
+        description="Get properties from sdf file and save them as tsv."
+    )
 
     parser.add_argument("sdf", type=str, help="input sdf file")
     args = parser.parse_args()
@@ -18,6 +21,7 @@ def cli():
 
 
 def get_all_properties(suppl: Chem.SDMolSupplier) -> dict[str, np.ndarray]:
+    """Get properties from sdf file. Under construction."""
     properties = {}
 
     nones = np.zeros(len(suppl))

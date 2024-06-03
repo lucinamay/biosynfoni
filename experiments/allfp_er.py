@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, logging
 
 import numpy as np
 
@@ -28,12 +28,12 @@ fp_dict = {x: [] for x in FP_FUNCTIONS.keys()}
 
 i = 0
 j = 0
-print(f"starting with the {len(suppl)} molecules...")
+logging.info(f"starting with the {len(suppl)} molecules...")
 for mol in suppl:
     if i % 1000 == 0:
         print(f"{j} k done")
-        j+=1
-    i+=1
+        j += 1
+    i += 1
     for fp_name, fp_function in FP_FUNCTIONS.items():
         fingerprint = fp_function(mol)
         if fingerprint.any() != None:
@@ -48,5 +48,4 @@ for fp_name, fp_list in fp_dict.items():
     fp_arr = np.array(fp_list)
     outfile = f"{outfile_namer(sdf_name, fp_name)}.csv"
     np.savetxt(outfile, fp_arr, fmt="%i", delimiter=",")
-    print(f"saved {fp_name} to {outfile}")
-
+    logging.info(f"saved {fp_name} to {outfile}")

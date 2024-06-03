@@ -11,6 +11,7 @@ ____________________________________
 
 [1] wikidata json [2] filename taxonomy
 """
+
 import os
 import json
 import subprocess
@@ -58,6 +59,7 @@ class MyTaxon:
         self.taxinfo_header = taxinfo_header
 
     def __checkpath__(self) -> bool:
+        """checks if path exists"""
         if not os.path.exists(self.tax_tree):
             raise NameError(
                 "Taxonomical tree path {} does not exist".format(self.tax_tree)
@@ -79,6 +81,7 @@ class MyTaxon:
             return int(taxon_line.split("|")[0].strip())
 
     def getparent(self, child_id: int = 0) -> int:
+        """get parent of a child node in the tree"""
         # input error handling
         if child_id == -1:
             return ("", "", "")
@@ -100,6 +103,7 @@ class MyTaxon:
             return parent_id, parent_name, parent_level
 
     def parent_listr(self) -> tuple:
+        """finds the entire tree of a child node in the tree"""
         # it would be nice to 'combine' the searches within the different
         # compound trees i.e. merging searches after finding common parent to
         # decrease computational load.
@@ -118,6 +122,7 @@ class MyTaxon:
             return tuple(entire_tree)
 
     def taxlvl_getr(self, tree=(), level_oi: str = "kingdom") -> str:
+        """takes a tree and returns the taxon name at a certain level"""
         if not tree:
             tree = self.parent_listr()
         tax_name = ""  # init.
@@ -129,6 +134,7 @@ class MyTaxon:
         return tax_name
 
     def tax_info(self) -> tuple:
+        """returns all tax info"""
         ind_tree = self.parent_listr()
         all_info = []
         header = self.taxinfo_header
@@ -138,6 +144,7 @@ class MyTaxon:
 
 
 def loopr(df):
+    """loops over all compounds in df"""
     for df_i in range(len(df)):
         # for each compound
         one = MyTaxon(
@@ -154,6 +161,7 @@ def loopr(df):
 
 
 def dir_loopr(wikifiles_directory):
+    """loops over all files in a directory and writes to a tsv"""
     print("started dir loopr")
     initialwd = os.getcwd()
     os.chdir("{}".format(wikifiles_directory))

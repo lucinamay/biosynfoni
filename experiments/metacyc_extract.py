@@ -5,17 +5,71 @@ Created on Fri Sep 22 16:15:34 2023
 
 @author: lucina-may
 """
-import sys
-import subprocess
+import sys, subprocess, os, logging, argparse
 from sys import argv
+from functools import partial
+
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from rdkit import Chem
 
-sys.path.append("../src/")
 from biosynfoni.inoutput import *
+
+
+def cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-p",
+        "--pathways_path",
+        # metavar = "pathways.dat",
+        type=str,
+        help="path to MetaCyc pathways.dat file",
+        
+    )
+    parser.add_argument(
+        "-c",
+        "--compounds_path",
+        # metavar="compounds.dat",
+        type=str,
+        help="path to MetaCyc compounds.dat file containing info per compound",
+    )
+    parser.add_argument(
+        "-f",
+        "--filter",
+        # metavar = "compounds_to_filter_for.sdf",
+        required=False,
+        default=None,
+        help = ("(optional) path to .sdf file with compounds",
+                " to filter pathways on (for inclusion). Default: no filter",)
+    )
+    parser.add_argument(
+        "-o",
+        "--output_path",
+        # metavar="output",
+        type=str,
+        help="path to output .tsv file. Default: metacyc_chains.tsv",
+        default="metacyc_chains",
+    )
+    parser.add_argument(
+        "-s",
+        "--smiles",
+        action="store_true",
+        default=False,
+        help=(
+            "also outputs as smiles instead of only as MetaCyc IDs",
+            "(first column will still be MetaCyc pathway IDs)",
+        ),
+    )
+    args = parser.parse_args()
+    args.pathways_path = os.path.abspath(args.pathways_path)
+    args.compounds_path = os.path.abspath(args.compounds_path)
+    if args.filter:
+        args.filter = os.path.abspath(args.filter)
+    args.output_path = os.path.abspath(args.output_path)
+    return args
+    
 
 # ============================== input handling ===============================
 
@@ -23,22 +77,35 @@ from biosynfoni.inoutput import *
 def extract_linestartswith(
     lines: list, starts: list = [], remove_starts: bool = True, strip_extra: str = " - "
 ) -> dict[list[str]]:
-    """within a collection of lines, only extracts the lines starting with
-    terms in starts, returning them as a list to accomodate multiple values
-    per entry"""
+    """
+    Extracts lines starting with terms in starts, returning them as a list to accomodate multiple values per entry
+
+        Args:
+            lines (list): list of strings
+            starts (list): list of strings to search for at the start of each line
+            remove_starts (bool): whether to remove the start of the line
+            strip_extra (str): string to strip from the start of the line
+        Returns:
+            dict: dictionary with starts as keys and lists of strings as values
+
+    Remark:
+        within a collection of lines, only extracts the lines starting with
+        terms in starts, returning them as a list to accomodate multiple values
+        per entry
+    """
     extraction = {}
     for start in starts:
         extraction[start] = []
     for line in lines:
         for start in starts:
-            if line.startswith(start):
+            if line.startswith(f"{start} "): # to avoid ones not exactly starting with start
                 extraction[start].append(
                     line.strip().replace(start, "").replace(strip_extra, "").strip()
                 )
     return extraction
 
 
-def get_all_pathways(
+def info_from_entries(
     info_loc: str,
     info2extract: list[str],
     ignore_start: str = "#",
@@ -47,6 +114,25 @@ def get_all_pathways(
     remove_starts=True,
     strip_extra: str = " - ",
 ) -> pd.DataFrame:
+    """
+    Extracts information from entries in a file
+
+        Args:
+            info_loc (str): location of file
+            info2extract (list): list of strings to search for at the start of each line
+            ignore_start (str): ignore lines starting with this string
+            entry_sep (str): separator for entries
+            encoding (str): file encoding
+            remove_starts (bool): whether to remove the start of the line
+            strip_extra (str): string to strip from the start of the line
+        Returns:
+            pd.DataFrame: dataframe with info2extract as columns
+
+    Remark:
+        within a collection of lines, only extracts the lines starting with
+        terms in starts, returning them as a list to accomodate multiple values
+        per entry
+    """
     entries = entry_parser(
         readr(info_loc, ignore_start=ignore_start, encoding=encoding), sep=entry_sep
     )
@@ -59,19 +145,99 @@ def get_all_pathways(
         strip_extra=strip_extra,
     )
     df = pd.DataFrame.from_records(all_vals)
+
+    return df
+
+
+get_pathways = partial(
+    info_from_entries,
+    info2extract=[
+        "UNIQUE-ID",
+        "REACTION-LIST",
+        "SPECIES",
+        "TAXONOMIC-RANGE",
+        "REACTION-LAYOUT",
+    ],
+)
+get_compounds = partial(
+    info_from_entries,
+    info2extract=["UNIQUE-ID", "SMILES", "INCHI", "NON-STANDARD-INCHI"],
+)
+
+def _str_to_valid_mol(structure_string: str, clean: bool = False) -> Chem.Mol:
+    mol = ""
+    if structure_string.startswith("InChI="):
+        mol = Chem.MolFromInchi(structure_string)
+    elif clean:
+        mol = Chem.MolFromSmiles(
+            structure_string.split(
+                "[a ",
+            )[0]
+        ) # remove any non-specific parts of the smiles string
+    else:
+        mol = Chem.MolFromSmiles(structure_string)
+    if mol:
+        return mol
+    else:
+        return ""
+
+def write_compounds(df: pd.DataFrame) -> dict:
+    """
+    Makes valid dataframe for conversion of UNIQUE-ID to INCHI and SMILES
+
+        Args:
+            df (pd.DataFrame): dataframe
+            allcapskeys (bool): whether to make keys all caps
+        Returns:
+            dict: dictionary for conversion
+
+    Remark:
+        - fills inchi, smiles and non-standard-inchi columns
+    """
+    df.columns = df.columns.str.upper()
+    df.columns = df.columns.str.replace("_", "-")
+    df = df.set_index("UNIQUE-ID")
+    if "NON-STANDARD-INCHI" not in df.columns:
+        df["NON-STANDARD-INCHI"] = np.nan
+
+
+    df["mol"] = df["INCHI"].fillna(df["SMILES"]).fillna(df["NON-STANDARD-INCHI"]).fillna(np.nan)
+    #print mol values if isinstance list
+    # df["mol"].apply(lambda x: print(x) if isinstance(x, list) else x)
+
+    df["mol"] = df["mol"].apply(lambda x: _str_to_valid_mol(x) if isinstance(x, str) else np.nan)
+    df["INCHI"] = df["mol"].apply(lambda x: Chem.MolToInchi(x) if isinstance(x, Chem.Mol) else np.nan)
+    df["SMILES"] = df["mol"].apply(lambda x: Chem.MolToSmiles(x) if isinstance(x, Chem.Mol) else np.nan)
+    df.drop(columns=["NON-STANDARD-INCHI", "mol"], inplace=True)
+
+    df.columns = df.columns.str.lower()
+    df.columns = df.columns.str.replace("-", "_")
+    df.index.name = "unique_id"
+    
+    df.to_csv("meta_compounds.tsv", sep="\t", index=True)
     return df
 
 
 # ============================== formatting df =====================================
 
 
-def df_get_all_rxn_layouts(
-    df: pd.DataFrame, column_name: str = "REACTION-LAYOUT"
+def _df_get_all_rxn_layouts(
+    df: pd.DataFrame, column_name: str = "reaction_layout"
 ) -> pd.DataFrame:
-    """non-general function to split the reaction-layout column into reaction-id, left, direction, right"""
+    """
+    Splits the reaction-layout column into reaction-id, left, direction, right
+
+        Args:
+            df (pd.DataFrame): dataframe with reaction-layout column
+            column_name (str): name of the reaction-layout column
+        Returns:
+            pd.DataFrame: dataframe with reaction-layout column split into reaction-id, left, direction, right
+    Remark:
+        - specific to pathway-tools dataframe format (metacyc pathway file)
+    """
     # first get separate entry for each REACTION-LAYOUT
     df = df.explode(column_name)
-    df["reaction-id"] = df[column_name].str.split(" ", expand=True)[0].str.strip("(")
+    df["reaction_id"] = df[column_name].str.split(" ", expand=True)[0].str.strip("(")
     df["left"] = (
         df[column_name]
         .str.split(":", expand=True)[1]
@@ -88,10 +254,20 @@ def df_get_all_rxn_layouts(
     return df
 
 
-def switch_directions(
+def _switch_directions(
     df: pd.DataFrame, subset: tuple[str] = ("left", "right"), on: str = "direction"
 ) -> pd.DataFrame:
-    """switches left and right columns if direction is R2L"""
+    """
+    Switch left and right columns if direction is R2L
+
+        Args:
+            df (pd.DataFrame): dataframe with left, right, direction columns
+            subset (tuple): tuple of strings for left and right column names
+            on (str): name of the direction column
+        Returns:
+            pd.DataFrame: dataframe with left and right columns switched if direction is R2L
+
+    """
     left, right = subset
     df[left], df[right] = np.where(
         df[on] == "R2L", (df[right], df[left]), (df[left], df[right])
@@ -100,66 +276,115 @@ def switch_directions(
     return df
 
 
-def lower_dunder(df: pd.DataFrame) -> pd.DataFrame:
+def _lower_dunder(df: pd.DataFrame) -> pd.DataFrame:
+    """Converts column names to lowercase and replaces - with _"""
     df.columns = df.columns.str.lower()
     df.columns = df.columns.str.replace("-", "_")
     return df
 
 
-def remove_empties(
+def _remove_empties(
     df: pd.DataFrame, subset: list[str] = ["left", "right"]
 ) -> pd.DataFrame:
+    """Removes empty strings from subset columns"""
     df = df.replace(r"^\s*$", np.nan, regex=True)
     df = df.dropna(subset=subset)
     return df
 
 
-def remove_water(
+def _remove_water(
     df: pd.DataFrame, subset: list[str] = ["left", "right"], water_str: str = "WATER"
 ) -> pd.DataFrame:
+    """Removes water from subset columns"""
     for colname in subset:
         df[colname] = df[colname].str.replace(water_str, "")
     return df
 
 
-def filter_by_num_reactions(
+def _filter_by_num_reactions(
     df: pd.DataFrame, min_num: int = 4, reaction_list_col="reaction_list"
 ) -> pd.DataFrame:
+    """Filters dataframe by minimum number of reactions in reaction_list_col"""
     df = df[df[reaction_list_col].str.len() >= min_num]
     return df
 
 
-def listcell_to_strcell(df: pd.DataFrame, colname: str) -> pd.DataFrame:
+def _listcell_to_strcell(df: pd.DataFrame, colname: str) -> pd.DataFrame:
+    """Converts list cell to string cell"""
     assert df[df[colname].str.len() > 1].empty, "error, multiple values in cell"
-    df[colname] = df[colname].str.join[0]
+    df[colname] = df[colname].str[0]
     return df
 
 
-def clean_df(
+def _rename_col(df: pd.DataFrame, old: str, new: str) -> pd.DataFrame:
+    """Renames column in dataframe"""
+    df.rename(columns={old: new}, inplace=True)
+    return df
+
+
+def clean_pw_df(
     df: pd.DataFrame, min_num: int = 4, reaction_list_col="reaction_list"
 ) -> pd.DataFrame:
-    df = df_get_all_rxn_layouts(df, column_name="REACTION-LAYOUT")
-    df = lower_dunder(df)
-    df = switch_directions(df, subset=["left", "right"], on="direction")
-    df = remove_water(df, subset=["left", "right"])
-    df = remove_empties(df, subset=["left", "right"])
-    df = filter_by_num_reactions(
+    """Cleans pathway dataframe"""
+    df = _lower_dunder(df)
+    df = _df_get_all_rxn_layouts(df, column_name="reaction_layout")
+    df = _switch_directions(df, subset=["left", "right"], on="direction")
+    df = _remove_water(df, subset=["left", "right"])
+    df = _remove_empties(df, subset=["left", "right"])
+    df = _filter_by_num_reactions(
         df, min_num=min_num, reaction_list_col=reaction_list_col
     )
-    df = listcell_to_strcell(df, "unique_id")
+    df = _listcell_to_strcell(df, "unique_id")
+    df = _rename_col(df, "unique_id", "pathway_id")
     return df
 
 
 # ============================== additional pathway filtering/adjusting =====================================
-def filter_pathwayid(
-    df: pd.DataFrame, is_in: list[str], col: str = "unique-id"
-) -> pd.DataFrame:
-    return df[df[col].isin(is_in)]
+def mols_per_pathway(pathways: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns dataframe with all mols per pathway
+
+        Args:
+            pathways (pd.DataFrame): dataframe with pathways
+        Returns:
+            pd.DataFrame: dataframe with all mols per pathway
+
+    Remark:
+        - specific to pathway-tools dataframe format but then lowercased and with _ instead of -
+    """
+    pw = pathways  # for brevity
+
+    def paste(x):
+        return ",".join(x)
+
+    pw["all_right"] = pw.groupby(pw.index)["right"].transform(paste).str.split(",")
+    pw["all_left"] = pw.groupby(pw.index)["left"].transform(paste).str.split(",")
+    pw["all_mols"] = pw["all_left"] + pw["all_right"]
+    pw.drop(columns=["all_left", "all_right"], inplace=True)
+
+    # condense rows on unique_id, then explode for each reagent one row
+    pw_mols = pw.groupby(pw.index).agg({"pathway_id": "first", "all_mols": "first"})
+    pw_mols = pw_mols.explode("all_mols")
+    # get rid of duplicate rows of same pathway_id and mol
+    pw_before = pw_mols["pathway_id"].unique().tolist()  # for checking
+    pw_mols = pw_mols.drop_duplicates(subset=["pathway_id", "all_mols"])
+    pw_after = pw_mols["pathway_id"].unique().tolist()  # for checking
+    assert pw_after == pw_before, "pathways lost after unduplicating"
+    return pw_mols
 
 
 def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
-    """if more than one product, explode the dataframe downwards, to get one product per row.
-    this makes same precursors/reactions appear more than once"""
+    """
+    Explodes dataframe downwards, to get one product per row
+
+        Args:
+            df (pd.DataFrame): dataframe with pathways
+        Returns:
+            pd.DataFrame: dataframe with one product per row
+    Remark:
+        - if more than one product, explode the dataframe downwards, to get one product per row
+        - this makes same precursors/reactions appear more than once
+    """
     # unfold dataframe downwards if there are more than one right or left primary
     exploded = df.copy()
     # first make into list, then explode
@@ -168,184 +393,132 @@ def explode_on_products(df: pd.DataFrame) -> pd.DataFrame:
     return exploded
 
 
-# def filter_pws(
-#     pathways: pd.DataFrame, reactions_of_interest: list[str], min_pw_len: int = 4
-# ) -> pd.DataFrame:
-#     """from DataFrame with pathways, for each pathway with at least min_pw_len,
-#     returns the Dataframe containing them and their pathway unique-id's"""
-#     # get pathways containing reactions----------------------------------------
-#     # pathway-df row containing rxn of interest
-#     pw_rxns_oi = df_filter(pathways, "REACTION-LAYOUT", reactions_of_interest)
-#     # filter out only those with index of interest
-#     ind_oi = get_indexes(pw_rxns_oi).tolist()  # index of interests
-#     pw_oi = pathways[pathways.index.isin(ind_oi)]
-
-#     # check if same indexes
-#     check_ind = get_indexes(pw_oi).tolist()
-#     assert check_ind == ind_oi, "error with COCONUT-df filtering"
-
-#     # remove taxonomic range and species for the rxn annotation + undouble:
-#     columns_to_rem = pw_oi.columns.values.tolist()
-#     columns_to_rem.remove("UNIQUE-ID")
-#     columns_to_rem.remove("REACTION-LAYOUT")
-#     clean_pw_oi = remove_cols(pw_oi, columns_to_rem)
-
-#     # get df with pathways that have at least four reactions in them
-#     long_enough_pws = filter_by_rxn_len(clean_pw_oi, length=min_pw_len)
-#     # all_reaction_layouts = [x for x in colval_per_index(enough_pw_oi)]
-#     return long_enough_pws
-
-
-# ============================ obtain annotations ============================
-# ---------------------------- classes annotation ----------------------------
-
-
-def cmd_clean_classes() -> None:  # under construction
-    cmd = 'grep -E "^[A-Za-z]|/{2}" classes.dat | grep -E -v "SYNONYMS" | grep -E -v "COMMENT" | grep -E -v "TYPES" > cleaner_classes.dat '
-    subprocess.run(cmd, shell=True)
-    return None
-
-
-def get_idandname(dat_entry: list) -> tuple[str]:
-    idnum, name = "", ""
-    for line in dat_entry:
-        if line.startswith("UNIQUE-ID"):
-            idnum = line.split(" - ")[-1]
-        elif line.startswith("COMMON-NAME"):
-            name = line.split(" - ")[-1]
-    return idnum, name
-
-
-def get_classes_annotation(filename: str = "../metacyc/cleaner_classes.dat") -> dict:
-    annot_entries = entry_parser(
-        readr("../metacyc/cleaner_classes.dat", encoding="iso8859-1"), sep="//"
-    )
-    annot = dictify(per_entry(annot_entries, get_idandname))
-    return annot
-
-
 # ----------------------------------------------------------------------------
-# ---------------------------- reaction annotation (obsolete)-----------------
-def cmd_clean_rxns() -> None:
-    cmd = 'grep -E "^[A-Za-z]|/{2}" reactions.dat | grep -E "^UNI|^LEFT|^RIGHT|^REACTION\-DIRECTION|^/{2}" > cleaner_rxns.dat'
-    subprocess.run(cmd, shell=True)
-    return None
+def sdf_to_compounds(sdf_path: str) -> pd.DataFrame:
+    """
+    Returns dataframe from sdf file with properties as columns
 
-
-def get_preandpost(entry: list[str]) -> tuple[str]:
-    idnum, name = "", ""
-    for line in entry:
-        if line.startswith("UNIQUE-ID"):
-            idnum = line.split(" - ")[-1]
-        elif line.startswith("COMMON-NAME"):
-            name = line.split(" - ")[-1]
-    return idnum, name
-
-
-# ----------------------------------------------------------------------------
-# ---------------------------- compound annotation ---------------------------
-
-
-def dat_to_compounds(
-    filename: str, column_names: list = ["unique_id", "inchi", "SMILES"]
-) -> pd.DataFrame:
-    usecols = (i for i in range(len(column_names)))
-    array = np.loadtxt(filename, dtype=str, delimiter="\t", usecols=usecols)
-    df = pd.DataFrame(array, columns=column_names)
-    return df
-
-
-def partial_inchi(
-    df, inchi_column: str = "inchi", inchi_parts: int = 3
-) -> pd.DataFrame:
-    newcol = f"{inchi_parts}_{inchi_column}"
-    df[newcol] = df[~df[inchi_column].isna()][inchi_column].str.split("/")
-    df[newcol] = df[newcol].apply(lambda x: "/".join(x[:inchi_parts]))
-
-
-def sdf_to_records(
-    sdf_path: str,
-    column_names: list = ["coconut_id", "inchi", "SMILES", "rdk_inchi", "rdk_SMILES"],
-) -> pd.DataFrame:
-    sdf_path = "/Users/lucina-may/thesis/input/coconut.sdf"
-    coco_props = []
-
+        Args:
+            sdf_path (str): location of file
+    """
     supplier = Chem.SDMolSupplier(sdf_path)
-    for i, mol in tqdm(enumerate(supplier), total=len(supplier)):
-        this_mol_props = {q: "" for q in column_names}
-        if mol is None:
-            print("molecule {} could not be read".format(i))
+    # df = pd.DataFrame(len(supplier), columns=["coconut_id", "inchi", "smiles"])
+    sdf_props = []
+    for mol in tqdm(supplier, total=len(supplier), desc="reading sdf"):
+        if not mol:
             continue
-        else:
-            for prop in column_names:
-                if mol.HasProp(prop):
-                    this_mol_props[prop] = mol.GetProp(prop)
-        coco_props.append(this_mol_props)
-    return coco_props
 
+        this_mol_props = {"coconut_id": np.nan}
+        if mol.HasProp("coconut_id"):
+            coco_id = mol.GetProp("coconut_id")
+        this_mol_props["coconut_id"] = coco_id
+        this_mol_props["inchi"] = Chem.MolToInchi(mol)
+        this_mol_props["smiles"] = Chem.MolToSmiles(mol)
+        sdf_props.append(this_mol_props)
 
-def sdf_to_compounds(*args, **kwargs) -> pd.DataFrame:
-    records = sdf_to_records(*args, **kwargs)
-    return pd.DataFrame(records)
-
-
-def takeover_rdk_partials(
-    df: pd.DataFrame, columns: dict = {"3_rdk_inchi": "3_inchi"}
-) -> pd.DataFrame:
-    for key, val in columns.items():
-        df[df[key] == df[val]][key] = np.nan
-        assert df[df[key] == df[val]].empty, "error in takeover_rdk_partials merging"
-
-
-def merge_on_partial_inchi(
-    coco: pd.DataFrame, meta: pd.DataFrame, on: str = "3_inchi"
-) -> pd.DataFrame:
-    df = pd.merge(coco, meta, on=on, how="inner", suffixes=("_coco", "_meta"))
+    df = pd.DataFrame(sdf_props)
+    df.index = df["coconut_id"]
     return df
 
-
-def merge_on_smiles(
-    coco: pd.DataFrame, meta: pd.DataFrame, on: str = "SMILES"
-) -> pd.DataFrame:
-    df = pd.merge(coco, meta, on="SMILES", how="inner", suffixes=("_coco", "_meta"))
-    return df
+def _partial_inchi(inchi:str, parts:int = 3)->str:
+    """returns partial inchi, where parts is the number of parts to keep. 3 is up to and including atom connectivity"""
+    parts = inchi.split("/")
+    return "/".join(parts[:3])
 
 
 def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFrame:
-    on_smiles.rename(columns={"SMILES": "SMILES_meta"}, inplace=True)
+    """
+    Merges the two dataframes resulting from merge_on_partial_inchi and merge_on_smiles
+    """
+    print(on_inchi.columns, on_smiles.columns, "\n\n")
+    on_inchi.rename(columns={"smiles_meta": "smiles"}, inplace=True)
+    # on_smiles.rename(columns={"inchi_meta": "inchi"}, inplace=True)
+    print(on_inchi.columns, on_smiles.columns)
+    print(on_inchi.head(), on_smiles.head())
     df = pd.merge(
         on_inchi,
         on_smiles,
-        on=["coconut_id", "unique_id", "inchi_meta", "SMILES_meta"],
+        on=["coconut_id", "unique_id", "inchi_meta", "smiles"],
         how="outer",
-        suffixes=("_inchi", "_SMILES"),
+        suffixes=("_inchi", "_smiles"),
     )
-    df.rename(columns={"SMILES_meta": "SMILES", "inchi_meta": "inchi"}, inplace=True)
+    df.rename(columns={"inchi_meta": "inchi"}, inplace=True)
     return df
 
 
-# def id_repr(
-#     filename: str = "../metacyc/compound-links.dat", representation: str = "inchi"
-# ) -> dict:
-#     reprs = ["inchi", "smiles"]
-#     assert representation in reprs, "representation type unavailable"
-#     column = reprs.index(representation) + 1
-#     id_repr = {}
-#     with open(filename) as comp:
-#         for line in comp:
-#             if line:
-#                 row = line.strip().split("\t")
-#                 if len(row) > 1:
-#                     if row[column] and row[0]:
-#                         try:
-#                             id_repr[row[0].upper()] = row[column]
-#                         except:
-#                             continue
-#     cleaned = clean_dict(id_repr)
-#     return cleaned
+def get_common_compounds(
+    coco_mols: pd.DataFrame, meta_mols: pd.DataFrame,
+    inchi_parts: int = 3
+) -> pd.DataFrame:
+    """
+    Gets common compounds from coco and meta mols
+
+        Args:
+            coco_mols (pd.DataFrame): dataframe
+            meta_mols (pd.DataFrame): dataframe
+        Returns:
+            pd.DataFrame: dataframe with common compounds' coconut and meta ids, inchi and smiles
+
+    Remark:
+        - gets compounds that are in both coco and meta mols
+        - filters on partial inchi OR smiles in common
+    """
+    #get the index as a column
+    meta_mols = meta_mols.reset_index()
+    coco_mols = coco_mols.reset_index()
+
+    p_i = "partial_inchi"
+    meta_mols[p_i] = meta_mols["inchi"].apply(lambda x: _partial_inchi(x, parts=inchi_parts) if isinstance(x, str) else np.nan)
+    coco_mols[p_i] = coco_mols["inchi"].apply(lambda x: _partial_inchi(x, parts=inchi_parts) if isinstance(x, str) else np.nan)
 
 
-# fix capitalisation
+    logging.info(
+        (f"{len(coco_mols[~coco_mols[p_i].isna()])} coco mols have inchi",
+        f"{len(meta_mols[~meta_mols[p_i].isna()])} meta mols have inchi"))  # 406529
+  
+    same_p_inchi = pd.merge(coco_mols, meta_mols, on=p_i, how="inner", suffixes=("_coco", "_meta"))
+    same_smiles = pd.merge(coco_mols, meta_mols, on="smiles", how="inner", suffixes=("_coco", "_meta"))
+    coco_meta = merge_merges(same_p_inchi, same_smiles)
+
+    meta_mols = meta_mols.set_index("unique_id")
+    coco_mols = coco_mols.set_index("coconut_id")
+
+    logging.info(f"{len(same_p_inchi)} compounds have a partial inchi in common")
+    logging.info(f"{len(same_smiles)} compounds have a smiles in common")
+    logging.info(f"{len(coco_meta)} compounds in common")  # 406529
+
+    print(f"{len(same_p_inchi)} compounds have a partial inchi in common")
+    print(f"{len(same_smiles)} compounds have a smiles in common")
+    print(f"{len(coco_meta)} compounds in common")  # 406529
+
+    return coco_meta[["coconut_id", "unique_id", "inchi", "smiles"]]
+
+
+# ------------------------ get relevant pathways -----------------------------
+
+
+def get_pathways_of_interest(
+    pathways: pd.DataFrame, compounds_of_interest: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Returns pathways containing compounds of interest
+
+        Args:
+            pathways (pd.DataFrame): dataframe
+            common_compounds (pd.DataFrame): dataframe
+        Returns:
+            pd.DataFrame: dataframe of pathways containing compounds of interest
+
+    Remark:
+        - filters pathways on common compounds by "compound_id"
+
+    """
+    common_compound_ids = compounds_of_interest["unique_id"].unique() # filters on MetaCyc ID
+    pw_reagents = mols_per_pathway(pathways)
+    pw_reagents_oi = df_filter(pw_reagents, col="all_mols", is_in=common_compound_ids)
+    pw_names_oi = pw_reagents_oi["pathway_id"].unique()
+    pw_oi = df_filter(pathways, col="pathway_id", is_in=pw_names_oi)
+    return pw_oi
 
 
 # ----------------------------------------------------------------------------
@@ -353,547 +526,347 @@ def merge_merges(on_inchi: pd.DataFrame, on_smiles: pd.DataFrame) -> pd.DataFram
 
 
 # ============================= traverse pathway =============================
-# ------------------------- handle the reaction-layout------------------------
-def split_rxns(reaction_layouts: list[str], pre_post: bool = True) -> list[list[str]]:
-    """splits reaction terms into left, direction, right. if pre_post == True
-    the reaction is automatically written as [precursor,product]"""
-
-    rxns = []
-    for item in reaction_layouts:
-        left = " ".join(item.split("(:")[1].strip(") ").split(" ")[1:])
-        drxn = item.split("(:")[2].strip("\) ").split(":")[-1]
-        right = " ".join(item.split("(:")[3].strip(") ").split(" ")[1:])
-        if not (left and drxn and right):
-            continue
-        if left == right:
-            continue
-        if not pre_post:
-            rxns.append([left, drxn, right])
-        elif pre_post:
-            if "R2L" in drxn or "2L" in drxn or "R2" in drxn:
-                pre = right
-                post = left
-            else:
-                pre, post = left, right
-            rxns.append([pre, post])
-    return rxns
+def _row_precursors(row: pd.Series) -> list[str]:
+    """returns list of precursors for a given row"""
+    return row["left"].split(" ")
 
 
-def inverse_rxns(pre_posts: list[list[str]]) -> list[list[str]]:
-    """mainly for degradation pathways, where the 'parent' is actually
-    the terminal precursor in the pathway"""
-    inversed = []
-    for pair in pre_posts:
-        inversed.append([pair[1], pair[0]])
-    return inversed
+def _row_products(row: pd.Series) -> list[str]:
+    """returns list of products for a given row"""
+    return row["right"].split(" ")
 
 
-# ----------------------------------------------------------------------------
-# ------------------------------ find start point ----------------------------
+def _is_next_rxn(parent_row: pd.Series, child_row: pd.Series) -> bool:
+    """checks if the parent_row is a precursor of the rxn2_prec"""
+    for query in _row_products(parent_row):
+        if query in _row_precursors(child_row):
+            return True
+    return False
 
 
-def find_ancestor_rxn(split_rxns: list[list[str]]) -> list[list[str]]:
-    """with a list [pre, post]"""
-    # find oldest ancestor (parent) reaction
-    parents = []
-    all_pre = [item[0] for item in split_rxns]
-    all_post = [item[1] for item in split_rxns]
-
-    split_pre = []
-    for pres in all_pre:
-        splitted = pres.split(" ")
-        if isinstance(splitted, list):
-            split_pre = split_pre + splitted
-        elif isinstance(splitted, str):
-            split_pre.append(splitted)
-
-    for i in range(len(all_post)):
-        if len(all_post[i].split(" ")) > 1:
-            continue
-        elif all_post[i] in split_pre:
-            continue
-        else:
-            parents.append(split_rxns[i])
-    return parents
+def get_overlap_mol(parent_row: pd.Series, child_row: pd.Series) -> str:
+    """returns overlap molecule between two rows of reactions"""
+    overlap_mols = []
+    for par_mol in _row_products(parent_row):
+        for child_mol in _row_precursors(child_row):
+            if par_mol == child_mol:
+                overlap_mols.append(par_mol)
+    return overlap_mols
 
 
-def check_ancestor_res(ancestor_rxns_res: list[list[str]]) -> str:
-    parent = ""
+def get_beginnings(one_pw: pd.DataFrame):
+    """returns list of reactions that are not products of any other reaction"""
+    beginning_rxns = []
+    all_rights = []
+    for right in one_pw["right"].tolist():
+        all_rights = all_rights + right.split(" ")
 
-    if ancestor_rxns_res:
-        # select the reaction from list
-        parent_rxn = ancestor_rxns_res[0]
-        assert len(parent_rxn) == 2, "error in the parent rxn result"
-        # check if the result reaction exists and
-        if parent_rxn[1]:
-            # print(parent_rxn[1])
-            if len(parent_rxn[1].split(" ")) == 1:
-                parent = parent_rxn[1]  # selected product
-    return parent
-
-
-def get_checked_ancestor(prec_prods: list[list[str]]) -> tuple[str, str]:
-    """gets parent compound of pathway, and returns if its a synthesis
-    or a degradation type pathway"""
-    parent_type = "synthesis"
-
-    synthesis_par_rxns = find_ancestor_rxn(prec_prods)
-    # check if there is a result and if there is only one result rxn
-    parent = check_ancestor_res(synthesis_par_rxns)
-    if not parent:
-        parent_type = "degradation"
-        # try to find the degradation parent
-        degradation_par_rxns = find_ancestor_rxn(inverse_rxns(prec_prods))
-        parent = check_ancestor_res(degradation_par_rxns)
-        if not parent:
-            parent_type = "first"
-            print(
-                "Could not find parent",
-                "defaulted to first product of first rxn:",
-                prec_prods[0][1],
-            )
-            try:
-                parent = prec_prods[0][1].split(" ")[0]
-            except:
-                print("Failed getting 1st product of 1st rxn, return empty")
-                parent = ""
-                parent_type = ""
-    return parent, parent_type
+    for _, rxn_row in one_pw.iterrows():
+        for precursor in _row_precursors(rxn_row):
+            if precursor not in all_rights:
+                # add rxn_row index to list
+                beginning_rxns.append(rxn_row["reaction_id"])
+    return beginning_rxns
 
 
-# ----------------------------------------------------------------------------
-# --------------------------------- tree-making ------------------------------
-
-
-def get_child_rxn(parent: list[str], rxn_layout: list[list[str]]):  # obsolete?
-    """par_child = [parent]
-    child_found = False
-    for child_i in range(len(rxn_layout)):
-        print(rxn_layout[child_i][1], parent[0])
-        if rxn_layout[child_i][1] == parent[0]:
-            child_found = True
-            print('True')
-            grandchildren = get_child_rxn(rxn_layout[child_i],rxn_layout)
-            par_child.append(rxn_layout[child_i],[grandchildren])
-    if not child_found:
-        return [parent]
-    return par_child"""
-    return None
-
-
-def getchild_rxns(parent: str, prec_prods: list[list[str]]) -> list[list[str]]:
+def get_child_rxns(parent: str, pw: pd.DataFrame, unused_rxns: list[str]) -> list[str]:
     """for parent compound, returns list of the children reactions"""
+
+    parent = pw[pw["reaction_id"] == parent]
+    # get single row of parent as pd.Series
+    parent = parent.iloc[0]
     children = []
-    for reaction in range(len(prec_prods)):
+
+    unused_pw = pw[pw["reaction_id"].isin(unused_rxns)]
+    for _, rxn_row in unused_pw.iterrows():
         # if the parent appears in the reaction's products
-        if parent in prec_prods[reaction][1].split(" "):
-            # append the reactions [precursors, products]
-            children.append(prec_prods[reaction])
+        if _is_next_rxn(parent, rxn_row):
+            children.append(rxn_row["reaction_id"])
+    logging.debug(
+        f"searching for{parent['reaction_id']}from\n{unused_pw['reaction_id']}\nfound{children}\n\n"
+    )
     return children
 
 
-def make_tree_dict(
-    parent: str, pw_rxns: list[list[str]], parent_lvl: int = 0, max_lvl: int = 5
-) -> dict[int, str, dict]:
-    tree_dict = {}  # total dictionary
-    tree_dict["level"] = parent_lvl
-    tree_dict["compound"] = parent
+# remove for child in children: continue, remove from unused_rxns
+
+
+def make_tree(parent: str, pw: pd.DataFrame, unused: list[str]) -> list[str]:
+    """
+    Returns tree of reactions from parent reaction
+
+        Args:
+            parent (str): reaction id
+            pw (pd.DataFrame): dataframe
+            unused (list): list of unused reactions
+        Returns:
+            list: tree of reactions from parent reaction
+
+    Remark:
+        - recursive function
+        - uses get_child_rxns to get children of parent
+        - uses make_tree to get children of children
+    """
+
+    tree = []
+
+    if parent in unused:
+        unused.remove(parent)
 
     # get children of parent
-    children_rxns = getchild_rxns(parent, pw_rxns)
-    child_lvl = parent_lvl + 1
-
-    # check level to prevent overrecursion
-    if child_lvl > max_lvl:
-        # print('stop at lvl{}: {}'.format(max_lvl,parent))
-        return tree_dict
-
-    # if no reactions leading to parent's compound, return the tree dict
-    if not children_rxns:
-        return tree_dict
-
+    children = get_child_rxns(parent, pw, unused)
+    if not children:
+        return tree
+        # return parent
     # if reactions preceding this parent, recurse:
-    else:
-        # list of all reactions producing parent
-        tree_dict["reactions"] = []
+    for child in children:
+        this_tree = [parent]
+        this_unused_rxn = unused.copy()
+        this_unused_rxn.remove(child)
+        child_tree = make_tree(child, pw, this_unused_rxn)
+        if len(child_tree) > 0:
+            this_tree.append(child_tree)
+        tree.append(this_tree)
 
-        for children_rxn in children_rxns:
-            # check if valid result, otherwise will stop walking this branch
-            if len(children_rxn) != 2:
+    # get any duplicate lists in tree
+    for i, item in enumerate(tree):
+        if item in tree[:i]:
+            tree[i] = None
+    tree = [item for item in tree if item is not None]
+    if len(tree) == 1:
+        tree = tree[0]
+    return tree
+
+
+def _contains_list(lst: list) -> bool:
+    """
+    Returns True if lst contains a list
+    """
+    for item in lst:
+        if isinstance(item, list):
+            return True
+    return False
+    
+
+
+def tree_to_chains(tree):
+    """
+    Extracts rxn chains from tree of reactions
+    """
+    chains = []
+    if not _contains_list(tree):
+        return tree
+    elif isinstance(tree[0], str) and _contains_list(tree):
+        parent = tree[0]
+        children = tree[1]
+        for chain in tree_to_chains(children):
+            if isinstance(chain, str):
+                chain = [chain]
+            chains.append([parent] + chain)
+    elif isinstance(tree[0], list):
+        for lst in tree:
+            if isinstance(lst, str):
+                lst = [lst]
+            for chain in tree_to_chains(lst):
+                chains.append(chain)
+    return chains
+
+
+def remove_duplicate_chains(chains: list[list[str]]) -> list[list[str]]:
+    """Removes duplicate chains from chains"""
+    for i, chain in enumerate(chains):
+        if chain in chains[:i]:
+            chains[i] = None
+    chains = [chain for chain in chains if chain is not None]
+    return chains
+
+
+def remove_subchains(chains: list[list[str]]) -> list[list[str]]:
+    """Removes subchains from chains"""
+    # check if a chain is a subchain of another chain
+    for i, chain in enumerate(chains):
+        for j, other_chain in enumerate(chains):
+            if i == j:
                 continue
-            # for each child reaction collect all precursors, side-products,
-            # then, each child will get own tree as well
-            # rxn_num = 'rxn1{}'.format(i)
-            # tree_dict[rxn_num]={}
-
-            reaction_dict = {}  # make dictionary for reaction
-            # later, add in reaction name?
-            reaction_dict["byproducts"] = []
-            reaction_dict["precursors"] = []
-
-            # get any side-products
-            child_prods = children_rxn[1].split(" ")  # list of child's products
-            for product in child_prods:
-                if product != parent:
-                    reaction_dict["byproducts"].append(product)
-
-            # get precursors, for each precursor a dictionary:
-            child_precs = children_rxn[0].split(" ")
-            for prec in child_precs:
-                if prec:
-                    prec_dict = make_tree_dict(
-                        parent=prec,
-                        pw_rxns=pw_rxns,
-                        parent_lvl=child_lvl,
-                        max_lvl=max_lvl,
-                    )
-                    reaction_dict["precursors"].append(prec_dict)
-
-            # append dictionary to the reactions list
-            tree_dict["reactions"].append(reaction_dict)
-        return tree_dict
+            if chain is None or other_chain is None:
+                continue
+            if ",".join(chain) in ",".join(other_chain):
+                chains[i] = None
+    chains = [chain for chain in chains if chain is not None]
+    return chains
 
 
-# ----------------------------------------------------------------------------
-# ------------------------------- combine all --------------------------------
+def __get_chain_mols(pw: pd.DataFrame, rxn_chain: list[str]) -> list[str]:
+    """returns list of mols for a chain of reactions"""
+    chain_of_mols = []
+
+    for i, rxn_id in enumerate(rxn_chain):
+        rxn_row = pw.loc[pw["reaction_id"] == rxn_id]
+        if rxn_row.empty:
+            continue
+        rxn_row = rxn_row.iloc[0]
+        if i == 0:
+            chain_of_mols.append(_row_precursors(rxn_row))
+            continue
+        prev_rxn = pw.loc[pw["reaction_id"] == rxn_chain[i - 1]].iloc[0]
+        chain_of_mols.append(get_overlap_mol(prev_rxn, rxn_row))
+    return chain_of_mols
 
 
-def get_pw_tree(reaction_layouts: list[str], max_lvl: int = 5) -> list[list[str]]:
-    """creates a list where each index corresponds to the amount of reactions
-    it takes to get to the final product (i.e. first item is the final product
-    !!does not take into accound double left-side primaries"""
-    prec_prods = split_rxns(reaction_layouts)
-    if not prec_prods:
-        return []
-    # will get parent either in synthesis or reaction version
-    parent, parent_type = get_checked_ancestor(prec_prods)
-    if parent_type == "degradation":
-        prec_prods = inverse_rxns(prec_prods)
-
-    reaction_tree = make_tree_dict(parent, prec_prods, parent_lvl=0, max_lvl=max_lvl)
-    reaction_tree["type"] = parent_type
-    return reaction_tree
+def __choose_first_mols(chain_of_mols: list[list[str]]) -> list[str]:
+    """returns list of mols for a chain of reactions"""
+    return [mols[0] for mols in chain_of_mols]
 
 
-# ----------------------------------------------------------------------------
+def _pw_to_chains_mols(one_pw: pd.DataFrame) -> list[list[list[str]]]:
+    """
+    Returns list of chains of mols for a pathway
+
+        Args:
+            one_pw (pd.DataFrame): dataframe containing one pathway
+        Returns:
+            list: list of chains of mols for a pathway with [mols for rxn1, mols for rxn2, ...]
+
+    Remark:
+        - uses make_tree to get chains of reactions
+        - uses __get_chain_mols to get mols for a chain of reactions
+        - uses __choose_first_mols to choose first mols for a chain of reactions
+        - sorts chains by length
+    """
+    chains = []
+    chains_mols = []
+    all_rxns = one_pw["reaction_id"].tolist()
+    beginnings = get_beginnings(one_pw)
+    for beginning in beginnings:
+        tree = make_tree(beginning, one_pw, all_rxns)
+        chains = chains + tree_to_chains(tree)
+    for chain in chains:
+        chain_of_mols = __get_chain_mols(one_pw, chain)
+        chain_of_mols = __choose_first_mols(chain_of_mols)
+        chains_mols.append(chain_of_mols)
+    chains_mols = remove_duplicate_chains(chains_mols)
+    chains_mols = remove_subchains(chains_mols)
+    return sorted(chains_mols, key=len, reverse=True)
 
 
-def get_reactions(entry: dict):  # obsolete?
-    """split=split_rxns(entry['REACTION-LAYOUT'],pre_post = True)
-    reactions= get_pw_tree(split)
-    return reactions"""
-    return None
+def chains_per_pathway(pw: pd.DataFrame) -> pd.DataFrame:
+    """Returns dataframe with chains of mols per pathway"""
+    pw_chains = {}
+    for pw_id in pw["pathway_id"].unique():
+        chains_mols = _pw_to_chains_mols(pw[pw["pathway_id"] == pw_id])
+        if len(chains_mols) > 10:
+            chains_mols = chains_mols[:10]
+        pw_chains[pw_id] = chains_mols
+
+    pw_chains = pd.DataFrame.from_dict(pw_chains, orient="index")
+    pw_chains["chains"] = pw_chains.values.tolist()
+    pw_chains = pw_chains[["chains"]]
+    # explode on chains
+    pw_chains = pw_chains.explode("chains")
+    # drop na
+    pw_chains = pw_chains.dropna()
+
+    # get length of longest chain
+    pw_chains["chain_len"] = pw_chains["chains"].apply(lambda x: len(x))
+    max_len = pw_chains["chain_len"].max()
+    # filter out chains that are too short
+    pw_chains = pw_chains[pw_chains["chain_len"] > 4]
+    # drop chain_len column
+    pw_chains.drop(columns=["chain_len"], inplace=True)
+
+    # split chains into columns
+    pw_chains = pw_chains["chains"].apply(pd.Series)
+
+    # keep only first 15 columns
+    pw_chains = pw_chains.iloc[:, :15]
+
+    return pw_chains
 
 
-# ============================= getting reactions =============================
+def compound_id_to_structure(
+    df: pd.DataFrame, dict1: dict, dict2: dict, dict3: dict
+):  # under construction
+    """
+    Returns dataframe with structure for compound_id from dict1, dict2, dict3
+    """
+    newdf = df.copy()
+    # fill all cells as nan
+    newdf = newdf.applymap(lambda x: np.nan)
 
-
-def traverse(  # under construction
-    subdict: dict[int, str, dict],
-    reaction_list: list = [],
-    level_list: list = [],
-) -> list[dict]:  # under constr.
-    reaction_list.append(subdict["compound"])
-    reactions = reaction_list  # ???? -> check later
-    for i in range(len(reaction_list)):  # ??? added without checking
-        if len(reactions) > 1:
-            reaction_list = [reaction_list.append(traverse(i)) for i in reactions]
-        elif len(reactions) == 1:
-            reaction_list.append(traverse(reactions[i]))
-
-    return
-
-
-def get_long_chain(pathway_tree: dict, max_level: int = 4) -> dict:
-    """for a given pathway_tree, traverses to get the reaction. gives first
-    resulting chain, often the only chain"""
-    # chain with minimum length of min_len
-    current_dict = pathway_tree
-    level = 0
-    chain = {level: pathway_tree["compound"]}
-    while level < max_level:
-        try:
-            current_dict = current_dict["reactions"][0]["precursors"][0]
-            level = current_dict["level"]
-            compound = current_dict["compound"]
-            if compound:
-                chain[level] = compound
-        except:
-            print("stopped")
-            break
-    return chain
-
-
-def get_struct_rxn(
-    long_chain: dict,
-    compound_struct: dict,
-    second_dict: dict = {},
-    third_dict: dict = {},
-) -> list[str]:
-    """for given chain of reactions, translates compounds to their inchies"""
-    structures = []
-    compounds = list(long_chain.values())
-    for i in compounds:
-        structure = ""
-        if i in compound_struct.keys():
-            structure = compound_struct[i]
-        else:
-            if second_dict and (i in second_dict) and second_dict[i]:
-                structure = second_dict[i]
-            else:
-                if third_dict and (i in third_dict) and third_dict[i]:
-                    structure = third_dict[i]
-        structures.append(structure)
-    return structures
-
-
-def compound_id_to_structure():  # under construction
-    return None
+    for col in df.columns:
+        newdf[col] = df[col].map(dict1)
+        newdf[col] = newdf[col].fillna(df[col].map(dict2))
+        newdf[col] = newdf[col].fillna(df[col].map(dict3))
+    return newdf
 
 
 # ============================ df transformations =============================
 
 
-def df_filter(df: pd.DataFrame, col: str, lst_yes: list) -> pd.DataFrame:
-    mask = df[col].isin(lst_yes)
+def df_filter(df: pd.DataFrame, col: str, is_in: list) -> pd.DataFrame:
+    """Filters dataframe by col"""
+    # return df[df[col].isin(is_in)] @todo: check if this is correct
+    mask = df[col].isin(is_in)
     df_of_interest = df[mask]
     return df_of_interest
-
-
-def get_indexes(df: pd.DataFrame) -> list[int]:
-    unique_index = df.index.unique()
-    return unique_index
-
-
-def get_unique_vals(df: pd.DataFrame, col: str) -> list:
-    unique_col_vals = df.index.get_level_values(col).unique()
-    return unique_col_vals
-
-
-def remove_cols(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-    new = df
-    for i in cols:
-        new = new.drop(columns=i).drop_duplicates()
-    return new
-
-
-def annotate(df: pd.DataFrame, replace_dict: dict) -> pd.DataFrame:
-    return df.replace(to_replace=replace_dict)
-
-
-def get_normalised_db(list_of_dict: list[dict[list]]) -> pd.DataFrame:
-    df = pd.DataFrame.from_records(list_of_dict)
-    for col in df.columns:
-        df = df.explode(col)
-    return df
-
-
-def split_columns(
-    df: pd.DataFrame, col: str, new_headers: list[str]
-) -> pd.DataFrame:  # obsolete?
-    df_new = df
-    df_new[new_headers] = df_new[col].str.split("\(:", expand=True)
-    for header in new_headers:
-        df_new[header] = df_new[header].str.replace(header + " ", "")
-        df_new[header] = df_new[header].str.replace(")", "")
-        df_new[header] = df_new[header].str.replace("(", "")
-        df_new[header] = df_new[header].str.replace(" :", "")
-    # drop the original 'Name' column
-    df_new.drop(col, axis=1, inplace=True)
-    return df
-
-
-def lost_function(df, column):  # where did this come from?
-    """for unique_val in df[column].unique():
-    row = df.loc[df[column] == unique_val]"""
-    return None
-
-
-def colval_per_index(df: pd.DataFrame, colname: str = "REACTION-LAYOUT") -> list[str]:
-    "yields pw_reactions"
-    unique_ind = get_indexes(df).tolist()
-    for i in unique_ind:
-        colval = df[df.index.isin([i])][colname].tolist()
-        yield colval
-
-
-def filter_by_rxn_len(df: pd.DataFrame, length: int = 4) -> pd.DataFrame:
-    mask = np.array([len(x) > 3 for x in colval_per_index(df)])
-    all_ind = np.array(df.index.unique())
-    long_enough = all_ind[mask]
-    new = df[df.index.isin(long_enough)]
-    return new
-
-
-def mergeinchis(df: pd.DataFrame) -> pd.DataFrame:
-    newdf = df
-    newdf["InChi"] = newdf["INCHI"].fillna(newdf["NON-STANDARD-INCHI"])
-    return newdf
-
-
-def to_conversion_dict(df: pd.DataFrame, allcapskeys: bool = True) -> dict:
-    ndf = df
-    ndf["filled"] = ndf["INCHI"].fillna(ndf["SMILES"]).fillna(ndf["NON-STANDARD-INCHI"])
-    ndf["filled"].fillna("")
-    dic = pd.Series(ndf["filled"].values, index=ndf["UNIQUE-ID"]).to_dict()
-    full_dic = {}
-    for key, val in dic.items():
-        if isinstance(val, str) and val:
-            if allcapskeys:
-                full_dic[key.upper()] = val
-            else:
-                full_dic[key] = val
-    return full_dic
-
-
-# ============================================================================
-# ================================ output ====================================
-
-
-# obsolete
-def pickle_mols(
-    pathways, dict1, max_level=7, dict2={}, dict3={}, title="metacyc_reactions"
-):
-    return None
-
-
-def write_reactions(
-    pathways,
-    dict1,
-    max_level=7,
-    dict2={},
-    dict3={},
-    title="metacyc_reactions",
-    annot: dict = {},
-    fulldf=None,
-):
-    """annotation from classes annotation, fulldf needed for if you want to
-    obtain all taxonomy for pathway"""
-    all_reaction_layouts = [x for x in colval_per_index(pathways)]
-    all_pw_ids = [x for x in colval_per_index(pathways, colname="UNIQUE-ID")]
-    assert len(all_pw_ids) == len(
-        all_reaction_layouts
-    ), "the number of ids and layouts does not match up"
-    outfile_name = outfile_namer(title) + ".tsv"
-    annotation_name = outfile_namer(title, "taxonomy") + ".tsv"
-    with open(outfile_name, "w") as nf:
-        nf.write("")
-    if annot:
-        with open(annotation_name, "w") as an:
-            an.write("")
-
-    all_pathway_trees = []
-    for i in range(len(all_reaction_layouts)):
-        pathway_tree = get_pw_tree(all_reaction_layouts[i], max_lvl=max_level)
-        all_pathway_trees.append(pathway_tree)
-        if not pathway_tree:
-            continue
-        long_chain = get_long_chain(pathway_tree, max_level=max_level)
-        structures = get_struct_rxn(
-            long_chain, compound_struct=dict1, second_dict=dict2, third_dict=dict3
-        )
-
-        with open(outfile_name, "a") as nf:
-            nf.write("{}\t".format(all_pw_ids[i][0]))
-            nf.write("\t".join(structures))
-            nf.write("\n")
-
-        # optional annotation file
-        if annot:
-            annotation = []
-            if fulldf is None:
-                continue
-            taxonomic_range = (
-                fulldf[fulldf["UNIQUE-ID"] == all_pw_ids[i][0]]["TAXONOMIC-RANGE"]
-                .unique()
-                .tolist()
-            )
-            for tax in taxonomic_range:
-                if tax in annot.keys():
-                    annotation.append(annot[tax])
-                else:
-                    annotation.append(tax)
-            with open(annotation_name, "a") as an:
-                an.write("{}\t".format(all_pw_ids[i][0]))
-                an.write("\t".join(annotation))
-                an.write("\n")
-
-    print("finished writing to", outfile_name)
-    return outfile_name
-
 
 # ============================================================================
 
 
 def main():
-    # pathway_loc = argv[1]
-    # pathway_loc = "/Users/lucina-may/thesis/metacyc/pathways.dat"
-    # info2extract = [
-    #     "UNIQUE-ID",
-    #     "REACTION-LIST",
-    #     "SPECIES",
-    #     "TAXONOMIC-RANGE",
-    #     "REACTION-LAYOUT",
-    # ]
-    # pathways = get_all_pathways(pathway_loc, info2extract)
+    args = cli()
 
-    # # get reactions containing COCONUT
-    # pathways_ofinterest_loc = "/Users/lucina-may/thesis/metacyc/interest_pws.tmp"
-    # reactions_of_interest = extract_linestartswith(
-    #     readr(pathways_ofinterest_loc), ["REACTION-LAYOUT"], strip_extra=" - "
-    # )["REACTION-LAYOUT"]
-    # # get pathways containing COCONUT compounds of defined minimal length
-    # pathways_oi = filter_pws(pathways, reactions_of_interest, min_pw_len=4)
-    # all_reaction_layouts = [x for x in colval_per_index(pathways_oi)]
-    # pw_num = [x for x in colval_per_index(pathways_oi, "UNIQUE-ID")]
+    output_dir = os.path.abspath(os.path.dirname(args.output_path))
+    temp_dir = os.path.join(output_dir, "intermediate_files")
+    iwd = os.getcwd()
+    os.makedirs(temp_dir, exist_ok=True)
+    os.chdir(temp_dir)
 
-    # get annotation of compounds
-    compounds_loc = "/Users/lucina-may/thesis/metacyc/cleaner_compounds.dat"
-    second_db = "/Users/lucina-may/thesis/metacyc/compound-links.dat"
+    pathways = get_pathways(args.pathways_path)
+    pathways = clean_pw_df(pathways)
 
-    compoundinfo = ["UNIQUE-ID", "SMILES", "INCHI", "NON-STANDARD-INCHI"]
-    compounds = mergeinchis(get_all_pathways(compounds_loc, compoundinfo))
-    main_dict = to_conversion_dict(compounds)
-    compound_inchi = id_repr(filename=second_db)  # backup dictionaries
-    compound_smiles = id_repr(filename=second_db, representation="smiles")
+    meta_mols = get_compounds(args.compounds_path)
+    for col in meta_mols.columns:
+        meta_mols = _listcell_to_strcell(meta_mols, col)
+    write_compounds(meta_mols)
+    meta_mols = pd.read_csv("meta_compounds.tsv", sep="\t", index_col="unique_id")
 
-    # get class annotation
-    class_ann_loc = "/Users/lucina-may/thesis/metacyc/cleaner_classes.dat"
-    annot = get_classes_annotation(class_ann_loc)
+    if isinstance(args.filter, str):
+        common_compound_path = os.path.join(temp_dir, "coco_meta.tsv")
+        if not os.path.exists(common_compound_path):
+            coco_mols_path = os.path.join(temp_dir, "coconut_compounds.tsv")
+            if not os.path.exists(coco_mols_path):
+                coco_sdf = args.filter
+                coco_mols = sdf_to_compounds(sdf_path=coco_sdf)  # standard query
+                coco_mols.to_csv(coco_mols_path, sep="\t", index=True)
 
-    write_reactions(
-        pathways_oi,
-        main_dict,
-        max_level=7,
-        dict2=compound_inchi,
-        dict3=compound_smiles,
-        title="metacyc_reactions",
-        annot=annot,
-        fulldf=pathways,
-    )
+            coco_mols = pd.read_csv(coco_mols_path, sep="\t", index_col="coconut_id")
+            compounds = get_common_compounds(coco_mols, meta_mols, inchi_parts=3)
+            compounds.to_csv(common_compound_path, sep="\t", index=False)
+        compounds = pd.read_csv(common_compound_path, sep="\t")
 
-    """#enough_split = split_rxns(reaction_layouts[0]) #UNIQUE-ID:PWY-6527
-    for i in range(len(all_reaction_layouts)):
-        print(i)
-        pathway_tree = get_pw_tree(all_reaction_layouts[i], max_lvl=7)    
-        long_chain = get_long_chain(pathway_tree, max_level=7)
-        levels.append(len(long_chain)-1)
-    fil = [x>=7 for x in levels]
-    sum(fil)
-    pathway_tree = get_pw_tree(all_reaction_layouts[537],max_lvl=150)
-    long_chain = get_long_chain(pathway_tree,max_level=7)
-    structs = get_struct_rxn(long_chain, main_dict,compound_inchi,compound_smiles)
+        pathways_oi = get_pathways_of_interest(pathways, compounds)
+    else:
+        pathways_oi = pathways
+
+    pw_chains = chains_per_pathway(pathways_oi)
+    # change unique_ids to smiles with moldict
     
-    
-    
-    
-    inchies = get_struct_rxn(long_chain, compound_inchi) #list with inchies in order
-    smiles=get_struct_rxn(long_chain,compound_smiles)
+    # go to parent directory
+    os.chdir(output_dir)
+    if args.smiles or args.filter:
+        mol_dict = pd.Series(meta_mols["smiles"].values, index=meta_mols.index).to_dict()
+        #@todo: add in all unique_ids that are in pathways.dat but not in compounds.dat
+        # mol_dict = to_conversion_dict(meta_mols)
+        # pd.DataFrame.from_dict(mol_dict, orient="index").to_csv(f"{args.output_path}_moldict.tsv", sep="\t", index=True)
+        pw_chains_structs = pw_chains.replace(mol_dict)
+        pw_chains_structs.to_csv(f"{args.output_path}_smiles.tsv", sep="\t", index=True)
 
+
+    pw_chains.to_csv(f'{args.output_path}.tsv', sep="\t", index=True)
     
-    rxn_headers = ['name','LEFT-PRIMARIES','DIRECTION','RIGHT-PRIMARIES']
-    split = split_rxn_columns(annot_pw,'REACTION-LAYOUT',rxn_headers )
-    picklr(annot_pw)"""
+    os.chdir(iwd)
+    exit(0)
 
 
 if __name__ == "__main__":

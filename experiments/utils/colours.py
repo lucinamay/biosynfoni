@@ -1,4 +1,4 @@
-COLOUR_DICT = {
+colourDict = {
     "taxonomy": {
         "Viridiplantae": "#B9C311",  # green
         "Bacteria": "#9BC2BA",  # teal
@@ -25,20 +25,24 @@ COLOUR_DICT = {
         "methylerythritol": "#6FB5C6",  # blue
         "sugar": "#FFC4CE",  # pink
         "amino": "#FFEAA0",  # yellow
+        "amino_acid": "#FFEAA0",  # yellow
     },
     "class": {
-        "Terpenoids": "#9BC2BA",  # soft bluegreen
+        # "Terpenoids": "#9BC2BA",  # soft bluegreen
+        "Terpenoids": "#B9C311",  # green
         "Alkaloids": "#B4CAD8",  # purple
         "Shikimates and Phenylpropanoids": "#A783B6",  # purple
         "Fatty acids": "#FF8B61",  # orange
         "Carbohydrates": "#FFC4CE",  # pink
         "Polyketides": "#C21100",  # soft red
         "Amino acids and Peptides": "#FFEAA0",  # yellow
-        "No NP-Classifier prediction": "#7",
-        "None": "grey",
-        "Synthetic": "charcoal",
+        "No NP-Classifier prediction": "#797979",
+        "None": "#595959",
+        "Synthetic": "#393939",
+        "Multiple": "#BBBBBB",
         # lowercase
-        "terpenoids": "#9BC2BA",  # soft bluegreen
+        # "terpenoids": "#9BC2BA",  # soft bluegreen
+        "terpenoids": "#B9C311",  # green
         "alkaloids": "#B4CAD8",  # purple
         "shikimates and phenylpropanoids": "#A783B6",  # purple
         "fatty acids": "#FF8B61",  # orange
@@ -50,7 +54,32 @@ COLOUR_DICT = {
         "fatty_acid": "#FF8B61",  # orange
         "polyketide": "#C21100",  # soft red
         "alkaloid": "#B4CAD8",  # purple
-        "terpenoid": "#9BC2BA",  # soft bluegreen
+        # "isoprenoid": "#9BC2BA",  # soft bluegreen
+        "isoprenoid": "#B9C311",  # green
+        "carbohydrate": "#FFC4CE",  # pink
+        "amino_acid": "#FFEAA0",  # yellow
+        "synthetic": "#393939",  # grey
+    },
+    "NPClassifier prediction": {
+        "Terpenoids": "#B9C311",  # green
+        "Alkaloids": "#B4CAD8",  # purple
+        "Shikimates and Phenylpropanoids": "#A783B6",  # purple
+        "Fatty acids": "#FF8B61",  # orange
+        "Carbohydrates": "#FFC4CE",  # pink
+        "Polyketides": "#C21100",  # soft red
+        "Amino acids and Peptides": "#FFEAA0",  # yellow
+        "No NP-Classifier prediction": "#797979",
+        "None": "#595959",
+        "Synthetic": "#393939",
+        "Multiple": "#BBBBBB",
+    },
+    "chebi class": {
+        "phenylpropanoid": "#A783B6",  # purple
+        "fatty_acid": "#FF8B61",  # orange
+        "polyketide": "#C21100",  # soft red
+        "alkaloid": "#B4CAD8",  # purple
+        # "isoprenoid": "#9BC2BA",  # soft bluegreen
+        "isoprenoid": "#B9C311",  # green
         "carbohydrate": "#FFC4CE",  # pink
         "amino_acid": "#FFEAA0",  # yellow
         "synthetic": "#393939",  # grey
