@@ -1,6 +1,7 @@
 import argparse, os, sys, time, subprocess
 
 
+
 def cli():
     parser = argparse.ArgumentParser(
         description="A pipeline for analysis not made with snakemake for fear of zombies on server"
@@ -78,6 +79,61 @@ def run_confusion_heatmap(cm_path):
     if code != 0:
         raise Exception(f"Confusion heatmap failed with return code {code}")
     return
+
+
+def main():
+    # get input sdfs ----------------
+    # coconut
+
+    # chebi
+
+    # metacyc
+
+    # zinc
+
+    # get all fingerprints ----------------
+    # coconut
+
+    # chebi
+
+    # metacyc
+
+    # zinc
+
+    # get pmi ----------------
+    # coconut
+
+    # chebi
+
+    # metacyc
+
+    # zinc
+
+    # get biosynthetic distance ----------------
+
+    # get umap ----------------
+    # coconut
+
+    # chebi
+
+    # metacyc
+
+    # zinc
+
+    # get tsne ----------------
+
+    # get clustermap ----------------
+
+    # get random forest ----------------
+
+    # get confusion heatmap ----------------
+
+    # get importances histogram ----------------
+
+    # get fingerprint pullup ----------------
+
+    
+
 
 
 def main():
