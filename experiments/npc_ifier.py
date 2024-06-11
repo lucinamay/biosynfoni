@@ -36,12 +36,13 @@ description:    using RDK Chem mols and NPClassifier API, requests
 
 # --------------------------------- IMPORTS-------------------------------------
 import argparse, os
-import requests, json
+import json
 import time
 import urllib
 from datetime import date
 
 
+import requests
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit import RDLogger  # for muting warnings

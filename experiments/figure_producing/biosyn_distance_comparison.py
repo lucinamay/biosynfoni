@@ -42,7 +42,7 @@ from tqdm import tqdm
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
 
-from metacyc_better_taxonomy import BETTER_TAX
+# from metacyc_better_taxonomy import BETTER_TAX
 from utils import figuremaking as fm
 from utils import set_style
 
@@ -89,6 +89,120 @@ SIM_FUNCTIONS = {
         f"wrong signature for fingerprint: {type(fingerprint)} != FingerprintType" )
 """
 # fingerprint.values.lower()
+
+
+BETTER_TAX = {
+    "Viridiplantae": "Viridiplantae",
+    "Bacteria <bacteria>": "Bacteria",
+    "Pseudomonadota": "Bacteria",
+    "Eukaryota": "Eukaryota",
+    "Magnoliopsida": "Viridiplantae",
+    "cellular organisms": "Cellular organisms",
+    "Bryophyta": "Viridiplantae",
+    "Pimpinella": "Viridiplantae",
+    "Brassicaceae": "Viridiplantae",
+    "Equisetum": "Viridiplantae",
+    "Spermatophyta": "Viridiplantae",
+    "Fabaceae": "Viridiplantae",
+    "Tracheophyta": "Viridiplantae",
+    "Fungi": "Fungi",
+    "Mammalia": "Metazoa",
+    "Gunneridae": "Viridiplantae",
+    "Capsicum": "Viridiplantae",
+    "asterids": "Viridiplantae",
+    "Solanaceae": "Viridiplantae",
+    "Rutaceae": "Viridiplantae",
+    "Amaryllidaceae": "Viridiplantae",
+    "Ephedra": "Viridiplantae",
+    "Ranunculales": "Viridiplantae",
+    "Papaveraceae": "Viridiplantae",
+    "Berberidaceae": "Viridiplantae",
+    "Caryophyllaceae": "Viridiplantae",
+    "Homo": "Metazoa",
+    "Archaea": "Archaea",
+    "Methanococci": "Archaea",
+    "Penicillium": "Fungi",
+    "Lathyrus": "Viridiplantae",
+    "Embryophyta": "Viridiplantae",
+    "Clavicipitaceae": "Fungi",
+    "Streptomyces": "Bacteria",
+    "Solanum": "Viridiplantae",
+    "Cyanobacteriota": "Bacteria",
+    "Bacilli": "Bacteria",
+    "Amygdaloideae": "Viridiplantae",
+    "Poaceae": "Viridiplantae",
+    "Lamiaceae": "Viridiplantae",
+    "Vertebrata <vertebrates>": "Metazoa",
+    "Allioideae": "Viridiplantae",
+    "Caryophyllales": "Viridiplantae",
+    "Drosophila <flies,genus>": "Metazoa",
+    "Streptomycetales": "Bacteria",
+    "Chlorophyta": "Viridiplantae",
+    "Euphyllophyta": "Viridiplantae",
+    "Insecta": "Metazoa",
+    "Lepidoptera": "Metazoa",
+    "Pinidae": "Viridiplantae",
+    "Gossypium": "Viridiplantae",
+    "Santalum": "Viridiplantae",
+    "Shewanellaceae": "Bacteria",
+    "Thermoprotei": "Archaea",
+    "Chromatiaceae": "Bacteria",
+    "Iridaceae": "Viridiplantae",
+    "eudicotyledons": "Viridiplantae",
+    "lamiids": "Viridiplantae",
+    "Myxococcales": "Bacteria",
+    "Actinomycetota": "Bacteria",
+    "Shewanella": "Bacteria",
+    "Cyperus": "Viridiplantae",
+    "Cannabaceae": "Viridiplantae",
+    "Cannabis": "Viridiplantae",
+    "Hypericum": "Viridiplantae",
+    "Metazoa": "Metazoa",
+    "Sphingomonadales": "Bacteria",
+    "Haptophyta": "Viridiplantae",
+    "Actinomycetes": "Bacteria",
+    "Apocynaceae": "Viridiplantae",
+    "Protostomia": "Metazoa",
+    "Enterobacterales": "Bacteria",
+    "Erythroxylaceae": "Viridiplantae",
+    "Halobacteria": "Archaea",
+    "Escherichia coli": "Bacteria",
+    "Streptomycetaceae": "Bacteria",
+    "Bacillota": "Bacteria",
+    "Coffea": "Viridiplantae",
+    "Opisthokonta": "Opisthokonta",  # animal/fung
+    "Boraginaceae": "Viridiplantae",
+    "Sorghum": "Viridiplantae",
+    "Mesangiospermae": "Viridiplantae",
+    "Rosaceae": "Viridiplantae",
+    "Marchantiophyta": "Viridiplantae",
+    "Rhodophyta": "Viridiplantae",
+    "Brassicales": "Viridiplantae",
+    "Bacteroidales": "Bacteria",
+    "Helicobacter pylori": "Bacteria",
+    "Corynebacteriales": "Bacteria",
+    "Ascomycota": "Fungi",
+    "Haemodoraceae": "Viridiplantae",
+    "Lecanorineae": "Fungi",
+    "Lactobacillales": "Bacteria",
+    "Theaceae": "Viridiplantae",
+    "Rubiaceae": "Viridiplantae",
+    "Rhizobiaceae": "Bacteria",
+    "Methanobacteria": "Archaea",
+    "Populus": "Viridiplantae",
+    "Porphyromonas gingivalis": "Bacteria",
+    "Lampyridae": "Metazoa",
+    "Gammaproteobacteria": "Bacteria",
+    "Mycobacteriaceae": "Bacteria",
+    "Enterobacteriaceae": "Bacteria",
+    "Arthropoda": "Metazoa",
+    "Thermococci": "Archaea",
+    "Chlamydia": "Bacteria",
+    "Mimoseae": "Viridiplantae",
+    "Bacillariophyta": "Viridiplantae",
+    "Apiales": "Viridiplantae",
+    "Avena": "Viridiplantae",
+}
 
 
 # =============================================================================
@@ -603,22 +717,24 @@ def loopsquares(
 
 
 def main():
-    #@TODO: incorporate the distances along the longest chain
+    # @TODO: incorporate the distances along the longest chain
     set_style()
     logging.getLogger(__name__).setLevel(logging.INFO)
     logging.info("==========\nbiosyn distance\n==========")
     # struct_loc = "../../../scripts/0927_metacyc_reactions.tsv"
-    
+
     args = cli()
 
     df = pd.read_csv(args.structures_path, sep="\t", header=None, index_col=0)
     df.index.name = "pathway"
     logging.info(f"read {df.shape[0]} pathways from {args.structures_path}")
-    
+
     old_n_rows = df.shape
     df.replace("", np.nan, inplace=True)
     df = df.dropna(thresh=2)  # drop where not at least 1 pair of mol
-    logging.info(f"{old_n_rows[0]-df.shape[0]} pathways dropped due to lack of mol pairs\n\n")
+    logging.info(
+        f"{old_n_rows[0]-df.shape[0]} pathways dropped due to lack of mol pairs\n\n"
+    )
 
     _, iwd = output_direr("./biosynthetic_distance")  # move to outputdir
 
@@ -638,11 +754,11 @@ def main():
         # remove mols from df
         df = df.drop(columns=["mol1", "mol2"])
         df.to_csv(dist_df, sep="\t", index=True)
-    
+
     mols = pd.read_pickle(f"{outfile_namer('mols')}.pkl")
     df = mols
     df["pathway"] = df.index
-    
+
     logging.debug(df.shape, mols.shape, df.columns)
     logging.debug(df, pairs, pairs.columns)
 
@@ -666,7 +782,6 @@ def main():
         )
         filename = outfile_namer(f"{combination[0]}_{combination[1]}_{args.metric}.png")
         fm.savefig(scatter, filename)
-
 
     onestep = df[df["stepnum"] == "1"]
     onestep.to_csv(f'{outfile_namer("onestep")}.tsv', sep="\t", index=False)
