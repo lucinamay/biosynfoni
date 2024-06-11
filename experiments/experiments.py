@@ -6,18 +6,32 @@ def cli():
     parser = argparse.ArgumentParser(
         description="A pipeline for analysis not made with snakemake for fear of zombies on server"
     )
-
+  
     args = parser.parse_args()
 
     return args
 
 
-def run_converture(raw_sdf, sdf_path):
-    fnx_path = os.path.join(BSF_PATH, "converture.py")
-    subprocess.run(["python3", fnx_path, raw_sdf, sdf_path])
-    if not os.path.exists(sdf_path):
-        raise FileNotFoundError(f"Could not find {sdf_path}")
-    return sdf_path
+
+def converture(raw_sdf, sdf_path):
+    """Converts raw sdf to rdkit-readable sdf"""
+    pass
+
+def get_bsfs(sdf_path, fp_path):
+    """Get all fingerprints"""
+    
+    cmd = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c"]
+    # cmd_less_overlap = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c", "-l"]
+    # cmd_overlap = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c", "-o"]
+
+    subprocess.run(cmd)
+    subprocess.run(cmd_less_overlap)
+    subprocess.run(cmd_overlap)
+
+    pass
+
+
+
 
 
 def run_concerto(sdf_path, fp_path, overlap_flag: str = None):
@@ -132,7 +146,7 @@ def main():
 
     # get fingerprint pullup ----------------
 
-    
+
 
 
 
