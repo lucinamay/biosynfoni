@@ -1,10 +1,51 @@
-import sys, os
+# -*- coding: utf-8 -*-
 
-import pandas as pd
+import os, subprocess
+from functools import partial
+
 from rdkit import Chem
 
-sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-from biosynfoni.inoutput import readr, outfile_namer, csv_writr
+_run = partial(subprocess.run, stdout=subprocess.PIPE, text=True, check=True)
+
+
+def _get_zid_smiles() -> dict:
+    cmd1 = ["grep", "-E", "-A3", "ZINC[0-9]{10,}", "zinc-all-for-sale.sdf"]
+    cmd2 = ["grep", "-E", f"^[^>-].*"]
+    print(cmd2)
+    grep1 = _run(cmd1)
+    grep2 = _run(cmd2, input=grep1.stdout)
+    id_smiles = grep2.stdout.splitlines()
+    return dict(zip(id_smiles[::2], id_smiles[1::2]))
+
+
+def _get_zinc_ids(path) -> list:
+    assert os.path.exists(path), f"{path} not found"
+    cmd = ["grep", "-Eo", "ZINC[0-9]{10,}", f"{path}"]
+    zinc_id = _run(cmd).stdout.splitlines()
+    return [i for i in zinc_id if i]
+
+
+def get_synthetics() -> dict:
+    nps = _get_zinc_ids("13062018.natural-products.sdf")
+    biogens = _get_zinc_ids("12.07.2018.biogenic.smi")
+    zid_smiles = _get_zid_smiles()
+    all_zids = zid_smiles.keys()
+    synthetic_zid = set(all_zids) - set(nps + biogens)
+    return {k: v for k, v in zid_smiles.items() if k in synthetic_zid}
+
+
+def write_sdf(synthetics: dict, sdf_out: str):
+    writer = Chem.SDWriter(sdf_out)
+    for zid, smi in synthetics.items():
+        mol = Chem.MolFromSmiles(smi)
+        if not mol:
+            with open("zinc_sdf.err", "a") as fo:
+                fo.write(f"{zid}\t{smi}\n")
+            continue
+        mol.SetProp("zinc_id", zid)
+        writer.write(mol)
+    writer.close()
+    return None
 
 
 def main():
@@ -13,65 +54,21 @@ def main():
     by NaPLeS zenodo files. It reads the synthetic zinc numbers and the zinc numbers and
     smiles from the NaPLeS zenodo files and writes the synthetic smiles to a file.
     """
-    init_wd = os.getcwd()
+    # assert directory "raw_data" exists (cwd should be data)
+    assert os.path.exists("raw_data"), "raw_data directory not found"
 
-    synthetic_zinc_numfile = "my_synzincnum.tmp"  # all synthetic zinc numbers
-    all_zinc_numfile = "my_allzincnum.tmp"  # all zinc numbers
-    all_smilesfile = "my_allsmiles.tmp"  # indexes corresp. to all zincnum?????
+    smi_out = "zinc.smi"  # for easier visualisation
+    sdf_out = "zinc.sdf"
 
-    # final file with synthetic smiles:
-    outfilename = "my_syns.smi"
+    os.chdir("raw_data")
+    synthetics = get_synthetics()
+    os.chdir("..")
+    with open(smi_out, "w") as fo:
+        for zid, smi in synthetics.items():
+            fo.write(f"{zid},{smi}\n")
 
-    if not os.path.exists(outfilename):
-        # making a df with all synthetic zinc ID's
-        syn_num = pd.read_csv(synthetic_zinc_numfile)
-        syn_num.columns = ["synzinc_num"]
-        syn_num.astype(int)
-
-        # making a df with all zinc -- smiles pairs
-        all_zincsmiles = pd.read_csv(
-            all_zinc_numfile,
-        )
-        all_zincsmiles.columns = ["zinc_id_num"]
-        all_zincsmiles.astype(int)
-
-        all_smiles = pd.read_csv(all_smilesfile)
-        all_smiles.columns = ["smiles"]
-
-        all_zincsmiles["smiles"] = all_smiles["smiles"]
-
-        # making a df with only synthetic zinc -- smiles pairs
-        synsmiles = all_zincsmiles[
-            all_zincsmiles["zinc_id_num"].isin(syn_num["synzinc_num"])
-        ]
-
-        synsmiles["smiles"].to_csv("my_synsmiles.smi", header=False, index=False)
-        synsmiles.to_csv("my_syns.smi", sep="\t", header=False, index=False)
-    else:
-        synsmiles = pd.read_csv(outfilename, sep="\t", header=None)
-        synsmiles.columns = ["zinc_id_num", "smiles"]
-    smiles_list = synsmiles["smiles"].tolist()
-    index_list = synsmiles["zinc_id_num"].tolist()
-    mols_list = []
-    mols_ids = []
-    error_list = []
-    for s_i in range(len(smiles_list)):
-        mol = Chem.MolFromSmiles(smiles_list[s_i])
-        if mol:
-            mols_list.append(mol)
-            mols_ids.append(index_list[s_i])
-        else:
-            error_list.append([index_list[s_i], smiles_list[s_i]])
-
-    if error_list:
-        rootname = outfile_namer("my_molfromsmi_errors")
-        csv_writr(error_list, f"{rootname}.tsv", sep="\t")
-
-    rootname = outfile_namer("my_synmols")
-    writer = Chem.SDWriter(f"{rootname}.sdf")
-    for ind_mol in mols_list:
-        writer.write(ind_mol)
-    return None
+    write_sdf(synthetics, sdf_out)
+    exit(0)
 
 
 if __name__ == "__main__":
