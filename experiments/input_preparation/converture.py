@@ -17,11 +17,9 @@ description:    parses SDF files that have more errors in their Mol objects
                 and writes them to a new SDF file. InChI is preferred over SMILES.
 
 """
+
 # --------------------------------- IMPORTS-------------------------------------
-import argparse
-from datetime import date
-import os
-from enum import Enum
+import logging, os, re
 
 from tqdm import tqdm
 from rdkit import Chem
@@ -31,48 +29,10 @@ from biosynfoni.inoutput import readr, entry_parser
 
 
 # ================================ FUNCTIONS ===================================
-
-
-def cli() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Converts SDF files' annotation's molecular representations to SDF files with rdkit-readable mol objects."
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        required=True,
-        help="Path to SDF file containing molecules.",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        required=True,
-        help="Path to SDF file containing rdkit-loadable molecular represenations in the properties.",
-    )
-    parser.add_argument(
-        "-x",
-        "--exclusive",
-        type=str,
-        default=None,
-        choices=[None, "smiles", "inchi"],
-        help="Represenation of intererst. Default chooses inchi and smiles, with preference of inchi",
-    )
-    parser.add_argument(
-        "-r",
-        "--remove_chirality",
-        "--nonchiral",
-        action="store_true",
-        help="Remove chirality from molecules. Default is False.",
-    )
-    return parser.parse_args()
-
-
 # ================================ converter ====================================
 
 
-def propertifier(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
+def get_mol_props(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
     """converts sdf entries to a dictionary of properties per entry
     input:  (list) sdf_entries -- list of sdf entries as parsed by biosynfoni.inoutput.entry_parser
     returns:    (dict) entries_properties -- dict
@@ -82,17 +42,23 @@ def propertifier(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
     entries_properties = {}
     for ind, entry in tqdm(enumerate(sdf_entries)):
         entries_properties[ind] = {}
-        i = 0
+
         # coconut_id, inchi, smiles, molecular_formula = "", "", "", ""
-        # NPLS = ""
-        for i in range(len(entry)):
-            if entry[i].startswith("> <"):
-                key = entry[i].split("<")[-1].strip(">")
-                entries_properties[ind][key] = entry[i + 1]
+        for i, line in enumerate(entry):
+            prop_name = re.findall(r"^>  <(.*?)>", line)
+            if prop_name:
+                prop_name = prop_name[0]
+                prop_val = entry[i + 1]
+                entries_properties[ind][prop_name] = prop_val
+
+            # if entry[i].startswith(">  <"):
+            #     key = entry[i].split("<")[-1].strip(">")
+            #     entries_properties[ind][key] = entry[i + 1]
+
     return entries_properties
 
 
-def name_change(
+def rename_keys(
     entries_properties: dict[int, dict[str, str]], pre: str, post: str
 ) -> dict[int, dict[str, str]]:
     """changes names of keys in entry-property dictionary if present, usable for typos in sdf annotations"""
@@ -102,53 +68,7 @@ def name_change(
     return entries_properties
 
 
-# def molify_lists(entries_properties: dict) -> tuple[list]:
-#     """converts molecule representations to Chem.Mol objects.
-#     using this function keeps all mols in memory so repr_to_annotated_sdf is
-#     recommended over this+sdf_writer
-#     input:  (dict) entries_properties -- dict of annotations per entry
-#                                         should contain 'inchi' and 'SMILES'
-#                                         in keys
-#     returns:    (list) all_mols -- mol list of all successful mols in either
-#                                 inchi or smiles
-#                 (list) inchi_mols -- mol list of all successful inchi mols
-#                 (list) smiles_mols -- mol list of all successful smiles mols
-#     """
-#     any_mols = []
-#     inchi_mols = []
-#     smiles_mols = []
-
-#     for ind, properties in entries_properties.items():
-#         inchi_mol = Chem.MolFromInchi(properties["inchi"])
-#         smiles_mol = Chem.MolFromSmiles(properties["SMILES"])
-#         if inchi_mol is not None:
-#             for key, val in properties.items():
-#                 inchi_mol.SetProp(key, str(val))
-#             inchi_mol.SetProp("rec_inchi", Chem.MolToInchi(inchi_mol))
-#             inchi_mol.SetProp("rec_smiles", Chem.MolToSmiles(inchi_mol))
-#             inchi_mol.SetProp("rec_inchikey", Chem.MolToInchiKey(inchi_mol))
-#             inchi_mol.SetProp("coco_index", str(ind))
-#             inchi_mols.append(inchi_mol)
-#         if smiles_mol is not None:
-#             for key, val in properties.items():
-#                 smiles_mol.SetProp(key, str(val))
-#             smiles_mol.SetProp("rec_inchi", Chem.MolToInchi(smiles_mol))
-#             smiles_mol.SetProp("rec_smiles", Chem.MolToSmiles(smiles_mol))
-#             smiles_mol.SetProp("rec_inchikey", Chem.MolToInchiKey(smiles_mol))
-#             smiles_mol.SetProp("coco_index", str(ind))
-#             smiles_mols.append(smiles_mol)
-#         else:  # these do not end up in the mol collection
-#             with open("converture.err", "a") as errors:
-#                 errors.write(ind, properties)
-#         if inchi_mol:
-#             all_mols.append(inchi_mol)
-#         elif smiles_mol:
-#             all_mols.append(smiles_mol)
-#     # output (yes or no stats)
-#     return all_mols, inchi_mols, smiles_mols
-
-
-def repr_to_annotated_sdf(
+def entry_props_to_sdf(
     entries_properties: dict,
     new_sdf_name: str,
     exclusive_repr: str = None,
@@ -163,20 +83,20 @@ def repr_to_annotated_sdf(
     count = 0
     for ind, properties in tqdm(entries_properties.items()):
         mol = None  # init.
+        inchi_mol, smiles_mol = None, None
 
-        if not exclusive_repr == "inchi":
+        if exclusive_repr != "inchi" and "SMILES" in properties.keys():
             smiles_mol = Chem.MolFromSmiles(properties["SMILES"])
-        if not exclusive_repr == "SMILES":
+        if exclusive_repr != "SMILES" and "inchi" in properties.keys():
             inchi_mol = Chem.MolFromInchi(properties["inchi"])
 
         # get any properly converted version of the molecule
-        if inchi_mol is not None:
+        if inchi_mol:
             mol = inchi_mol
-        elif smiles_mol is not None:
+        elif smiles_mol:
             mol = smiles_mol
 
         if mol:
-            # remove chirality
             if rem_chir:
                 mol = Chem.RemoveStereochemistry(mol)
                 # clean mol
@@ -211,16 +131,6 @@ def repr_to_annotated_sdf(
     return count
 
 
-# # ================================= output =====================================
-
-
-# def sdf_writr(mols, outfile):
-#     """writes sdf of mols"""
-#     writer = Chem.SDWriter(outfile)
-#     for mol in mols:
-#         writer.write(mol)
-
-
 # ++++++++++++++++++++++++++++++++++ main ++++++++++++++++++++++++++++++++++++++
 
 
@@ -228,26 +138,28 @@ def main():
     # mute RDKit warnings
     RDLogger.DisableLog("rdApp.*")
     # input
-    args = cli()
-    print("\n", 10 * "=", "\n", "cOnVERTURE", "\n", 10 * "=", "\n")
-    print(args)
+    input_sdf = "raw_data/COCONUT_DB.sdf"
+    output_sdf = "coconut.sdf"
+    assert input_sdf != output_sdf
+    assert os.path.exists(input_sdf)
+
+    logging.info("\n", 10 * "=", "\n", "cOnVERTURE", "\n", 10 * "=", "\n")
+    logging.info(f"extracting mols from {input_sdf}")
     # handling
-    lines = readr(args.input)
+    lines = readr(input_sdf)
     sdf_entries = entry_parser(lines)
-    properties = propertifier(sdf_entries)
+    props = get_mol_props(sdf_entries)
     # change murko_framework to murcko_framework
-    properties_spellchecked = name_change(
-        properties, "murko_framework", "murcko_framework"
+    props = rename_keys(props, "murko_framework", "murcko_framework")
+
+    count_number_written = entry_props_to_sdf(
+        props,
+        output_sdf,
+        exclusive_repr=None,
+        rem_chir=False,
     )
-    # all_mols, ids_props, stats = molifier(properties, representation_info=True)
-    count_number_written = repr_to_annotated_sdf(
-        properties_spellchecked,
-        args.output,
-        exclusive_repr=args.exclusive,
-        rem_chir=args.remove_chirality,
-    )
-    print(f"wrote {count_number_written} mols to {args.output}")
-    print("~~~bye~~~")
+    logging.info(f"wrote {count_number_written} mols to {output_sdf}")
+    logging.info("~~~bye~~~")
 
     return None
 
