@@ -57,6 +57,67 @@ def cli():
     return args
 
 
+def count_distributions(coco, zinc, substructure_names):
+    """WIP: Plots substructure count distribution for coco and zinc"""
+    npcs = np.loadtxt(
+        "npcs.tsv", dtype="str", delimiter="\t"
+    )  # just added, not checked
+    s_coco = coco[npcs[:, 0] == "Alkaloids"]
+    # random subsample of zinc
+    np.random.seed(42)
+    s_zinc = zinc[np.random.choice(zinc.shape[0], size=s_coco.shape[0], replace=False)]
+
+    for i in range(3, len(substructure_names)):
+        # np.histogram(coco[:,i])
+        # print(np.mean(coco[:,i]))
+        fig = plt.figure()
+        nonzero = s_coco[:, i][s_coco[:, i] > 0]
+        if np.max(nonzero) == 0:
+            continue
+        n, bins, edges = plt.hist(
+            nonzero,
+            bins=np.max(nonzero) - 1,
+            color="green",
+            alpha=0.7,
+            histtype="step",
+            align="left",
+        )
+
+        plt.title(
+            f"substructure counts for {substructure_names[i]}, {len(nonzero)} nonzero values"
+        )
+        plt.xticks(bins)
+        plt.xlabel("substructure counts")
+        plt.ylabel("number of compounds")
+        plt.tight_layout()
+
+    for i in range(3, len(substructure_names)):
+        # np.histogram(coco[:,i])
+        # print(np.mean(zinc[:,i]))
+        fig = plt.figure()
+        nonzero = s_zinc[:, i][s_zinc[:, i] != 0]
+        if np.max(nonzero) < 2:
+            continue
+        n, bins, edges = plt.hist(
+            nonzero,
+            bins=np.max(nonzero) - 1,
+            color="purple",
+            alpha=0.7,
+            rwidth=1,
+            histtype="step",
+            align="mid",
+        )
+        plt.title(
+            f"histogram of substructure counts for {substructure_names[i]}, {len(nonzero)} nonzero values"
+        )
+        plt.xticks(bins)
+        plt.xlabel("substructure counts")
+        plt.ylabel("number of compounds")
+
+    plt.close()
+    return None
+
+
 def write_stats(fp_arr: np.array) -> np.array:
     """
     Write stats of fingerprint array to file
@@ -80,56 +141,53 @@ def write_stats(fp_arr: np.array) -> np.array:
     return mean_fp
 
 
-def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
-    """
-    Make a plot of the mean fingerprint count per substructure for two compound collections
+# def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
+#     """
+#     Make a plot of the mean fingerprint count per substructure for two compound collections
 
-        Args:
-            fp_mean_arr1 (np.array): mean fingerprint count per substructure for compound collection 1
-            fp_mean_arr2 (np.array): mean fingerprint count per substructure for compound collection 2
-            filename (str): name of file to save plot
-        Returns:
-            None
-    """
-    plt.figure()
-    logging.info("making plot")
+#         Args:
+#             fp_mean_arr1 (np.array): mean fingerprint count per substructure for compound collection 1
+#             fp_mean_arr2 (np.array): mean fingerprint count per substructure for compound collection 2
+#             filename (str): name of file to save plot
+#         Returns:
+#             None
+#     """
+#     plt.figure()
+#     logging.info("making plot")
 
-    joined = np.array([fp_mean_arr1, fp_mean_arr2])
-    both = np.transpose(np.array([fp_mean_arr1, fp_mean_arr2]))
+#     plt.stairs(fp_mean_arr1, color="green", label="natural products")
+#     plt.stairs(fp_mean_arr2, color="grey", label="synthetic compounds")
 
-    plt.stairs(fp_mean_arr1, color="green", label="natural products")
-    plt.stairs(fp_mean_arr2, color="grey", label="synthetic compounds")
-
-    plt.xlabel("substructure no.")  # , fontsize=20)
-    plt.ylabel("mean fp count")  # , fontsize=20)
-    plt.title(
-        "mean fp count per substructure for natural products and synthetic compounds"
-    )  # , fontsize=20)
-    logging.info("saving plot")
-    plt.legend()
-    plt.savefig(filename)
-    plt.close()
-    return None
+#     plt.xlabel("substructure no.")  # , fontsize=20)
+#     plt.ylabel("mean fp count")  # , fontsize=20)
+#     plt.title(
+#         "mean fp count per substructure for natural products and synthetic compounds"
+#     )  # , fontsize=20)
+#     logging.info("saving plot")
+#     plt.legend()
+#     plt.savefig(filename)
+#     plt.close()
+#     return None
 
 
-def fp_violin(fps, bsf_name):
-    """
-    Make a violin plot of the fingerprint count per substructure for a compound collection
+# def fp_violin(fps, bsf_name):
+#     """
+#     Make a violin plot of the fingerprint count per substructure for a compound collection
 
-        Args:
-            fps (np.array): fingerprint array
-            bsf_name (str): name of compound collection
-        Returns:
-            None
-    """
-    plt.ioff()
-    plt.figure().set_figwidth(15)
-    logging.info("making plot")
-    plt.violinplot(dataset=fps, showmeans=True)
-    logging.info("saving plot")
-    plt.savefig(f"fp_avg_{bsf_name}.svg")
-    plt.close()
-    return None
+#         Args:
+#             fps (np.array): fingerprint array
+#             bsf_name (str): name of compound collection
+#         Returns:
+#             None
+#     """
+#     plt.ioff()
+#     plt.figure().set_figwidth(15)
+#     logging.info("making plot")
+#     plt.violinplot(dataset=fps, showmeans=True)
+#     logging.info("saving plot")
+#     plt.savefig(f"fp_avg_{bsf_name}.svg")
+#     plt.close()
+#     return None
 
 
 def heatmap_array(

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse, os, logging, pickle, time, tracemalloc
 from collections import Counter
+from typing import Generator
 
 import numpy as np
 
@@ -367,116 +368,6 @@ def train_test_split(arrays_to_split: tuple[np.array], fract: float = 0.8) -> tu
     return tuple(train_arrays), tuple(test_arrays)
 
 
-# def tr_te_split_ids(
-#     X: np.array, y: np.array, ids: np.array = np.array([]), fract: float = 0.8
-# ) -> tuple:
-#     """train test split including ids"""
-#     # Split into train and test.
-#     if len(ids) == 0:
-#         ids = np.arange(X.shape[0])
-
-#     indices = np.random.permutation(X.shape[0])
-#     X = X[indices]
-#     y = y[indices]
-#     ids = ids[indices]
-
-#     train_size = int(fract * X.shape[0])
-#     X_train, X_test = X[:train_size], X[train_size:]
-#     y_train, y_test = y[:train_size], y[train_size:]
-#     ids_train, ids_test = ids[:train_size], ids[train_size:]
-
-#     print(
-#         X_train.shape,
-#         X_test.shape,
-#         y_train.shape,
-#         y_test.shape,
-#         ids_train.shape,
-#         ids_test.shape,
-#     )
-#     return X_train, X_test, y_train, y_test, ids_train, ids_test
-
-
-# class rfData:
-#     # X = data[0]
-#     # y = data[1]
-#     # ids = data[2]
-
-#     def __init__(
-#         self,
-#         X: np.array,
-#         cl_path: str,
-#         ids: np.array,
-#         unilabel: bool,
-#         fract: float = 0.8,
-#     ):
-#         self.X = X
-#         self.ids = ids
-#         self.unilabel = unilabel
-#         self.label_names, self.class_index, self.y = read_classifications(
-#             cl_path, unilabel
-#         )
-#         self.data = (self.X, self.y, self.ids)
-#         self.classes = None
-#         self.nones_X = None
-#         self.nones_y = None
-#         self.nones_ids = None
-#         self.nones_data = None
-
-#         self.X_train = None
-#         self.X_test = None
-#         self.y_train = None
-#         self.y_test = None
-#         self.ids_train = None
-#         self.ids_test = None
-#         train_test_split(self.data, fract=0.8)
-
-#     def subsample(self, size: int = 10000, random_seed: int = None):
-#         if isinstance(random_seed, int):
-#             np.random.seed(random_seed)
-#         indices = np.random.choice(self.X.shape[0], size=size, replace=False)
-
-#         self.X = self.X[indices]
-#         self.y = self.y[indices]
-#         self.ids = self.ids[indices]
-
-#         logging.info(f"Subsampled {size}. Random seed: {random_seed}")
-#         logging.debug(f"{self.X.shape}, {self.ids.shape}")
-#         return None
-
-#     def train_test_split(self, fract: float = 0.8):
-#         """regular train test split"""
-#         # Split into train and test.
-#         indices = np.random.permutation(self.X.shape[0])
-#         self.X = self.X[indices]
-#         self.y = self.y[indices]
-#         self.ids = self.ids[indices]
-
-#         train_size = int(fract * self.X.shape[0])
-#         self.X_train, self.X_test = self.X[:train_size], self.X[train_size:]
-#         self.y_train, self.y_test = self.y[:train_size], self.y[train_size:]
-#         self.ids_train, self.ids_test = self.ids[:train_size], self.ids[train_size:]
-
-#         logging.debug(f"{self.X_train.shape}, {self.X_test.shape}"")
-#         return None
-
-#     def separate_nones(self):
-#         """separate nones from data"""
-#         none_indices = []
-#         # get indexes of "None" annotations
-#         for i, name in enumerate(self.label_names):
-#             if name == ["None"]:
-#                 none_indices.append(int(i))
-
-#         # remove "None" class index dictionary (integer values)
-#         if "None" in self.class_index.keys():
-#             none_ind = self.class_index.pop("None")
-#             # if not unilabel:
-#             if self.y.shape[1] > 1:
-#                 self.y = np.delete(self.y, none_ind, 1)
-
-#         # separate
-
-
 def train_classifier(
     X_train: np.array,
     y_train: np.array,
@@ -556,7 +447,7 @@ def cutoffr(y_proba: np.array, cutoff: float = 0.5) -> np.array:
     return y_rounded.astype(int)
 
 
-def kfold_yielder(X: np.array, y: np.array, k: int = 5) -> tuple:
+def kfold_yielder(X: np.array, y: np.array, k: int = 5) -> Generator:
     """
     Yield train and test sets for each fold
 
@@ -576,7 +467,7 @@ def kfold_yielder(X: np.array, y: np.array, k: int = 5) -> tuple:
         yield X_train, X_test, y_train, y_test
 
 
-def kfold_yielder_ids(X: np.array, y: np.array, ids: np.array, k: int = 5) -> tuple:
+def kfold_yielder_ids(X: np.array, y: np.array, ids: np.array, k: int = 5) -> Generator:
     """
     Yield train and test sets for each fold, including ids
 
