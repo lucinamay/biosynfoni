@@ -18,6 +18,7 @@ import logging
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.tri import Triangulation
 import numpy as np
 import pandas as pd
 
@@ -301,7 +302,7 @@ def annotate_heatmap(
 
 
 def _set_ax_boxplot_i_colour(
-    ax_boxplot: matplotlib.container.BarContainer,
+    ax_boxplot: mpl.container.BarContainer,
     i: int,
     colour: str,
     inner_alpha: float = 0.6,
@@ -698,3 +699,145 @@ def set_label_colors_from_categories(
     colors = cat_to_colour(categories, col_dict)
     set_label_colors(ticklabels, colors)
     return None
+
+
+def two_gradient_cmap():
+    top = mpl.colormaps["Greys"].resampled(128)
+    middle = mpl.colormaps["Greys"].resampled(128)
+    bottom = mpl.colormaps["Greens"].resampled(128)
+
+    newcolors = np.vstack(
+        (top(np.linspace(0, 0.4, 128)), bottom(np.linspace(0.3, 1, 128)))
+    )
+    return mpl.ListedColormap(newcolors, name="GreenGrey")
+
+
+def _triangulation_for_triheatmap(M, N):
+
+    xv, yv = np.meshgrid(
+        np.arange(-0.5, M), np.arange(-0.5, N)
+    )  # vertices of the little squares
+    xc, yc = np.meshgrid(
+        np.arange(0, M), np.arange(0, N)
+    )  # centers of the little squares
+    x = np.concatenate([xv.ravel(), xc.ravel()])
+    y = np.concatenate([yv.ravel(), yc.ravel()])
+    cstart = (M + 1) * (N + 1)  # indices of the centers
+
+    north = [
+        (i + j * (M + 1), i + 1 + j * (M + 1), cstart + i + j * M)
+        for j in range(N)
+        for i in range(M)
+    ]
+    east = [
+        (i + 1 + j * (M + 1), i + 1 + (j + 1) * (M + 1), cstart + i + j * M)
+        for j in range(N)
+        for i in range(M)
+    ]
+    south = [
+        (i + 1 + (j + 1) * (M + 1), i + (j + 1) * (M + 1), cstart + i + j * M)
+        for j in range(N)
+        for i in range(M)
+    ]
+    west = [
+        (i + (j + 1) * (M + 1), i + j * (M + 1), cstart + i + j * M)
+        for j in range(N)
+        for i in range(M)
+    ]
+    return [Triangulation(x, y, triangles) for triangles in [north, east, south, west]]
+
+
+def triheatmap(
+    data1: np.array,
+    data2: np.array,
+    row_labels: list = [],
+    col_labels: list = [],
+    ax=None,
+    cbar_kw=None,
+    cbarlabel1="% of natural products",
+    cbarlabel2="% of compounds",
+    title="Substructure counts for natural products vs synthetic compounds",
+    colours=("Greens", "Purples"),
+    normalise=False,
+    **kwargs,
+):
+    """
+    Create a heatmap from a numpy array and two lists of labels.
+
+    Parameters
+    ----------
+    data
+        A 2D numpy array of shape (M, N).
+    row_labels
+        A list or array of length M with the labels for the rows.
+    col_labels
+        A list or array of length N with the labels for the columns.
+    ax
+        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
+        not provided, use current axes or create a new one.  Optional.
+    cbar_kw
+        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
+    cbarlabel
+        The label for the colorbar.  Optional.
+    **kwargs
+        All other arguments are forwarded to `imshow`.
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    if cbar_kw is None:
+        cbar_kw = {}
+
+    values = [data1, data2, data2, data1]
+    triangle_ = _triangulation_for_triheatmap(data1.shape[1], data1.shape[0])
+    cmaps = [colours[0], colours[1], colours[1], colours[0]]
+    # Plot the heatmap
+    # im = ax.imshow(data, **kwargs)
+    if normalise:
+        norms = [plt.Normalize(0, 100) for _ in range(4)]
+        imgs = [
+            ax.tripcolor(t, np.ravel(val), cmap=cmap, norm=norm)
+            for t, val, cmap, norm in zip(triangle_, values, cmaps, norms)
+        ]
+    else:
+        imgs = [
+            ax.tripcolor(t, np.ravel(val), cmap=cmap)
+            for t, val, cmap in zip(triangle_, values, cmaps)
+        ]
+
+    # Create colorbar
+    cbar = ax.figure.colorbar(imgs[1], ax=ax, **cbar_kw)
+    cbar.ax.set_ylabel(cbarlabel2, rotation=-90, va="bottom")
+    cbar.ax.set_yticks([])
+    cbar.outline.set_visible(False)
+
+    # Show all ticks and label them with the respective list entries.
+    ax.set_xticks(np.arange(data1.shape[1]), labels=col_labels, size=6)
+    # ax.set_yticks(np.arange(data.shape[0]), labels=row_labels, size = 6)
+    ax.set_yticks([])
+
+    # Let the horizontal axes labeling appear on bottom (default)
+    ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True)
+    ax.tick_params(pad=0.5)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right", rotation_mode="anchor")
+
+    # Turn spines off and create white grid.
+    ax.spines[:].set_visible(False)
+
+    ax.invert_yaxis()
+    ax.margins(x=0, y=0)
+    ax.set_xticks(np.arange(data1.shape[1] + 1) - 0.5, minor=True)
+    ax.set_yticks(np.arange(data1.shape[0] + 1) - 0.5, minor=True)
+    ax.set_aspect("equal", "box")  # square cells
+
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=1, alpha=1.0)
+    ax.tick_params(which="minor", bottom=False, left=False)
+    ax.set_xlabel("substructure")
+    ax.set_ylabel("counts", labelpad=10)
+    ax.set_title(title, loc="center", pad=20)
+    plt.tight_layout()
+
+    return imgs, cbar
