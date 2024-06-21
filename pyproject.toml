@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENCE"}
 keywords = ["bioinformatics", "cheminformatics", "metabolomics", "natural-products", "molecular-fingerprint", "metabolites", "biosynthetic-distance"]
+authors = [{name = "Lucina-May Nollen"}]
+maintainers =[{name = "Lucina-May Nollen"}]
 
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -37,7 +39,7 @@ experiments = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/lucinamay/biosynfoni"
+"homepage" = "https://github.com/lucinamay/biosynfoni"
 
 [project.scripts]
 biosynfoni = "biosynfoni.concerto_fp:main"
