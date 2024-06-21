@@ -141,55 +141,6 @@ def write_stats(fp_arr: np.array) -> np.array:
     return mean_fp
 
 
-# def fp_means_plots(fp_mean_arr1, fp_mean_arr2, filename):
-#     """
-#     Make a plot of the mean fingerprint count per substructure for two compound collections
-
-#         Args:
-#             fp_mean_arr1 (np.array): mean fingerprint count per substructure for compound collection 1
-#             fp_mean_arr2 (np.array): mean fingerprint count per substructure for compound collection 2
-#             filename (str): name of file to save plot
-#         Returns:
-#             None
-#     """
-#     plt.figure()
-#     logging.info("making plot")
-
-#     plt.stairs(fp_mean_arr1, color="green", label="natural products")
-#     plt.stairs(fp_mean_arr2, color="grey", label="synthetic compounds")
-
-#     plt.xlabel("substructure no.")  # , fontsize=20)
-#     plt.ylabel("mean fp count")  # , fontsize=20)
-#     plt.title(
-#         "mean fp count per substructure for natural products and synthetic compounds"
-#     )  # , fontsize=20)
-#     logging.info("saving plot")
-#     plt.legend()
-#     plt.savefig(filename)
-#     plt.close()
-#     return None
-
-
-# def fp_violin(fps, bsf_name):
-#     """
-#     Make a violin plot of the fingerprint count per substructure for a compound collection
-
-#         Args:
-#             fps (np.array): fingerprint array
-#             bsf_name (str): name of compound collection
-#         Returns:
-#             None
-#     """
-#     plt.ioff()
-#     plt.figure().set_figwidth(15)
-#     logging.info("making plot")
-#     plt.violinplot(dataset=fps, showmeans=True)
-#     logging.info("saving plot")
-#     plt.savefig(f"fp_avg_{bsf_name}.svg")
-#     plt.close()
-#     return None
-
-
 def heatmap_array(
     fps: np.array,
     max_height: int = 30,
