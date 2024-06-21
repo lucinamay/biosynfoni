@@ -11,7 +11,10 @@ from scipy.sparse.linalg import svds
 from tqdm import tqdm
 
 from utils import set_style
-from utils.figuremaking import set_label_colors, annotate_heatmap
+from experiments.figure_producing.utils.figures import (
+    set_label_colors,
+    annotate_heatmap,
+)
 
 
 def cli() -> argparse.Namespace:

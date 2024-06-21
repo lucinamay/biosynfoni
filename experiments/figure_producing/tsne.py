@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-from utils.figuremaking import scatter, savefig
+from experiments.figure_producing.utils.figures import scatter, savefig
 from utils import set_style
 
 

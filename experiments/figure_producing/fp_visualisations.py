@@ -16,7 +16,7 @@ sys.path.append(
 )
 from biosynfoni.inoutput import outfile_namer
 from biosynfoni.subkeys import fpVersions, defaultVersion, get_names, get_pathway
-from utils.figuremaking import (
+from experiments.figure_producing.utils.figures import (
     heatmap,
     annotate_heatmap,
     savefig,

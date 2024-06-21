@@ -1,1 +1,1 @@
-from utils.biostylefoni_caller import set_style
+from experiments.figure_producing.utils.set_style import set_style

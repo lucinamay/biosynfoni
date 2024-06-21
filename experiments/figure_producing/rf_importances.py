@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 from biosynfoni.subkeys import fpVersions, defaultVersion, get_values, get_pathway
-from utils.figuremaking import cat_to_colour
+from experiments.figure_producing.utils.figures import cat_to_colour
 from utils.colours import colourDict
 from utils import set_style
 
