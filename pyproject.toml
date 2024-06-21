@@ -36,6 +36,7 @@ experiments = [
     "scikit-learn",
     "umap",
     "seaborn",
+    "requests",
 ]
 
 [project.urls]
