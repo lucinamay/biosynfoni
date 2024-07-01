@@ -15,7 +15,7 @@ from tqdm import tqdm
 from biosynfoni.subkeys import get_names, get_pathway
 from utils import set_style
 from utils.colours import colourDict
-from utils.figuremaking import set_label_colors_from_categories
+from experiments.figure_producing.utils.figures import set_label_colors_from_categories
 
 
 def cli():
@@ -153,7 +153,7 @@ class ClusterMap:
 
         return seacluster
 
-    def get_clusterplot(self, legend_title: str = "class") -> plt.gca():
+    def get_clusterplot(self, legend_title: str = "class") -> plt.gca:
         """returns plt of clustermap with legend of categories"""
 
         # plt.figure(figsize=(15,6))

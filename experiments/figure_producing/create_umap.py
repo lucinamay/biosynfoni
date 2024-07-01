@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from utils import set_style
 from utils.colours import colourDict as col_dicts
-from utils.figuremaking import scatter, savefig
+from experiments.figure_producing.utils.figures import scatter, savefig
 
 
 def cli():

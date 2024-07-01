@@ -43,7 +43,7 @@ from tqdm import tqdm
 # own imports #fix to work with different folders
 
 # from metacyc_better_taxonomy import BETTER_TAX
-from utils import figuremaking as fm
+from experiments.figure_producing.utils import figures as fm
 from utils import set_style
 
 from biosynfoni.subkeys import defaultVersion

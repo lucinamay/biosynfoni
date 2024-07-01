@@ -19,7 +19,7 @@ from rdkit import Chem
 from biosynfoni.inoutput import jaropener
 from biosynfoni.subkeys.get_version import get_biosynfoni
 from tsne import tsner
-from utils import figuremaking as fm
+from experiments.figure_producing.utils import figures as fm
 
 # from inoutput import jaropener
 # from concerto_fp import get_biosynfoni
