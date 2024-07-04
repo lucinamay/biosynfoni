@@ -1,56 +1,101 @@
-import sys, os, logging
+import sys, logging
+from time import perf_counter
+from pathlib import Path
 
 import numpy as np
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from tqdm import tqdm
 
-sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-# for intra-biosynfoni-code running
-sys.path.append(
-    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
-)
-from biosynfoni.inoutput import outfile_namer
-from biosynfoni.rdkfnx import get_supplier
-from biosynfoni import fingerprints as fp
+from biosynfoni import Biosynfoni
+
+
+def maccs(mol: Chem.Mol) -> np.array:
+    fingerprint = AllChem.GetMACCSKeysFingerprint(mol, nBits=167)
+    return np.array(fingerprint)
+
+
+def morgan(mol: Chem.Mol) -> np.array:
+    fingerprint = AllChem.GetMorganFingerprintAsBitVect(
+        mol, useChirality=False, radius=2, nBits=2048
+    )
+    return np.array(fingerprint)
+
+
+def morgan_chiral(mol: Chem.Mol) -> np.array:
+    fingerprint = AllChem.GetMorganFingerprintAsBitVect(
+        mol, useChirality=True, radius=2, nBits=2048
+    )
+    return np.array(fingerprint)
+
+
+def rdk_fp(mol: Chem.Mol) -> np.array:
+    fingerprint = Chem.RDKFingerprint(mol, fpSize=2048)
+    return np.array(fingerprint)
+
+
+def biosynfoni(mol: Chem.Mol) -> np.array:
+    """returns counted fingerprint list"""
+    counted_fingerprint = Biosynfoni(
+        mol,
+        intersub_overlap=True,
+        intrasub_overlap=True,
+    ).fingerprint
+    return np.array(counted_fingerprint)
+
+
+def biosynfoni_no_overlap(mol: Chem.Mol) -> np.array:
+    """returns counted fingerprint list"""
+    counted_fingerprint = Biosynfoni(
+        mol,
+        intersub_overlap=False,
+        intrasub_overlap=False,
+    ).fingerprint
+    return np.array(counted_fingerprint)
+
+
+def biosynfoni_no_intraoverlap(mol: Chem.Mol) -> np.array:
+    """returns counted fingerprint list"""
+    counted_fingerprint = Biosynfoni(
+        mol,
+        intersub_overlap=True,
+        intrasub_overlap=False,
+    ).fingerprint
+    return np.array(counted_fingerprint)
 
 
 def main():
+    sdf = Path(sys.argv[1]).resolve(strict=True)
+    suppl = Chem.SDMolSupplier(sdf)
+
     fp_functions = {
-        # "biosynfoni": fp.biosynfoni_getter,
-        # "binosynfoni": fp.binosynfoni_getter,
-        "maccs": fp.maccs_getter,
-        "morgan": fp.morgan_getter,
-        "rdkit": fp.rdk_fp_getter,
-        # "maccsynfoni": fp.maccsynfoni_getter,
-        # "bino_maccs": fp.bino_maccs_getter,
+        "maccs": maccs,
+        "morgan": morgan,
+        "morgan_chiral": morgan_chiral,
+        "rdk": rdk_fp,
+        "bsf": biosynfoni,
+        "bsf_no_overlap": biosynfoni_no_overlap,
+        "bsf_no_intraoverlap": biosynfoni_no_intraoverlap,
     }
 
-    sdf = sys.argv[1]
-    sdf_name = os.path.basename(sdf).split(".")[0]
-    suppl = get_supplier(sdf_file=sdf)
-    fp_dict = {x: [] for x in fp_functions.keys()}
+    logfile = f"{sdf.stem}_times.log"
+    with open(logfile, "w") as log:
+        log.write()
+        log.write(f"fingerprint\ttime for {len(suppl)} mols\n")
 
-    i = 0
-    j = 0
-    logging.info(f"starting with the {len(suppl)} molecules...")
-    for mol in suppl:
-        if i % 1000 == 0:
-            print(f"{j} k done")
-            j += 1
-        i += 1
-        for fp_name, fp_function in fp_functions.items():
-            fingerprint = fp_function(mol)
-            if fingerprint.any() != None:
-                fp_dict[fp_name].append(fingerprint)
-            else:
-                if fp_name == "morgan" or fp_name == "rdkit":
-                    fp_dict[fp_name].append(np.nan)
-                else:
-                    fp_dict[fp_name].append(np.nan)
+    for name, fnx in tqdm(fp_functions.items(), desc="Getting fingerprints"):
+        start = perf_counter()
+        fps = [fnx(mol) for mol in tqdm(suppl, total=len(suppl), desc=f"{name}")]
+        end = perf_counter()
 
-    for fp_name, fp_list in fp_dict.items():
-        fp_arr = np.array(fp_list)
-        outfile = f"{outfile_namer(sdf_name, fp_name)}.csv"
-        np.savetxt(outfile, fp_arr, fmt="%i", delimiter=",")
-        logging.info(f"saved {fp_name} to {outfile}")
+        with open(logfile, "a") as log:
+            log.write(f"{name}\t{end - start}\n")
+
+        if len(fps) != len(suppl):
+            logging.error(f"fps: {len(fps)} != suppl: {len(suppl)}")
+
+        np.savetxt(f"{sdf.stem}_{name}.csv", np.array(fps), fmt="%i", delimiter=",")
+
     exit(0)
 
 

@@ -19,7 +19,8 @@ description:    parses SDF files that have more errors in their Mol objects
 """
 
 # --------------------------------- IMPORTS-------------------------------------
-import logging, os, re
+import logging, os, re, sys
+from pathlib import Path
 
 from tqdm import tqdm
 from rdkit import Chem
@@ -135,21 +136,20 @@ def entry_props_to_sdf(
 
 
 def main():
-    # mute RDKit warnings
     RDLogger.DisableLog("rdApp.*")
-    # input
-    input_sdf = "raw_data/COCONUT_DB.sdf"
-    output_sdf = "coconut.sdf"
-    assert input_sdf != output_sdf
-    assert os.path.exists(input_sdf)
 
     logging.info("\n", 10 * "=", "\n", "cOnVERTURE", "\n", 10 * "=", "\n")
+
+    raw_data = Path(sys.argv[1]).resolve(strict=True)
+    input_sdf = raw_data / "COCONUT_DB.sdf"
+    output_sdf = "coconut.sdf"
+    assert os.path.exists(input_sdf)
     logging.info(f"extracting mols from {input_sdf}")
-    # handling
+
     lines = readr(input_sdf)
     sdf_entries = entry_parser(lines)
     props = get_mol_props(sdf_entries)
-    # change murko_framework to murcko_framework
+    # change murko_framework typo to murcko_framework
     props = rename_keys(props, "murko_framework", "murcko_framework")
 
     count_number_written = entry_props_to_sdf(
@@ -159,7 +159,6 @@ def main():
         rem_chir=False,
     )
     logging.info(f"wrote {count_number_written} mols to {output_sdf}")
-    logging.info("~~~bye~~~")
 
     return None
 

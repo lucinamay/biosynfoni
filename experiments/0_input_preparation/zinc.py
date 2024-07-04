@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import os, subprocess
+import os, subprocess, sys
+from pathlib import Path
 from functools import partial
 
 from rdkit import Chem
@@ -8,8 +9,8 @@ from rdkit import Chem
 _run = partial(subprocess.run, stdout=subprocess.PIPE, text=True, check=True)
 
 
-def _get_zid_smiles() -> dict:
-    cmd1 = ["grep", "-E", "-A3", "ZINC[0-9]{10,}", "zinc-all-for-sale.sdf"]
+def _get_zid_smiles(zinc_all_path) -> dict:
+    cmd1 = ["grep", "-E", "-A3", "ZINC[0-9]{10,}", f"{zinc_all_path}"]
     cmd2 = ["grep", "-E", f"^[^>-].*"]
     print(cmd2)
     grep1 = _run(cmd1)
@@ -25,12 +26,15 @@ def _get_zinc_ids(path) -> list:
     return [i for i in zinc_id if i]
 
 
-def get_synthetics() -> dict:
+def get_synthetics(raw_data_path) -> dict:
+    iwd = os.getcwd()
+    os.chdir(raw_data_path)
+    zid_smiles = _get_zid_smiles("zinc-all-for-sale.sdf")
     nps = _get_zinc_ids("13062018.natural-products.sdf")
     biogens = _get_zinc_ids("12.07.2018.biogenic.smi")
-    zid_smiles = _get_zid_smiles()
     all_zids = zid_smiles.keys()
     synthetic_zid = set(all_zids) - set(nps + biogens)
+    os.chdir(iwd)
     return {k: v for k, v in zid_smiles.items() if k in synthetic_zid}
 
 
@@ -54,15 +58,12 @@ def main():
     by NaPLeS zenodo files. It reads the synthetic zinc numbers and the zinc numbers and
     smiles from the NaPLeS zenodo files and writes the synthetic smiles to a file.
     """
-    # assert directory "raw_data" exists (cwd should be data)
-    assert os.path.exists("raw_data"), "raw_data directory not found"
+    raw_data = Path(sys.argv[1]).resolve(strict=True)
 
     smi_out = "zinc.smi"  # for easier visualisation
     sdf_out = "zinc.sdf"
 
-    os.chdir("raw_data")
-    synthetics = get_synthetics()
-    os.chdir("..")
+    synthetics = get_synthetics(raw_data)
     with open(smi_out, "w") as fo:
         for zid, smi in synthetics.items():
             fo.write(f"{zid},{smi}\n")

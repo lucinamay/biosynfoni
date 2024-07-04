@@ -1,12 +1,9 @@
-from enum import Enum
+import sys
+from pathlib import Path
 
 from rdkit import Chem
-
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
-# turn off rdkit warnings
 from rdkit import RDLogger
 
 RDLogger.DisableLog("rdApp.*")
@@ -94,8 +91,9 @@ def classifications(df, classification_path: str) -> pd.DataFrame:
 
 
 def main():
-    sdf_path = "raw_data/ChEBI_complete_3star.sdf"
-    classification_path = "raw_data/ChEBI_3star_classifications.tsv"
+    raw_data = Path(sys.argv[1]).resolve(strict=True)
+    sdf_path = raw_data / "ChEBI_complete_3star.sdf"
+    classification_path = raw_data / "ChEBI_3star_classifications.tsv"
 
     # get properties and classifications
     sdf = Chem.SDMolSupplier(sdf_path)

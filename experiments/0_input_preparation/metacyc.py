@@ -1,4 +1,5 @@
-import re
+import sys
+from pathlib import Path
 from functools import partial
 
 import numpy as np
@@ -6,7 +7,7 @@ import pandas as pd
 from rdkit import Chem
 from tqdm import tqdm
 
-from biosynfoni.inoutput import *
+from biosynfoni.inoutput import readr, entry_parser
 
 
 # ============================== input handling ===============================
@@ -268,11 +269,12 @@ def clean_pw_df(
 
 
 def main():
-    compounds_path = "raw_data/compounds.dat"  # linked-compounds does not contain all
-    pathways_path = "raw_data/pathways.dat"
+    raw_data = Path(sys.argv[1]).resolve()
+    compounds_path = raw_data / "compounds.dat"  # linked-compounds does not contain all
+    pathways_path = raw_data / "pathways.dat"
 
-    # meta_mols = get_compounds(compounds_path)
-    # write_compounds(meta_mols)
+    meta_mols = get_compounds(compounds_path)
+    write_compounds(meta_mols)
 
     pathways = get_pathways(pathways_path)
     pathways = clean_pw_df(pathways)
