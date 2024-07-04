@@ -10,7 +10,6 @@ from sklearn.metrics import (
     classification_report,
     accuracy_score,
     multilabel_confusion_matrix,
-)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import KFold, GroupKFold
 from sklearn.tree import export_graphviz

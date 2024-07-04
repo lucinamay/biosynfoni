@@ -9,14 +9,10 @@ import matplotlib.pyplot as plt
 
 plt.ioff()
 
-sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-# for intra-biosynfoni-code running
-sys.path.append(
-    os.path.abspath(os.path.join(sys.path[0], os.pardir, "src", "biosynfoni"))
-)
+
 from biosynfoni.inoutput import outfile_namer
 from biosynfoni.subkeys import fpVersions, defaultVersion, get_names, get_pathway
-from experiments.figure_producing.utils.figures import (
+from utils.figures import (
     heatmap,
     annotate_heatmap,
     savefig,

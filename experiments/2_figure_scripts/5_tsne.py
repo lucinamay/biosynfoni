@@ -5,7 +5,7 @@ Created on Sun Oct  1 21:53:10 2023
 @author: lucina-may
 """
 
-import sys, os, logging, tracemalloc
+import os, logging, tracemalloc
 from sys import argv
 from datetime import datetime
 from time import perf_counter
@@ -15,8 +15,7 @@ from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 
-sys.path.append(os.path.abspath(os.path.join(sys.path[0], os.pardir, "src")))
-from experiments.figure_producing.utils.figures import scatter, savefig
+from utils.figures import scatter, savefig
 from utils import set_style
 
 

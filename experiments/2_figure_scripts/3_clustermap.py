@@ -3,7 +3,6 @@ import sys, os, argparse, logging
 import numpy as np
 import seaborn as sns
 import scipy.cluster.hierarchy as sch
-import scipy.cluster.vq as scv
 import matplotlib as mpl
 import matplotlib.pylab as plt
 from matplotlib.patches import Patch
@@ -15,7 +14,7 @@ from tqdm import tqdm
 from biosynfoni.subkeys import get_names, get_pathway
 from utils import set_style
 from utils.colours import colourDict
-from experiments.figure_producing.utils.figures import set_label_colors_from_categories
+from utils.figures import set_label_colors_from_categories
 
 
 def cli():

@@ -42,8 +42,7 @@ from tqdm import tqdm
 # from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
 # own imports #fix to work with different folders
 
-# from metacyc_better_taxonomy import BETTER_TAX
-from experiments.figure_producing.utils import figures as fm
+from utils import figures as fm
 from utils import set_style
 
 from biosynfoni.subkeys import defaultVersion
