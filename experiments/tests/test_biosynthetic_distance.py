@@ -1,10 +1,17 @@
+import sys, os
 import unittest
 
 import pandas as pd
 import numpy as np
 
-from experiments.biosynthetic_distance import pairs_in_chain
-from experiments.metacyc_extract import (
+
+# get path from this file:
+path = os.path.dirname(os.path.abspath(__file__))
+# add the path to the sys.path
+sys.path.append(path + "/../0_input_preparation/")
+from get_reaction_chains import *
+from get_reaction_chains import pairs_in_chain
+from get_reaction_chains import (
     _row_precursors,
     _row_products,
     _is_next_rxn,
