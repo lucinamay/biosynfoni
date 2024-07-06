@@ -1,16 +1,18 @@
 #!/bin/bash
+iwd=$(pwd) # iwd is the initial working directory
+raw_data_dir = $(pwd)/raw_data
+sdf_dir="$(pwd)/mols"
+fp_dir="$(pwd)/fps"
+mkdir -p "$sdf_dir" # will not create if already exists
+mkdir -p "$fp_dir" 
+script_dir="$(dirname "$0")/0_input_preparation"
 
-# Get the current working directory
-cwd=$(pwd)
-
-# Change to the directory where this script is located
-cd "$(dirname "$0")"
-
-# Loop through all Python scripts in the current directory
-for script in *.py; do
-    # Execute each Python script
-    python "$script"
+# for each type of moldata the executions will be in parrallel, where the fps will be calculated after successful sdf generation
+for script in "$script_dir"/[!get]*.py; do 
+    script_name=$(basename -s .py "$script")
+    sdf_file="$sdf_dir/$(basename -s .py "$script").sdf"
+    cd "$sdf_dir" && python "$script" "$raw_data_dir" >> sdf_prep.log && cd "$fp_dir" && python "get_fps.py" "$sdf_file" >> fp_prep.log & 
 done
 
-# Change back to the original working directory
-cd "$cwd"
+wait
+cd "$iwd"

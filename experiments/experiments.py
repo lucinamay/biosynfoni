@@ -31,25 +31,8 @@ def run(cmd):
 
 
 def input_preparation(script_path: PosixPath, work_dir: PosixPath) -> int:
-    logging.info("Starting input preparation")
-    raw_data = work_dir / "raw_data"
-    scripts = script_path / "0_input_preparation"
-    input_path = work_dir / "input"
-    python = shutil.which("python3")
-    input_types = ["coconut", "chebi", "metacyc", "zinc"]
-    to_sdf_dir_cmd = ["cd", input_path, "&&"]
-    to_fp_dir_cmd = ["cd", work_dir / "fingerprints", "&&"]
-
-    sdf_command = lambda x: [python, scripts / f"{x}.py", raw_data, "&"]
-    fp_commands = lambda x: [
-        python,
-        scripts / "get_fps.py",
-        input_path / f"{x}.sdf",
-        "&",
-    ]
-
-    # run in parallel
-
+    # make script executable
+    run(["chmod", "+x", script_path / "converture.py"])
     return 0
 
 
