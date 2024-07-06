@@ -1,5 +1,7 @@
-import argparse, os, sys, time, subprocess
+import argparse, os, sys, time, subprocess, logging, shutil
 from pathlib import Path, PosixPath
+
+from tqdm import tqdm
 
 
 # --------------------------------- HELPER -------------------------------------
@@ -21,127 +23,130 @@ class ChangeDirectory:
 # -------------------------------------------------------------------------------
 def run(cmd):
     process = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    logging.info(f"Command {cmd} stdout: {process.stdout}")
+    logging.info(f"Command {cmd} finished with return code {process.returncode}")
+    if process.stderr:
+        logging.error(f"Command {cmd} stderr: {process.stderr}")
     return process
 
 
 def input_preparation(script_path: PosixPath, work_dir: PosixPath) -> int:
+    logging.info("Starting input preparation")
     raw_data = work_dir / "raw_data"
     scripts = script_path / "0_input_preparation"
     input_path = work_dir / "input"
-    with ChangeDirectory(input_path):
-        input_types = ["coconut", "chebi", "metacyc", "zinc"]
+    python = shutil.which("python3")
+    input_types = ["coconut", "chebi", "metacyc", "zinc"]
+    to_sdf_dir_cmd = ["cd", input_path, "&&"]
+    to_fp_dir_cmd = ["cd", work_dir / "fingerprints", "&&"]
 
-        sdf_processes = {}
-        for ityp in input_types:
-            to_sdf = run(["python3", scripts / f"{ityp}.py", raw_data, "&"])
-            sdf_processes[ityp] = to_sdf
+    sdf_command = lambda x: [python, scripts / f"{x}.py", raw_data, "&"]
+    fp_commands = lambda x: [
+        python,
+        scripts / "get_fps.py",
+        input_path / f"{x}.sdf",
+        "&",
+    ]
 
-        print({ityp: process.pid for ityp, process in sdf_processes.items()})
-        for process in sdf_processes.values():
-            process.wait()
+    # run in parallel
 
-    with ChangeDirectory(work_dir / "fingerprints"):
-        fp_processes = {}
-        for ityp in input_types:
-            to_fp = run(
-                ["python3", scripts / "get_fps.py", input_path / f"{ityp}.sdf", "&"]
-            )
-            fp_processes[ityp] = to_fp
+    return 0
 
-        print({ityp: process.pid for ityp, process in fp_processes.items()})
-        for process in fp_processes.values():
-            process.wait()
-    return fp_processes.values()[-1].returncode
 
 def analyse(script_path: PosixPath, work_dir: PosixPath) -> int:
-    
+    return 0
 
 
-def get_bsfs(sdf_path, fp_path):
-    """Get all fingerprints"""
+# def get_bsfs(sdf_path, fp_path):
+#     """Get all fingerprints"""
 
-    cmd = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c"]
-    # cmd_less_overlap = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c", "-l"]
-    # cmd_overlap = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c", "-o"]
+#     cmd = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c"]
+#     # cmd_less_overlap = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c", "-l"]
+#     # cmd_overlap = ["biosynfoni", "-s", sdf_path, "-o", fp_path, "-c", "-o"]
 
-    subprocess.run(cmd)
-    subprocess.run(cmd_less_overlap)
-    subprocess.run(cmd_overlap)
+#     subprocess.run(cmd)
+#     subprocess.run(cmd_less_overlap)
+#     subprocess.run(cmd_overlap)
 
-    pass
-
-
-def run_concerto(sdf_path, fp_path, overlap_flag: str = None):
-    fnx_path = os.path.join(BSF_PATH, "concerto.py")
-    cmd = ["python3", fnx_path, sdf_path, "-o", fp_path, "-c"]
-    if overlap_flag is not None:
-        cmd.append(overlap_flag)
-    subprocess.run(cmd)
-    return sdf_path
+#     pass
 
 
-def run_fppullup(fp_path):
-    fnx_path = os.path.join(EXP_PATH, "fp_avger.py")
-    subprocess.run(["python3", fnx_path, fp_path])
-    return fp_path
+# def run_concerto(sdf_path, fp_path, overlap_flag: str = None):
+#     fnx_path = os.path.join(BSF_PATH, "concerto.py")
+#     cmd = ["python3", fnx_path, sdf_path, "-o", fp_path, "-c"]
+#     if overlap_flag is not None:
+#         cmd.append(overlap_flag)
+#     subprocess.run(cmd)
+#     return sdf_path
 
 
-def run_umap(fp_path, class_path):
-    fnx_path = os.path.join(EXP_PATH, "create_umap.py")
-    sp = subprocess.run(["python3", fnx_path, fp_path, class_path])
-    # check if finished successfully through io or return code
-    code = sp.returncode
-    if code != 0:
-        raise Exception(f"UMAP failed with return code {code}")
-    return
+# def run_fppullup(fp_path):
+#     fnx_path = os.path.join(EXP_PATH, "fp_avger.py")
+#     subprocess.run(["python3", fnx_path, fp_path])
+#     return fp_path
 
 
-def run_tsne(fp_path, class_path):
-    fnx_path = os.path.join(EXP_PATH, "tsne.py")
-    sp = subprocess.run(["python3", fnx_path, fp_path, class_path])
-    code = sp.returncode
-    if code != 0:
-        raise Exception(f"tSNE failed with return code {code}")
-    return
+# def run_umap(fp_path, class_path):
+#     fnx_path = os.path.join(EXP_PATH, "create_umap.py")
+#     sp = subprocess.run(["python3", fnx_path, fp_path, class_path])
+#     # check if finished successfully through io or return code
+#     code = sp.returncode
+#     if code != 0:
+#         raise Exception(f"UMAP failed with return code {code}")
+#     return
 
 
-def run_clustermap(fp_path, class_path, out_path):
-    fnx_path = os.path.join(EXP_PATH, "clustermap.py")
-    sp = subprocess.run(["python3", fnx_path, fp_path, class_path, out_path])
-    code = sp.returncode
-    if code != 0:
-        raise Exception(f"Clustermap failed with return code {code}")
-    return
+# def run_tsne(fp_path, class_path):
+#     fnx_path = os.path.join(EXP_PATH, "tsne.py")
+#     sp = subprocess.run(["python3", fnx_path, fp_path, class_path])
+#     code = sp.returncode
+#     if code != 0:
+#         raise Exception(f"tSNE failed with return code {code}")
+#     return
 
 
-def run_rf(fp_path, class_path, out_path):
-    fnx_path = os.path.join(EXP_PATH, "rf.py")
-    sp = subprocess.run(["python3", fnx_path, fp_path, class_path, out_path])
-    code = sp.returncode
-    if code != 0:
-        raise Exception(f"Random Forest failed with return code {code}")
-    return
+# def run_clustermap(fp_path, class_path, out_path):
+#     fnx_path = os.path.join(EXP_PATH, "clustermap.py")
+#     sp = subprocess.run(["python3", fnx_path, fp_path, class_path, out_path])
+#     code = sp.returncode
+#     if code != 0:
+#         raise Exception(f"Clustermap failed with return code {code}")
+#     return
 
 
-def run_confusion_heatmap(cm_path):
-    fnx_path = os.path.join(EXP_PATH, "confusion_heatmap.py")
-    sp = subprocess.run(["python3", fnx_path, cm_path])
-    code = sp.returncode
-    if code != 0:
-        raise Exception(f"Confusion heatmap failed with return code {code}")
-    return
+# def run_rf(fp_path, class_path, out_path):
+#     fnx_path = os.path.join(EXP_PATH, "rf.py")
+#     sp = subprocess.run(["python3", fnx_path, fp_path, class_path, out_path])
+#     code = sp.returncode
+#     if code != 0:
+#         raise Exception(f"Random Forest failed with return code {code}")
+#     return
+
+
+# def run_confusion_heatmap(cm_path):
+#     fnx_path = os.path.join(EXP_PATH, "confusion_heatmap.py")
+#     sp = subprocess.run(["python3", fnx_path, cm_path])
+#     code = sp.returncode
+#     if code != 0:
+#         raise Exception(f"Confusion heatmap failed with return code {code}")
+#     return
 
 
 def main():
+    # set up logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
     script_path = Path(__file__).resolve(strict=True).parent
     work_dir = Path.cwd().resolve(strict=True)
 
     rc = input_preparation(script_path, work_dir)
     if rc != 0:
         raise Exception(f"Input preparation failed with return code {rc}")
-    
-    # run analyses 
-    
+
+    # run analyses
+
     rc = analyse(script_path, work_dir)
 
 
@@ -170,3 +175,6 @@ def main():
 #     # biosynthetic distance
 #     run_metacyc_extract()  # makes csv with reaction pairs
 #     run_biosynthetic_distance()  # makes csv with biosynthetic distances and plots
+
+if __name__ == "__main__":
+    main()

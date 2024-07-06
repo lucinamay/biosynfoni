@@ -41,7 +41,7 @@ def get_mol_props(sdf_entries) -> dict[int, dict[str, str]]:  # 22 sec
                     [val] (dict) dictionary of properties
     """
     entries_properties = {}
-    for ind, entry in tqdm(enumerate(sdf_entries)):
+    for ind, entry in tqdm(enumerate(sdf_entries), total=len(sdf_entries)):
         entries_properties[ind] = {}
 
         # coconut_id, inchi, smiles, molecular_formula = "", "", "", ""
