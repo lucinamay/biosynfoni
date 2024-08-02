@@ -109,7 +109,7 @@ def cli():
         "--intrasub",
         required=False,
         action="store_true",
-        help="allows overlap detection between same substructures",
+        help="blocks overlap detection between same substructures",
         default=False,
     )
 
