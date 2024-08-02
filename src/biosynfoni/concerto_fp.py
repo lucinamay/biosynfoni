@@ -393,8 +393,8 @@ def main():
             mol=mol,
             substructure_set=substructure_set,
             version_name=args.version,
-            intersub_overlap=args.intersub_overlap,
-            intrasub_overlap=args.intrasub_overlap,
+            intersub_overlap=not args.intersub_block,
+            intrasub_overlap=not args.intrasub_block,
         )
         if args.coverage:
             coverages.append(mol_fp.get_coverage())
