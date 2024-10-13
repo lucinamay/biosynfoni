@@ -20,7 +20,6 @@ class ChangeDirectory:
             os.chdir(self.original_path)
 
 
-# -------------------------------------------------------------------------------
 def run(cmd):
     process = subprocess.run(cmd, check=True, capture_output=True, text=True)
     logging.info(f"Command {cmd} stdout: {process.stdout}")
@@ -30,9 +29,23 @@ def run(cmd):
     return process
 
 
-def input_preparation(script_path: PosixPath, work_dir: PosixPath) -> int:
-    # make script executable
-    run(["chmod", "+x", script_path / "converture.py"])
+def input_preparation(script_folder: PosixPath, raw_data_folder: PosixPath) -> int:
+    procesess = []
+    with ChangeDirectory("data/mols"):
+        for script in script_folder.glob("*.py"):
+            if script.name.startswith("get_"):
+                continue
+            if f"{script.name}.sdf" in Path.cwd():
+                continue
+            cmd = ["python3", script, raw_data_folder]
+            process = subprocess.Popen(cmd)
+            procesess.append(process)
+
+    # wait for all processes to finish
+    for process in procesess:
+        process.wait()
+        if process.returncode != 0:
+            return process.returncode
     return 0
 
 
