@@ -96,20 +96,20 @@ def cli():
     # flags
     parser.add_argument(
         "-l",
-        "--intersub_overlap",
+        "--intersub_block",
         "--lessblocking",
         required=False,
         action="store_true",
-        help="allows overlap between different substructures",
+        help="blocks overlap detection between different substructures",
         default=False,
     )
     parser.add_argument(
         "-a",
-        "--intrasub_overlap",
+        "--intrasub_block",
         "--intrasub",
         required=False,
         action="store_true",
-        help="allows overlap between same substructures",
+        help="blocks overlap detection between same substructures",
         default=False,
     )
 
