@@ -11,22 +11,9 @@ from rdkit import RDLogger  # for muting warnings
 
 from biosynfoni.inoutput import readr, entry_parser
 
+from helper import ChangeDirectory
+
 RDLogger.DisableLog("rdApp.*")
-
-
-class ChangeDirectory:
-    def __init__(self, new_path):
-        self.new_path = new_path
-        self.original_path = None
-
-    def __enter__(self):
-        self.original_path = os.getcwd()
-        os.makedirs(self.new_path, exist_ok=True)
-        os.chdir(self.new_path)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.original_path is not None:
-            os.chdir(self.original_path)
 
 
 # ============================== COCONUT =======================================
@@ -496,10 +483,6 @@ def get_common_compounds(
     logging.info(f"{len(same_p_inchi)} compounds have a partial inchi in common")
     logging.info(f"{len(same_smiles)} compounds have a smiles in common")
     logging.info(f"{len(coco_meta)} compounds in common")  # 406529
-
-    # print(f"{len(same_p_inchi)} compounds have a partial inchi in common")
-    # print(f"{len(same_smiles)} compounds have a smiles in common")
-    # print(f"{len(coco_meta)} compounds in common")  # 406529
 
     return coco_meta[["identifier", "compound_id", "inchi", "smiles"]]
 

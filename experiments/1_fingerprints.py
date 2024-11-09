@@ -8,98 +8,101 @@ from rdkit.Chem import AllChem
 from tqdm import tqdm
 
 from biosynfoni import Biosynfoni
+from helper import ChangeDirectory
 
 
 def maccs(mol: Chem.Mol) -> np.array:
-    fingerprint = AllChem.GetMACCSKeysFingerprint(mol, nBits=167)
-    return np.array(fingerprint)
+    return AllChem.GetMACCSKeysFingerprint(mol)  # , nBits=167)
 
 
-def morgan(mol: Chem.Mol) -> np.array:
-    fingerprint = AllChem.GetMorganFingerprintAsBitVect(
+def morgan(mol: Chem.Mol) -> list:
+    return AllChem.GetMorganFingerprintAsBitVect(
         mol, useChirality=False, radius=2, nBits=2048
     )
-    return np.array(fingerprint)
 
 
-def morgan_chiral(mol: Chem.Mol) -> np.array:
-    fingerprint = AllChem.GetMorganFingerprintAsBitVect(
+def morgan_chiral(mol: Chem.Mol) -> list:
+    return AllChem.GetMorganFingerprintAsBitVect(
         mol, useChirality=True, radius=2, nBits=2048
     )
-    return np.array(fingerprint)
 
 
-def rdk_fp(mol: Chem.Mol) -> np.array:
-    fingerprint = Chem.RDKFingerprint(mol, fpSize=2048)
-    return np.array(fingerprint)
+def rdk_fp(mol: Chem.Mol) -> list:
+    return Chem.RDKFingerprint(mol, fpSize=2048)
 
 
-def biosynfoni(mol: Chem.Mol) -> np.array:
+def biosynfoni(mol: Chem.Mol) -> list:
     """returns counted fingerprint list"""
-    counted_fingerprint = Biosynfoni(
+    return Biosynfoni(
         mol,
         intersub_overlap=True,
         intrasub_overlap=True,
     ).fingerprint
-    return np.array(counted_fingerprint)
 
 
-def biosynfoni_no_overlap(mol: Chem.Mol) -> np.array:
+def biosynfoni_no_overlap(mol: Chem.Mol) -> list:
     """returns counted fingerprint list"""
-    counted_fingerprint = Biosynfoni(
+    return Biosynfoni(
         mol,
         intersub_overlap=False,
         intrasub_overlap=False,
     ).fingerprint
-    return np.array(counted_fingerprint)
 
 
-def biosynfoni_no_intraoverlap(mol: Chem.Mol) -> np.array:
+def biosynfoni_no_intraoverlap(mol: Chem.Mol) -> list:
     """returns counted fingerprint list"""
-    counted_fingerprint = Biosynfoni(
+    return Biosynfoni(
         mol,
         intersub_overlap=True,
         intrasub_overlap=False,
     ).fingerprint
-    return np.array(counted_fingerprint)
 
 
-def all_fingerprints(sdf: Path):
+def time_fingerprint(fp_function, mol) -> tuple:
+    if not mol:
+        return 0, []
+    start = perf_counter()
+    fp = fp_function(mol)
+    end = perf_counter()
+    return end - start, fp
+
+
+def write_fingerprints(sdf: Path):
     suppl = Chem.SDMolSupplier(sdf)
 
     fp_functions = {
         "maccs": maccs,
         "morgan": morgan,
-        "morgan_chiral": morgan_chiral,
         "rdk": rdk_fp,
         "bsf": biosynfoni,
-        "bsf_no_overlap": biosynfoni_no_overlap,
-        "bsf_no_intraoverlap": biosynfoni_no_intraoverlap,
+        # "bsf_no_overlap": biosynfoni_no_overlap,
+        # "bsf_no_intraoverlap": biosynfoni_no_intraoverlap,
+        # "morgan_chiral": morgan_chiral,
     }
 
-    logfile = f"{sdf.stem}_times.log"
-    with open(logfile, "w") as log:
-        log.write()
-        log.write(f"fingerprint\ttime for {len(suppl)} mols\n")
-
     for name, fnx in tqdm(fp_functions.items(), desc="Getting fingerprints"):
-        start = perf_counter()
-        fps = [fnx(mol) for mol in tqdm(suppl, total=len(suppl), desc=f"{name}")]
-        end = perf_counter()
-
-        with open(logfile, "a") as log:
-            log.write(f"{name}\t{end - start}\n")
-
-        if len(fps) != len(suppl):
-            logging.error(f"fps: {len(fps)} != suppl: {len(suppl)}")
-
-        np.savetxt(f"{sdf.stem}_{name}.csv", np.array(fps), fmt="%i", delimiter=",")
-
-    exit(0)
+        with open(f"{sdf.stem}_{name}.csv", "w") as f:
+            pass
+        with open(f"{sdf.stem}_{name}_times.csv", "a") as f:
+            pass
+        for mol in tqdm(suppl, desc=name):
+            time, fp = time_fingerprint(fnx, mol)
+            with open(f"{sdf.stem}_{name}_times.csv", "a") as times:
+                times.write(f"{time}\n")
+            with open(f"{sdf.stem}_{name}.csv", "a") as fp_file:
+                fp_file.write(f"{','.join(map(str, np.array(fp)))}\n")
 
 
 def main():
-    times = 
+    sdf_folder = Path(sys.argv[1]).resolve(strict=True)
+    fp_folder = sdf_folder.parent.parent / "fps"
+
+    for sdf in sdf_folder.glob("*.sdf"):
+        with ChangeDirectory(fp_folder):
+            write_fingerprints(sdf)
+
+    return 0
+
 
 if __name__ == "__main__":
     main()
