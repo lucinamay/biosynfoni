@@ -32,19 +32,52 @@ def consolidate_npclassifier_pathway(key: str) -> list:
     return ";".join(sorted(set(cd[key]))) if key else ""
 
 
+def consolidate_taxonomy(taxonomy: str) -> str:
+    taxonomy = taxonomy.lower()
+    bacteria_names = ["bacillus", "bacta", "bacteria"]
+    fungi_names = ["aspergillus"]
+    taxa = []
+    if "homo sapiens" in taxonomy:
+        taxa.append("human")
+    if "animal" in taxonomy:
+        taxa.append("animal")
+    if "bacteria" in taxonomy or any([x in taxonomy for x in bacteria_names]):
+        taxa.append("bacteria")
+    if "fungi" in taxonomy or any([x in taxonomy for x in fungi_names]):
+        taxa.append("fungi")
+    if "plant" in taxonomy:
+        taxa.append("plant")
+    if "marine" in taxonomy:
+        taxa.append("marine")
+    return ";".join(set(sorted(taxa)))
+
+
 def all_natural_products(raw_sdf: Path) -> None:
     """raw_data_folder: path where the complete natural product set, coconut_complete-10-2024.sdf, is located"""
     writer = Chem.SDWriter("coconut.sdf")
     assert raw_sdf.exists(), f"{raw_sdf} not found"
     classification_outfile = "coconut_classes.csv"
+    taxonomy_outfile = "coconut_taxonomy.csv"
+    size_outfile = "coconut_sizes.csv"
+    with open(classification_outfile, "w") as f:
+        pass
+    with open(taxonomy_outfile, "w") as f:
+        pass
     for mol in Chem.SDMolSupplier(raw_sdf):
         if mol:
             writer.write(mol)
             classification = consolidate_npclassifier_pathway(
                 mol.GetProp("np_classifier_pathway")
             )
-            with open(classification_outfile, "a") as fo:
-                fo.write(f"{mol.GetProp("identifier")},{classification}\n")
+            taxonomy = consolidate_taxonomy(mol.GetProp("organisms"))
+            cl = open(classification_outfile, "a")
+            tx = open(taxonomy_outfile, "a")
+            sz = open(size_outfile, "a")
+            cl.write(f"{mol.GetProp("identifier")},{classification}\n")
+            tx.write(f"{mol.GetProp("identifier")},{taxonomy}\n")
+            sz.write(f"{mol.GetProp("identifier")},{mol.GetNumHeavyAtoms()}\n")
+            cl.close(), tx.close(), sz.close()
+
     writer.close()
 
     return None
@@ -558,12 +591,12 @@ def main():
     raw_coconut_csv = raw_data_folder / "coconut_complete-10-2024.csv"
 
     with ChangeDirectory(raw_data_folder.parent / "input"):
-        # all_natural_products(raw_coconut_sdf)
+        all_natural_products(raw_coconut_sdf)
         # synthetic_mols(raw_zinc_sdf, raw_zinc_natural_products, raw_zinc_biogenic)
         # chebi_and_classification(raw_chebi_sdf, raw_chebi_classifications)
-        metacyc_and_pathways(
-            raw_metacyc_compounds, raw_metacyc_pathways, raw_coconut_csv
-        )
+        # metacyc_and_pathways(
+        #     raw_metacyc_compounds, raw_metacyc_pathways, raw_coconut_csv
+        # )
 
     return None
 
