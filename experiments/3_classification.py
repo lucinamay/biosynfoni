@@ -4,29 +4,18 @@ from typing import Generator
 from pathlib import Path
 
 
+import joblib
 import numpy as np
-import networkx as nx
-import pandas as pd
-import tmap
-from sklearn.manifold import TSNE
-import tmap.api
 import tmap.api.general
 import tmap.tda
 import tmap.tda.mapper
-from umap import UMAP
-import joblib
-from tqdm import tqdm
-from sklearn.metrics import (
-    confusion_matrix,
-    classification_report,
-    roc_curve,
-    multilabel_confusion_matrix,
-)
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import KFold, GroupKFold
-from sklearn.tree import export_graphviz
 from scipy.spatial.distance import pdist, squareform
-from tmap.tda.metric import Metric
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.manifold import TSNE
+from sklearn.model_selection import KFold
+from sklearn.tree import export_graphviz
+from tqdm import tqdm
+from umap import UMAP
 
 from helper import ChangeDirectory
 from biosynfoni.subkeys import get_names
@@ -47,17 +36,6 @@ def _read_sim(folder_path) -> Generator:
         )
 
 
-# def unilabels_and_dict(classifications: np.array) -> tuple[np.array, dict]:
-#     classifications = np.array(
-#         [";".join(sorted(i.split(";"))) for i in classifications]
-#     )
-#     id_to_class = {i: class_ for i, class_ in enumerate(classifications.unique())}
-#     id_to_class = {
-#         i: "none" if class_ == "" else class_ for i, class_ in id_to_class.items()
-#     }
-#     return classifications.map(id_to_class), id_to_class
-
-
 def multilabel_and_dict(classifications: np.array) -> tuple[np.array, dict]:
     classes = set(";".join(map(str, classifications)).split(";"))
     class_to_id = {class_: i for i, class_ in enumerate(sorted(classes))}
@@ -75,8 +53,6 @@ def separate_nones(class_index: dict, x_y_andco: list):
     """
     # get the key for which the value is "None"
     ind_none = class_index["None"]
-
-    # get instance indices of "None" in y
 
     x_y_andco = list(x_y_andco)
     X = x_y_andco[0]
@@ -113,7 +89,6 @@ def kfold_performance(X, y, *args, **kwargs) -> tuple:
 
     probabilities, ks = (np.empty(y.shape), np.empty(y.shape[0]))
 
-    # random state has to be same to have same splits for each fingerprint
     for k, (train, test) in enumerate(KFold(shuffle=True, random_state=42).split(X)):
         X_train, X_test = X[train], X[test]
         y_train, y_test = y[train], y[test]
@@ -268,6 +243,19 @@ def write_similarities(fp_folder: np.array):
                 print(sims.shape)
                 np.savetxt(filename, sims, delimiter=",", fmt="%.3f")
 
+# def distance_matrix(data: np.array, metric: str = "euclidean") -> np.array:
+#     """returns distance matrix of array"""
+#     if metric in ["euclidean", "cosine", "manhattan", "hamming"]:
+#         array = cdist(data, data, metric=metric)
+#         # print(array.shape)
+#         # print(array[0])
+#         # return array
+#         return cdist(data, data, metric=metric)
+#     elif metric == "tanimoto":
+#         return np.array(
+#             [[1.0 - counted_tanimoto_sim(i, j) for j in data] for i in tqdm(data)]
+#         )
+
 
 def dimensionality_reduction(output_folder) -> None:
     for fp_name, sim in _read_sim(output_folder):
@@ -291,7 +279,7 @@ def dimensionality_reduction(output_folder) -> None:
         with ChangeDirectory(output_folder):
             # make umap
             umap = UMAP(n_components=2, metric="precomputed")
-            embeddings = umap.fit_transform(dist, force_all_finite=False)
+            embeddings = umap.fit_transform(dist)
             np.savetxt(f"{fp_name}_umap.csv", embeddings, delimiter=",", fmt="%.3f")
             print(Path.cwd() / f"{fp_name}_umap.csv")
 
@@ -310,8 +298,8 @@ def main():
     ids_classifications = np.loadtxt(
         input_folder / "chebi_classes.csv", delimiter=",", dtype=str
     )
-    # rf_classify(ids_classifications, fp_folder)
-    # write_similarities(fp_folder)
+    rf_classify(ids_classifications, fp_folder)
+    write_similarities(fp_folder)
     dimensionality_reduction(fp_folder.parent / "output")
 
     exit(0)

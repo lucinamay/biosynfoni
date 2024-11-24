@@ -23,12 +23,6 @@ def morgan(mol: Chem.Mol) -> list:
     )
 
 
-def morgan_chiral(mol: Chem.Mol) -> list:
-    return AllChem.GetMorganFingerprintAsBitVect(
-        mol, useChirality=True, radius=2, nBits=2048
-    )
-
-
 def rdk_fp(mol: Chem.Mol) -> list:
     return Chem.RDKFingerprint(mol, fpSize=2048)
 
@@ -94,59 +88,6 @@ def write_fingerprints(sdf: Path):
                 times.write(f"{time}\n")
             with open(f"{sdf.stem}_{name}.csv", "a") as fp_file:
                 fp_file.write(f"{','.join(map(str, np.array(fp)))}\n")
-
-# def write_similarities(fp_folder: np.array):
-#     for fp_file in fp_folder.glob("*.csv"):
-#         if len(fp_file.stem.split("_")) > 2:
-#             continue
-#         if not "chebi" in fp_file.stem:
-#             continue
-#         fps = np.loadtxt(fp_file, delimiter=",", dtype=int)
-#         sims = np.empty((fps.shape[0], fps.shape[0]), dtype="f")  # float32
-
-#         # with open(f"{fp_file.stem}_sim.csv", "w") as f:
-#         #     pass
-
-#         # with open(f"{fp_file.stem}_sim.csv", "a") as f:
-
-#         # # if enough memory (if 10 humungous servers are available):
-#         # minimum = np.minimum(fps[:, None, :], fps[None, :, :]).sum(axis=2)
-#         # maximum = np.maximum(fps[:, None, :], fps[None, :, :]).sum(axis=2)
-#         # sims = np.where(maximum != 0, minimum / maximum, -1.0)
-#         # np.savetxt(f"{fp_file.stem}_sim.csv", sims, delimiter=",", fmt="%.3f")
-
-#         for i, fp1 in tqdm(
-#             enumerate(fps), total=fps.shape[0], desc="similarity matrix", unit="fp"
-#         ):
-#             # i_fps = np.zeros(len(fps), dtype="f")
-#             # if all(fp1 == 0):
-#             #     continue
-#             # i_fps[i] = 1.0
-#             # minimum = np.sum(np.minimum(fp1, fps[i:]), axis=1)
-#             maximum = np.sum(np.maximum(fp1, fps[i:]), axis=1)
-#             sims[i][i:] = np.where(
-#                 maximum != 0, np.sum(np.minimum(fp1, fps[i:]), axis=1) / maximum, -1.0
-#             )
-
-#         np.savetxt(f"{fp_file.stem}_sim.csv", sims, delimiter=",", fmt="%.3f")
-
-#         # minimum_sum = np.sum(minimum, axis=1)
-#         # maximum_sum = np.sum(maximum, axis=1)
-#         # i_fps[i:] = minimum_sum / maximum_sum
-#         # for j, fp2 in enumerate(fps[i:], start=i):
-#         #     if np.sum(fp1 | fp2) == 0:
-#         #         return -1.0
-#         #     else:
-#         #         i_fps[j] = np.sum(np.minimum(fp1, fp2)) / np.sum(
-#         #             np.maximum(fp1, fp2)
-#         #         )
-#         # # append to file
-#         # np.savetxt(
-#         #     f,
-#         #     i_fps,
-#         #     delimiter=",",
-#         #     fmt="%.3f",
-#         # )
 
 
 def main():
