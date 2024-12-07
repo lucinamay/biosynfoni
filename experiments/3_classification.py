@@ -257,6 +257,16 @@ def write_similarities(fp_folder: np.array):
 #         )
 
 
+# def distance_matrix(fps: list[DataStructs.ExplicitBitVect]) -> list[float]:
+#     # create a similarity matrix
+#     dists = []
+#     nfps = len(fps)
+#     for i in range(1, nfps):
+#         sims = DataStructs.BulkTanimotoSimilarity(fps[i], fps[:i])
+#         dists.extend([1 - x for x in sims])
+#     return dists
+
+
 def dimensionality_reduction(output_folder) -> None:
     for fp_name, sim in _read_sim(output_folder):
         print(fp_name, sim.shape)

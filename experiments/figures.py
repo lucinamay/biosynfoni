@@ -1,19 +1,3 @@
-"""
-
-||||||||||||  ㅇㅅㅇ  |||||||||||||||
-____________________________________
-
-title: figuremaking.py              ||
-created: 2023-10-27                 ||
-author: Lucina-May Nollen           ||
-institute: WUR Bioinformatics       ||
-____________________________________
-
-||||||||||||  ()()()  |||||||||||||||
-
-description: functions for figuremaking
-"""
-
 import logging
 
 import matplotlib as mpl
@@ -22,7 +6,7 @@ from matplotlib.tri import Triangulation
 import numpy as np
 import pandas as pd
 
-from utils.colours import colourDict
+from colours import colourDict
 
 
 def savefig(fig, filename):
