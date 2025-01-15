@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import logging, time, tracemalloc, sys, re
+import logging, time, tracemalloc, sys, re, json
 from typing import Generator
 from pathlib import Path
 
@@ -13,7 +13,9 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import TSNE
 from sklearn.model_selection import KFold
+from sklearn.metrics import classification_report
 from sklearn.tree import export_graphviz
+from rdkit.ML.Cluster import Butina
 from tqdm import tqdm
 from umap import UMAP
 
@@ -21,10 +23,10 @@ from helper import ChangeDirectory
 from biosynfoni.subkeys import get_names
 
 
-def _read_fps(folder_path) -> Generator:
+def _read_fps(folder_path, data="chebi") -> Generator:
     for file in folder_path.glob("*.csv"):
-        if "chebi_" in file.stem and not len(file.stem.split("_")) > 2:
-            yield file.stem.replace("chebi_", ""), np.loadtxt(
+        if f"{data}_" in file.stem and not len(file.stem.split("_")) > 2:
+            yield file.stem.replace(f"{data}_", ""), np.loadtxt(
                 file, delimiter=",", dtype=int
             )
 
@@ -166,7 +168,7 @@ def rf_classify(ids_classifications, fp_folder) -> None:
         )
 
         with ChangeDirectory(fp_folder.parent / "output"):
-            np.savetxt(f"ks.tsv", ks, delimiter="\t", fmt="%s")
+            np.savetxt("ks.csv", ks, fmt="%d")
             np.savetxt(f"{fp_name}_proba.tsv", probas, delimiter="\t", fmt="%.3f")
             np.savetxt(
                 f"{fp_name}_importances.tsv",
@@ -209,8 +211,6 @@ def write_similarities(fp_folder: np.array):
         sims = np.empty((fps.shape[0], fps.shape[0]), dtype="f")  # float32
         with ChangeDirectory(fp_folder.parent / "output"):
             filename = f"{fp_name}_sim.csv"
-            if Path(filename).exists():
-                continue
 
             if fp_name == "bsf":
                 with open(filename, "w") as f:
@@ -238,9 +238,7 @@ def write_similarities(fp_folder: np.array):
                         f.write(f"{','.join(map(str, i_sims))}\n")
 
             else:
-                continue
                 sims = 1 - squareform(pdist(fps, metric="jaccard"))
-                print(sims.shape)
                 np.savetxt(filename, sims, delimiter=",", fmt="%.3f")
 
 # def distance_matrix(data: np.array, metric: str = "euclidean") -> np.array:
@@ -269,17 +267,13 @@ def write_similarities(fp_folder: np.array):
 
 def dimensionality_reduction(output_folder) -> None:
     for fp_name, sim in _read_sim(output_folder):
-        print(fp_name, sim.shape)
-        if fp_name == "maccs":
-            continue
         # duplicte the upper triangle to the lower triangle
-        # make lower triangle 0
-        if fp_name == "bsf":
-            sim = np.triu(sim)
-            sim = np.triu(sim) + np.triu(sim, 1).T
-            # fill the diagonal with 1s
-            np.fill_diagonal(sim, 1)
-            sim = np.where(np.isnan(sim), 0, sim)
+
+        sim = np.triu(sim)
+        sim = np.triu(sim) + np.triu(sim, 1).T
+        # fill the diagonal with 1s
+        np.fill_diagonal(sim, 1)
+        sim = np.where(np.isnan(sim), 0, sim)  # any nan --> 'no similarity'
 
         dist = 1 - sim
         dist = np.where(np.isnan(dist), 1, dist)
@@ -301,6 +295,64 @@ def dimensionality_reduction(output_folder) -> None:
     return None
 
 
+def clustering(output_folder):
+    for fp_name, sim in _read_sim(output_folder):
+        # perform butina clustering
+        if fp_name == "bsf":
+            sim = np.triu(sim)
+            sim = np.triu(sim) + np.triu(sim, 1).T
+            np.fill_diagonal(sim, 1)
+            sim = np.where(np.isnan(sim), 0, sim)
+            dist = 1 - sim
+            dist = np.where(np.isnan(dist), 1, dist)
+            dist = np.where(dist < 0, 1, dist)
+            assert np.all(dist >= 0), f"negative values: [{dist.min()}, {dist.max()}"
+            # butina clustering with rdkit
+            clusters = Butina.ClusterData(
+                data=dist.flatten(), nPts=dist.shape[0], distThresh=0.3, isDistData=True
+            )
+
+            with ChangeDirectory(output_folder):
+                with open(f"{fp_name}_clusters.tsv", "w") as f:
+                    for _, cluster in enumerate(clusters):
+                        f.write(f"{','.join(map(str, cluster))}\n")
+    return None
+
+
+def taxonomy(ids_classifications, fp_folder):
+    n_estimators, max_depth = 1000, 100
+    ids, classifications = ids_classifications[:, 0], ids_classifications[:, 1]
+    # get indices with a classification, empty ones are empty in csv
+    idx = np.where(classifications != "")[0]
+    ids, classifications = ids[idx], classifications[idx]
+
+    y, cl_idx = multilabel_and_dict(classifications)
+
+    print(y.shape, len(cl_idx))
+
+    for fp_name, X in _read_fps(fp_folder, data="coconut"):
+        X = X[idx]
+        logging.info(f"{fp_name} X, y:{X.shape}, {y.shape}")
+        # k-fold cross validation. ------------------------------------------------------
+        importances, probas, ks = kfold_performance(
+            X, y, n_estimators=n_estimators, max_depth=max_depth
+        )
+        with ChangeDirectory(fp_folder.parent / "output"):
+            np.savetxt("tax_ids.tsv", ids, delimiter="\t", fmt="%s")
+            np.savetxt("tax_y.csv", y, delimiter=",", fmt="%s")
+            np.savetxt("tax_ks.csv", ks, fmt="%d")
+            np.savetxt(f"tax_{fp_name}_proba.tsv", probas, delimiter="\t", fmt="%.3f")
+            np.savetxt(
+                f"tax_{fp_name}_importances.tsv",
+                importances,
+                delimiter="\t",
+                fmt="%.3f",
+            )
+            # save cl_idx as json
+            with open("tax_class_labels.json", "w") as f:
+                json.dump(cl_idx, f)
+
+
 def main():
     input_folder = Path(sys.argv[1]).resolve(strict=True)  # root/data/input
     fp_folder = input_folder.parent.parent / "fps"  # root/fps
@@ -311,6 +363,13 @@ def main():
     rf_classify(ids_classifications, fp_folder)
     write_similarities(fp_folder)
     dimensionality_reduction(fp_folder.parent / "output")
+
+    # tax_ids_classifications = np.loadtxt(
+    #     input_folder / "coconut_taxonomy.csv", delimiter=",", dtype=str
+    # )
+    # taxonomy(tax_ids_classifications, fp_folder)
+
+    clustering(fp_folder.parent / "output")
 
     exit(0)
     return None

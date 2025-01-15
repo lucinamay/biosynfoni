@@ -63,13 +63,20 @@ def all_natural_products(raw_sdf: Path) -> None:
         pass
     with open(taxonomy_outfile, "w") as f:
         pass
+
+    properties = []
     for mol in Chem.SDMolSupplier(raw_sdf):
         if mol:
+            if not properties:
+                propnames = list(mol.GetPropNames())
             writer.write(mol)
             classification = consolidate_npclassifier_pathway(
                 mol.GetProp("np_classifier_pathway")
             )
             taxonomy = consolidate_taxonomy(mol.GetProp("organisms"))
+            properties.append({prop: mol.GetProp(prop) for prop in propnames})
+            properties[-1]["tax"] = taxonomy
+            properties[-1]["pathway"] = classification
             cl = open(classification_outfile, "a")
             tx = open(taxonomy_outfile, "a")
             sz = open(size_outfile, "a")
@@ -79,6 +86,7 @@ def all_natural_products(raw_sdf: Path) -> None:
             cl.close(), tx.close(), sz.close()
 
     writer.close()
+    pd.DataFrame(properties).to_csv("coconut_properties.csv", index=False)
 
     return None
 
@@ -224,6 +232,21 @@ def chebi_and_classification(raw_sdf: Path, raw_classifications: Path):
         mol.SetProp("identifier", mol.GetProp("ChEBI ID"))
         writer.write(mol)  # keeps properties
     writer.close()
+
+    # reopen both, remove any with * in smiles
+    sdf = Chem.SDMolSupplier("chebi.sdf")
+    cls = np.loadtxt("chebi_classes.csv", delimiter=",", dtype=str)
+    mols = [mol for mol in sdf]
+    smiles = [Chem.MolToSmiles(mol) for mol in mols]
+    valids = ["*" not in smile for smile in smiles]
+    cls = cls[valids]
+    mols = [mol for mol, valid in zip(mols, valids) if valid]
+    writer = Chem.SDWriter("chebi.sdf")
+    for mol in mols:
+        writer.write(mol)
+    writer.close()
+    np.savetxt("chebi_classes.csv", cls, delimiter=",", fmt="%s")
+
     return None
 
 
@@ -592,11 +615,11 @@ def main():
 
     with ChangeDirectory(raw_data_folder.parent / "input"):
         all_natural_products(raw_coconut_sdf)
-        # synthetic_mols(raw_zinc_sdf, raw_zinc_natural_products, raw_zinc_biogenic)
-        # chebi_and_classification(raw_chebi_sdf, raw_chebi_classifications)
-        # metacyc_and_pathways(
-        #     raw_metacyc_compounds, raw_metacyc_pathways, raw_coconut_csv
-        # )
+        synthetic_mols(raw_zinc_sdf, raw_zinc_natural_products, raw_zinc_biogenic)
+        chebi_and_classification(raw_chebi_sdf, raw_chebi_classifications)
+        metacyc_and_pathways(
+            raw_metacyc_compounds, raw_metacyc_pathways, raw_coconut_csv
+        )
 
     return None
 

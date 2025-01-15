@@ -13,8 +13,8 @@ from rdkit import Chem
 from tqdm import tqdm
 
 # from biosynfoni.inoutput import *
-from biosynfoni import fingerprints as fp  # for similarity functions
 from helper import ChangeDirectory
+from biosynfoni import fingerprints as fp  # for similarity functions
 
 
 def compound_graph(reaction_info: pd.DataFrame) -> nx.DiGraph:
@@ -91,12 +91,14 @@ def _get_random_pairs(df: pd.DataFrame, fraction: float = 0.25) -> pd.DataFrame:
     return random_pairs
 
 
-def pairs_per_separation(chains: dict, max_separation: int = 4) -> pd.DataFrame:
+def pairs_per_separation(chains: dict, max_separation: int) -> pd.DataFrame:
     """returns a dataframe with all pairs separated by separation (i.e. amount
     of biosynthetic steps between compounds) in chain_indexes"""
     pairs_records = []
     for sep in range(1, max_separation + 1):
-        pairs = {pid: _generate_pairs(chain, sep) for pid, chain in chains.items()}
+        pairs = {
+            pid: list(_generate_pairs(chain, sep)) for pid, chain in chains.items()
+        }
         pairs_records.extend(
             [
                 {"pathway_id": pid, "mol1": pair[0], "mol2": pair[1], "separation": sep}
@@ -125,20 +127,27 @@ def all_similarity_scores(
 
     fp_names = list(id_to_fps.values())[0].keys()
     for fp_name in tqdm(fp_names, desc="getting similarity"):
+        pairs_df[fp_name] = np.nan
         fp_dic = {k: v[fp_name] for k, v in id_to_fps.items()}
         df = pairs_df.copy().astype(str)
-        df["fp1"] = df["mol1"].apply(lambda x: fp_dic[x] if x in fp_dic else None)
-        df["fp2"] = df["mol2"].apply(lambda x: fp_dic[x] if x in fp_dic else None)
-        # df = df.dropna()
-        # pairs_df = pairs_df.loc[df.index]
-        df_none = df.isna().sum(axis=1) > 0
-        df = df[~df_none]
-        pairs_df = pairs_df[~df_none]
-        pairs_df[fp_name] = [
-            SIM_FUNCTIONS[metric]([x[0], x[1]]) for x in df[["fp1", "fp2"]].values
+        df["fp1"] = df["mol1"].apply(lambda x: fp_dic[x] if x in fp_dic else np.nan)
+        df["fp2"] = df["mol2"].apply(lambda x: fp_dic[x] if x in fp_dic else np.nan)
+        similarities = [
+            (
+                SIM_FUNCTIONS[metric]([x[0], x[1]])
+                if not isinstance(x[0], float) and not isinstance(x[1], float)
+                else np.nan
+            )
+            for x in df[["fp1", "fp2"]].values
         ]
-        pairs_df[fp_name].replace(-1, np.nan, inplace=True)
-    return pairs_df
+        pairs_df[fp_name] = similarities
+        # pairs_df[fp_name] = np.where(similarities == -1, np.nan, similarities)
+        # pairs_df[fp_name] = pairs_df[fp_name].replace(
+        #     -1, np.nan
+        # )
+    # drop rows for which all fp_names are nan
+    return pairs_df.dropna(subset=fp_names, how="all")
+    # return pairs_df
 
 
 def _chain_from_sim_matrix(sim_matrix, start=None):
@@ -159,6 +168,7 @@ def reconstruct_pathway(pathway_chain, id_to_fp):
             path = None
             tipped_path_start = None
             tipped_path_end = None
+            tsp_path = None
         else:
             fps = [id_to_fp[id_][fp_name] for id_ in random_order]
 
@@ -187,20 +197,40 @@ def reconstruct_pathway(pathway_chain, id_to_fp):
                 for i in _chain_from_sim_matrix(sim_matrix, start=end_index)
             ][::-1]
 
+            # get shortest travelling salesman path
+            tsp_path = nx.approximation.traveling_salesman_problem(
+                nx.from_numpy_array(1 - sim_matrix), cycle=False
+            )
+            tsp_path = [random_order[i] for i in tsp_path]
+
         reconstructions.update(
             {
                 f"{fp_name}_independent": path,
                 f"{fp_name}_f_start": tipped_path_start,
                 f"{fp_name}_f_end": tipped_path_end,
+                f"{fp_name}_tsp": tsp_path,
             }
         )
     return reconstructions
 
 
+def num_chains_per_length(pw_chains):
+    lengths = [i for i in range(11)]
+    num_chains = []
+    for i in lengths:
+        chain_length = i
+        pw_chains = {k: v for k, v in pw_chains.items() if len(v) > chain_length}
+        num_chains.append(len(pw_chains))
+    num_chains_per_length = np.array(list(zip(lengths, num_chains)))
+    np.savetxt(
+        "num_chains_per_length.csv", num_chains_per_length, delimiter=",", fmt="%d"
+    )
+
+
 def main():
     input_dir = Path(sys.argv[1]).resolve(strict=True)  # root/data/input
     fp_dir = input_dir.parent.parent / "fps"  # root/fps
-    chain_length = 8
+    chain_length = 6
 
     pathways = pd.read_csv(
         input_dir / "metacyc_pathways.tsv",
@@ -208,11 +238,14 @@ def main():
         index_col="pathway_id",
         header=0,
     )
-    compound_data = pd.read_csv(
-        input_dir / "metacyc_compounds.tsv", sep="\t", index_col="compound_id", header=0
-    )
+    # compound_data = pd.read_csv(
+    #     input_dir / "metacyc_compounds.tsv", sep="\t", index_col="compound_id", header=0
+    # )
 
     pw_chains = generate_reaction_chains(pathways)
+
+    with ChangeDirectory(input_dir.parent.parent / "output"):
+        num_chains_per_length(pw_chains)
     pw_chains = {k: v for k, v in pw_chains.items() if len(v) > chain_length}
     pairs_df = pairs_per_separation(pw_chains, max_separation=chain_length)
     id_to_fps = id_fp_dict(

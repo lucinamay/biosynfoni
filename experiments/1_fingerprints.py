@@ -66,9 +66,7 @@ def time_fingerprint(fp_function, mol) -> tuple:
 def write_fingerprints(sdf: Path):
     suppl = Chem.SDMolSupplier(sdf)
     coverages = [Biosynfoni.get_coverage(mol) for mol in suppl]
-    sizes = [mol.GetNumHeavyAtoms() for mol in suppl]
     np.savetxt(f"{sdf.stem}_coverages.csv", coverages, delimiter=",", fmt="%.3f")
-    np.savetxt(f"{sdf.stem}_sizes.csv", sizes, delimiter=",", fmt="%d")
 
     fp_functions = {
         "maccs": maccs,
@@ -80,7 +78,7 @@ def write_fingerprints(sdf: Path):
     for name, fnx in tqdm(fp_functions.items(), desc="Getting fingerprints"):
         with open(f"{sdf.stem}_{name}.csv", "w") as f:
             pass
-        with open(f"{sdf.stem}_{name}_times.csv", "a") as f:
+        with open(f"{sdf.stem}_{name}_times.csv", "w") as f:
             pass
         for mol in tqdm(suppl, desc=name):
             time, fp = time_fingerprint(fnx, mol)

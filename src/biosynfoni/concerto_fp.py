@@ -229,8 +229,11 @@ class Biosynfoni:
 
     def get_coverage(self) -> float:
         """gets non-h atom-based coverage of fingerprints over atoms"""
-        coverage = self._matches_to_coverage()
-        self.coverage = coverage
+        return len(
+            set(chain(*[match for match in self.matches for match in match]))
+        ) / nonh_atomcount(self.mol)
+        # coverage = self._matches_to_coverage()
+        # self.coverage = coverage
         return coverage
 
     def get_coverage_per_substructure(self) -> list[float]:
