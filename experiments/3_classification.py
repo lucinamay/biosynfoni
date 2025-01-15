@@ -6,9 +6,6 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-import tmap.api.general
-import tmap.tda
-import tmap.tda.mapper
 from scipy.spatial.distance import pdist, squareform
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import TSNE
