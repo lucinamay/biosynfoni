@@ -70,14 +70,21 @@ class Biosynfoni:
     def __init__(
         self,
         mol: Chem.Mol,
-        substructure_set: list = None,
-        version_name: str = defaultVersion,
+        substructure_set: list = BiosynfoniVersion(defaultVersion).substructures,
+        version_name: str = None,
+        #substructure_set: list = None,
+        #version_name: str = defaultVersion,
         intersub_overlap: bool = True,
         intrasub_overlap: bool = True,
     ) -> None:
         self.mol = mol
+        self.substructure_set = substructure_set
+        if version_name:
+            self.substructure_set = BiosynfoniVersion(self.version).substructures
+        else:
+            version_name = defaultVersion
         self.version = version_name
-        self.substructure_set = self._set_substructure_set(substructure_set)
+        #self.substructure_set = self._set_substructure_set(substructure_set)
         self.intersub_overlap = intersub_overlap
         self.intrasub_overlap = intrasub_overlap
         self.overlap_allowance = {
