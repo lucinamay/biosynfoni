@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import logging, time, tracemalloc, sys, re, json
+import logging, time, tracemalloc, sys, re
 from typing import Generator
 from pathlib import Path
 
@@ -10,9 +10,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import TSNE
 from sklearn.model_selection import KFold
-from sklearn.metrics import classification_report
 from sklearn.tree import export_graphviz
-from rdkit.ML.Cluster import Butina
 from tqdm import tqdm
 from umap import UMAP
 
@@ -22,7 +20,11 @@ from biosynfoni.subkeys import get_names
 
 def _read_fps(folder_path, data="chebi") -> Generator:
     for file in folder_path.glob("*.csv"):
-        if f"{data}_" in file.stem and not len(file.stem.split("_")) > 2:
+        if (
+            f"{data}_" in file.stem
+            and not len(file.stem.split("_")) > 2
+            and not "coverages" in file.stem
+        ):
             yield file.stem.replace(f"{data}_", ""), np.loadtxt(
                 file, delimiter=",", dtype=int
             )
@@ -181,7 +183,9 @@ def rf_classify(ids_classifications, fp_folder) -> None:
             toc = time.perf_counter()
             current, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
-            logging.info(f"Current:{current / 10**6}MB; Peak:{peak / 10**6}MB")
+            logging.info(
+                f"Current:{current / (1024*1024)}MB; Peak:{peak / (1024*1024)}MB"
+            )
             logging.info(f"training took {toc-tic} seconds")
 
             joblib.dump(full_classifier, f"{fp_name}_model.joblib", compress=3)
@@ -193,7 +197,7 @@ def rf_classify(ids_classifications, fp_folder) -> None:
             )
             np.savetxt(
                 f"{fp_name}_mem.tsv",
-                np.array([peak / 10**6]),
+                np.array([peak / (1024 * 1024)]),
                 delimiter="\t",
                 fmt="%s",
             )
@@ -238,29 +242,6 @@ def write_similarities(fp_folder: np.array):
                 sims = 1 - squareform(pdist(fps, metric="jaccard"))
                 np.savetxt(filename, sims, delimiter=",", fmt="%.3f")
 
-# def distance_matrix(data: np.array, metric: str = "euclidean") -> np.array:
-#     """returns distance matrix of array"""
-#     if metric in ["euclidean", "cosine", "manhattan", "hamming"]:
-#         array = cdist(data, data, metric=metric)
-#         # print(array.shape)
-#         # print(array[0])
-#         # return array
-#         return cdist(data, data, metric=metric)
-#     elif metric == "tanimoto":
-#         return np.array(
-#             [[1.0 - counted_tanimoto_sim(i, j) for j in data] for i in tqdm(data)]
-#         )
-
-
-# def distance_matrix(fps: list[DataStructs.ExplicitBitVect]) -> list[float]:
-#     # create a similarity matrix
-#     dists = []
-#     nfps = len(fps)
-#     for i in range(1, nfps):
-#         sims = DataStructs.BulkTanimotoSimilarity(fps[i], fps[:i])
-#         dists.extend([1 - x for x in sims])
-#     return dists
-
 
 def dimensionality_reduction(output_folder) -> None:
     for fp_name, sim in _read_sim(output_folder):
@@ -292,64 +273,6 @@ def dimensionality_reduction(output_folder) -> None:
     return None
 
 
-def clustering(output_folder):
-    for fp_name, sim in _read_sim(output_folder):
-        # perform butina clustering
-        if fp_name == "bsf":
-            sim = np.triu(sim)
-            sim = np.triu(sim) + np.triu(sim, 1).T
-            np.fill_diagonal(sim, 1)
-            sim = np.where(np.isnan(sim), 0, sim)
-            dist = 1 - sim
-            dist = np.where(np.isnan(dist), 1, dist)
-            dist = np.where(dist < 0, 1, dist)
-            assert np.all(dist >= 0), f"negative values: [{dist.min()}, {dist.max()}"
-            # butina clustering with rdkit
-            clusters = Butina.ClusterData(
-                data=dist.flatten(), nPts=dist.shape[0], distThresh=0.3, isDistData=True
-            )
-
-            with ChangeDirectory(output_folder):
-                with open(f"{fp_name}_clusters.tsv", "w") as f:
-                    for _, cluster in enumerate(clusters):
-                        f.write(f"{','.join(map(str, cluster))}\n")
-    return None
-
-
-def taxonomy(ids_classifications, fp_folder):
-    n_estimators, max_depth = 1000, 100
-    ids, classifications = ids_classifications[:, 0], ids_classifications[:, 1]
-    # get indices with a classification, empty ones are empty in csv
-    idx = np.where(classifications != "")[0]
-    ids, classifications = ids[idx], classifications[idx]
-
-    y, cl_idx = multilabel_and_dict(classifications)
-
-    print(y.shape, len(cl_idx))
-
-    for fp_name, X in _read_fps(fp_folder, data="coconut"):
-        X = X[idx]
-        logging.info(f"{fp_name} X, y:{X.shape}, {y.shape}")
-        # k-fold cross validation. ------------------------------------------------------
-        importances, probas, ks = kfold_performance(
-            X, y, n_estimators=n_estimators, max_depth=max_depth
-        )
-        with ChangeDirectory(fp_folder.parent / "output"):
-            np.savetxt("tax_ids.tsv", ids, delimiter="\t", fmt="%s")
-            np.savetxt("tax_y.csv", y, delimiter=",", fmt="%s")
-            np.savetxt("tax_ks.csv", ks, fmt="%d")
-            np.savetxt(f"tax_{fp_name}_proba.tsv", probas, delimiter="\t", fmt="%.3f")
-            np.savetxt(
-                f"tax_{fp_name}_importances.tsv",
-                importances,
-                delimiter="\t",
-                fmt="%.3f",
-            )
-            # save cl_idx as json
-            with open("tax_class_labels.json", "w") as f:
-                json.dump(cl_idx, f)
-
-
 def main():
     input_folder = Path(sys.argv[1]).resolve(strict=True)  # root/data/input
     fp_folder = input_folder.parent.parent / "fps"  # root/fps
@@ -360,13 +283,6 @@ def main():
     rf_classify(ids_classifications, fp_folder)
     write_similarities(fp_folder)
     dimensionality_reduction(fp_folder.parent / "output")
-
-    # tax_ids_classifications = np.loadtxt(
-    #     input_folder / "coconut_taxonomy.csv", delimiter=",", dtype=str
-    # )
-    # taxonomy(tax_ids_classifications, fp_folder)
-
-    clustering(fp_folder.parent / "output")
 
     exit(0)
     return None

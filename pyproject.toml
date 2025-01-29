@@ -30,15 +30,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+test = ["matplotlib"]
 experiments = [
     "matplotlib",
     "pandas",
     "scikit-learn",
-    "umap",
+    "umap-learn",
     "seaborn",
     "requests",
     "networkx",
     "scipy",
+    "jupyter",
 ]
 
 [project.urls]
