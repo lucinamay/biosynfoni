@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68.1.2"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "biosynfoni"
-version = "0.1.0-alpha"
+version = "1.0.0"
 description = "a *biosynformatic* fingerprint to explore natural product distance and diversity"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -13,16 +13,6 @@ keywords = ["bioinformatics", "cheminformatics", "metabolomics", "natural-produc
 authors = [{name = "Lucina-May Nollen"}]
 maintainers =[{name = "Lucina-May Nollen"}]
 
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "License ::  MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-]
 dependencies = [
     "numpy",
     "rdkit",
@@ -34,13 +24,16 @@ test = ["matplotlib"]
 experiments = [
     "matplotlib",
     "pandas",
-    "scikit-learn",
+    "scikit-learn>=1.3.0",
     "umap-learn",
     "seaborn",
     "requests",
     "networkx",
     "scipy",
     "jupyter",
+]
+dev = [
+    "pytest",
 ]
 
 [project.urls]

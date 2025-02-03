@@ -3,6 +3,9 @@
 __pycache__
 settings.json
 
+# do allow .github
+!.github
+
 
 # standard gitignore
 # Byte-compiled / optimized / DLL files
@@ -168,3 +171,6 @@ cython_debug/
 
 # Mac
 .DS_Store
+
+# test SVGs that end on _test.svg should be ignored
+*_test.svg
