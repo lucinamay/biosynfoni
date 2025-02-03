@@ -27,10 +27,10 @@ def _handle_outnames(args: argparse.Namespace) -> str:
             inname_root = args.input[0].split("/")[-1].split(".")[0]
         else:
             inname_root = f"{args.repr}s"
-        if args.intrasub_overlap:
-            overlap_allowance = "_noblock"
-        elif args.intersub_overlap:
-            overlap_allowance = "_lessblock"
+        if args.intrasub_block:
+            overlap_allowance = "_block"
+        elif args.intersub_block:
+            overlap_allowance = "_partialblock"
         else:
             overlap_allowance = ""
         outname_root = f"{inname_root}_{args.version}{overlap_allowance}"

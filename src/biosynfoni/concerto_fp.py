@@ -80,11 +80,11 @@ class Biosynfoni:
         self.mol = mol
         self.substructure_set = substructure_set
         if version_name:
-            self.substructure_set = BiosynfoniVersion(self.version).substructures
+            self.substructure_set = BiosynfoniVersion(version_name).substructures
         else:
             version_name = defaultVersion
         self.version = version_name
-        #self.substructure_set = self._set_substructure_set(substructure_set)
+        # self.substructure_set = self._set_substructure_set(substructure_set)
         self.intersub_overlap = intersub_overlap
         self.intrasub_overlap = intrasub_overlap
         self.overlap_allowance = {
