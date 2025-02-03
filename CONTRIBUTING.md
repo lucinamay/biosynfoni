@@ -7,5 +7,5 @@ If you would like to contribute to the development of `biosynfoni`, please open 
 Run the following command from the root of the project to install the project for development:
 
 ```bash
-pip install -e .
+pip install -e [dev].
 ```
