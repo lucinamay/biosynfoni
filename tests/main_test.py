@@ -1,14 +1,10 @@
 import unittest, logging
-from enum import Enum
 import subprocess
-
-# set logging level to debug for this test
-# logging.basicConfig(level=logging.DEBUG)
 
 from rdkit import Chem
 import numpy as np
 
-from biosynfoni.concerto_fp import MolsCollection, Biosynfoni
+from biosynfoni.concerto_fp import Biosynfoni
 from biosynfoni.subkeys import defaultVersion, get_smarts
 from biosynfoni.moldrawing import draw
 from biosynfoni import get_highlight_mapping, draw_with_highlights
@@ -110,7 +106,7 @@ class testBiosynfoni(unittest.TestCase):
                 "</svg>",
                 f'<text x="30" y="30" font-size="20" font-family="montserrat">{Chem.MolToSmiles(mol)}</text></svg>',
             )
-            with open(f"substructure_detection_test{i}.svg", "w") as f:
+            with open(f"substructure_detection_{i+1}_test.svg", "w") as f:
                 f.write(svg_str)
 
     def test_coverage_calculation(self):
