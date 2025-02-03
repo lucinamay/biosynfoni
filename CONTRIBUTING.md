@@ -7,5 +7,11 @@ If you would like to contribute to the development of `biosynfoni`, please open 
 Run the following command from the root of the project to install the project for development:
 
 ```bash
-pip install -e [dev].
+pip install -e .[dev]
+```
+
+Tests will be run automatically when you push a pull request. You can also run the tests locally with the following command:
+
+```bash
+pytest tests/
 ```
