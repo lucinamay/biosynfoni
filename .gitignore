@@ -6,6 +6,11 @@ settings.json
 # do allow .github
 !.github
 
+# test files
+0205_smiless_full_1103.bsf
+0205_smiless_full_1103_input.tsv
+0205_version_full_1103.smarts
+0205_version_full_1103.svg
 
 # standard gitignore
 # Byte-compiled / optimized / DLL files
