@@ -86,7 +86,7 @@ Write the fingerprints of all molecules in an SDF file to a CSV file:
 biosynfoni <molecule_supplier.sdf>
 ```
 
-### Preprint
+<!-- ### Preprint
 
 #### Citation
 
@@ -99,7 +99,7 @@ If you use `biosynfoni` in your research, please cite our [preprint](https://che
   journal={chemRxiv},
   year={2025}
 }
-```
+``` -->
 
 #### Data availability
 
