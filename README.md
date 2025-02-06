@@ -2,7 +2,22 @@
 <span style="color:green"> 🌿 *a biosynformatic molecular fingerprint tailored to natural product chem- and bioinformatic research* 🌿</span>
 
 
-[![FAIR checklist badge](https://fairsoftwarechecklist.net/badge.svg)](https://fairsoftwarechecklist.net/v0.2?f=20&a=30112&i=20122&r=123)
+<p align="center">
+    <a href="https://github.com/lucinamay/biosynfoni/actions/workflows/test-biosynfoni.yml">
+        <img alt="Tests" src="https://github.com/lucinamay/biosynfoni/actions/workflows/test-biosynfoni.yml/badge.svg" /></a>
+    <a href="https://pypi.org/project/biosynfoni">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/biosynfoni" /></a>
+    <a href="https://pypi.org/project/biosynfoni">
+        <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/biosynfoni" /></a>
+    <a href="https://github.com/lucinamay/biosynfoni/blob/main/LICENSE">
+        <img alt="PyPI - License" src="https://img.shields.io/pypi/l/cinemol" /></a>
+    <a href='https://github.com/psf/black'>
+        <img src='https://img.shields.io/badge/code%20style-black-000000.svg' alt='Code style: black' /></a>
+    <!-- <a href="https://doi.org/10.5281/zenodo.11242217">
+        <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.11242217.svg" alt="DOI"></a> -->
+    <a href="https://fairsoftwarechecklist.net/v0.2?f=20&a=30112&i=20122&r=123">
+        <img src="https://fairsoftwarechecklist.net/badge.svg" alt="FAIR checklist badge"></a>
+</p>
 
 \________________________________________________________________________________________
 
