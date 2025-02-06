@@ -307,71 +307,6 @@ def annotate_heatmap(
     return texts
 
 
-# def add_minus_plus(
-#     im,
-#     data=None,
-#     valfmt="{x:.2f}",
-#     textcolors=("black", "white"),
-#     threshold=None,
-#     shift=0,
-#     **textkw,
-# ):
-#     """
-#     A function to annotate a heatmap.
-
-#     Parameters
-#     ----------
-#     im
-#         The AxesImage to be labeled.
-#     data
-#         Data used to annotate.  If None, the image's data is used.  Optional.
-#     valfmt
-#         The format of the annotations inside the heatmap.  This should either
-#         use the string format method, e.g. "$ {x:.2f}", or be a
-#         `matplotlib.ticker.Formatter`.  Optional.
-#     textcolors
-#         A pair of colors.  The first is used for values below a threshold,
-#         the second for those above.  Optional.
-#     threshold
-#         Value in data units according to which the colors from textcolors are
-#         applied.  If None (the default) uses the middle of the colormap as
-#         separation.  Optional.
-#     **kwargs
-#         All other arguments are forwarded to each call to `text` used to create
-#         the text labels.
-#     """
-
-#     if not isinstance(data, (list, np.ndarray)):
-#         data = im.get_array()
-
-#     # Normalize the threshold to the images color range.
-#     if threshold is not None:
-#         threshold = im.norm(threshold)
-#     else:
-#         threshold = im.norm(data.max()) / 2.0
-
-#     # Set default alignment to center, but allow it to be
-#     # overwritten by textkw.
-#     kw = dict(horizontalalignment="center", verticalalignment="center")
-#     kw.update(textkw)
-
-#     # Get the formatter in case a string is supplied
-#     if isinstance(valfmt, str):
-#         # if + if value > 0, if - if value < 0
-#         valfmt = "+" if valfmt > 0 else "-"
-
-#     # Loop over the data and create a `Text` for each "pixel".
-#     # Change the text's color depending on the data.
-#     texts = []
-#     for i in range(data.shape[0]):
-#         for j in range(data.shape[1]):
-#             kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
-#             text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
-#             texts.append(text)
-
-#     return texts
-
-
 def _set_ax_boxplot_i_colour(
     ax_boxplot: mpl.container.BarContainer,
     i: int,
@@ -429,8 +364,6 @@ def scatter_boxplots(
 
     """
     fig = plt.figure()
-    # fig, ax = plt.subplots()
-    # add gridspec for subplots
 
     gs = fig.add_gridspec(
         2,
@@ -447,10 +380,6 @@ def scatter_boxplots(
     sc_ax = fig.add_subplot(gs[1, 0])
     # for legend
     legax = fig.add_subplot(gs[0, 1])
-
-    # Set aspect of the Axes manually to have points on 0 and 1 show better
-    # ax.set_xlim(-0.05, 1.05)
-    # ax.set_ylim(-0.05, 1.05)
 
     # Get Data
     all_data_x = [
@@ -536,16 +465,8 @@ def scatter_boxplots(
 
     legax.legend(loc="lower left", prop={"size": 6}, frameon=False)
 
-    # # info for square drawing
-    # squareside = 0.2
-    # s_color = "#7A7979AA"
-    # s_color = mpl.colors.to_rgba("#7A7979AA", alpha=0.3)
-    # linewidth = 1
-
-    # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
     sc_ax.set_xlabel(cleanfmt(col_x), labelpad=10)
     sc_ax.set_ylabel(cleanfmt(col_y), labelpad=10)
-    # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
     top_bp_ax.set_title(cleanfmt(figtitle), loc="center", pad=20)
 
     sc_ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
@@ -584,10 +505,6 @@ def scatter(
     # remove figsize from kwargs, so it doesn't get passed to scatterplot
     kwargs.pop("figsize", None)
     fig, ax = plt.subplots()
-
-    # Set aspect of the Axes manually to have points on 0 and 1 show better
-    # ax.set_xlim(-0.05, 1.05)
-    # ax.set_ylim(-0.05, 1.05)
 
     # Get Data
     all_data_x = [
@@ -631,43 +548,17 @@ def scatter(
             **kwargs,
         )
 
-        # # scatter empty df, to get legend in right format in right position
-        # leg = legax.scatter(
-        #     x=col_x,
-        #     y=col_y,
-        #     data=df[df[color_by] == category][0:0],
-        #     c=colour,
-        #     label=label,
-        #     alpha=0.5,
-        #     edgecolors="none",
-        #     s=10,
-        # )
-        # leg.set_facecolor(mpl.colors.to_rgba(colour, alpha=alpha))
-
     # ==================================================
 
     ax.legend(loc="lower left", prop={"size": 6}, frameon=True, edgecolor="#FFFFFFAA")
 
-    # # info for square drawing
-    # squareside = 0.2
-    # s_color = "#7A7979AA"
-    # s_color = mpl.colors.to_rgba("#7A7979AA", alpha=0.3)
-    # linewidth = 1
-
-    # ax.set_xticklabels([0,0.2,0.4,0.6,0.8,1.0])
     ax.set_xlabel(cleanfmt(col_x), labelpad=10)
     ax.set_ylabel(cleanfmt(col_y), labelpad=10)
-    # ax_xobs[0].set_title(figtitle, loc="center", pad=20)
     ax.set_title(cleanfmt(figtitle), loc="center", pad=20)
 
     ax.grid(True, alpha=0.3, linewidth=0.5, mouseover=True)
-
-    # tight_layout
     fig.tight_layout()
 
-    # plt.show()
-    # plt.savefig(f"{filename}.png", dpi=500)
-    # fig.close()
     return fig
 
 
@@ -711,7 +602,6 @@ def set_label_colors(ticklabels: list, colors: list) -> str:
             None
     """
     for label, color in zip(ticklabels, colors):
-        # label.set_color(COLOUR_DICT[axis][label.get_text()])
         plt.setp(
             label,
             backgroundcolor=color,
@@ -722,8 +612,7 @@ def set_label_colors(ticklabels: list, colors: list) -> str:
                 boxstyle="round, rounding_size=0.7",
                 edgecolor="none",
             ),
-        )  # , height=0.3))
-        # t.set_bbox(dict(facecolor=color, alpha=0.5, boxstyle="round"))  # , height=0.3))
+        )
     return None
 
 

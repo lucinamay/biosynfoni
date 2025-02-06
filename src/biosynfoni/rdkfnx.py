@@ -102,17 +102,6 @@ class BiosynfoniVersion:
                 f.write(f"{self.subs_ids[i]}\t{smart}\n")
         return None
 
-    # def save_svg(self, window_size=(1000, 1000)):
-    #     outfilename = outfile_namer("version", self.fp_version)
-    #     svg_text = Draw.MolsToGridImage(
-    #         self.substructures,
-    #         molsPerRow=4,
-    #         subImgSize=window_size,
-    #         legends=self.subs_names,
-    #     )
-    #     with open(f"{outfilename}.svg", "w") as f:
-    #         f.write(svg_text)
-    #     return None
     def save_svg(self, window_size=(300, 200)):
         outfilename = outfile_namer("version", self.fp_version)
         svg_text = drawfp(
@@ -146,23 +135,6 @@ class BiosynfoniVersion:
         if self.subs_colors is None:
             self.set_subs_colors()
         return self.subs_colors
-
-
-# def save_version(
-#     fp_version: str, window_size=(1000, 1000), extra_text: str = ""
-# ) -> None:
-#     """depracated, use BiosynfoniVersion instead"""
-#     outfilename = outfile_namer("version", f"{fp_version}_{extra_text}")
-
-#     # svg_text = fm.drawfp(fp_version, window_size=window_size)
-#     # with open(f'{outfilename}.svg', 'w') as f:
-#     #    f.write(svg_text)
-
-#     smarts = get_smarts(fp_version)
-#     with open(f"{outfilename}.smarts", "w") as f:
-#         for smart in smarts:
-#             f.write(f"{smart[0]}\t{smart[1]}\n")
-#     return None
 
 
 def save_version(version: str, window_size=(300, 200)) -> None:

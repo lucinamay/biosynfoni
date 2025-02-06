@@ -330,24 +330,6 @@ class MolsCollection:
             return len(self.representations)
 
 
-# class Mols_sdf:
-#     pass
-
-#     def _yield_sdf_mols(sdflist: list) -> Chem.Mol:
-#         """yields mols from supplier (only first one of list)"""
-#         suppl = supplier(sdflist[0])
-#         for mol in suppl:
-#             yield mol
-
-# def _get_yield_mol_function(input_type: str) -> Chem.Mol:
-# """yields mols from inputlist"""
-# types_functions = {
-# "sdf": _yield_sdf_mols,
-# "smiles": _yield_smiles_mols,
-# "inchi": _yield_inchi_mols,
-# }
-# return types_functions[input_type]
-
 # =========================== functions to import ==============================
 
 
@@ -380,17 +362,11 @@ def main():
     # get substructure set to speed up process (and not have to get it each time)
     substructure_set = BiosynfoniVersion(args.version).substructures
 
-    # total_molecules = (
-    # len(args.input) if args.repr != "sdf" else len(supplier(args.input[0]))
-    # )
-    # yield_mol_function = _get_yield_mol_function(args.repr)
-
     mol_collection = MolsCollection(args.input, args.repr)
 
     logging.info("looping over molecules...")
     biosynfonies, coverages = [], []
     for i, mol in tqdm(
-        # enumerate(yield_mol_function(args.input)), total=total_molecules
         enumerate(mol_collection.__iter__()),
         total=mol_collection.num_mols,
         disable=silence_except_fp,
@@ -433,7 +409,7 @@ def main():
     if args.repr != "sdf":
         with open(args.output.replace(".bsf", "_input.tsv"), "w") as f:
             f.write("\n".join([x for x in args.input]))
-    # save_version(args.version, extra_text="extracted")
+
     # save version
     try:
         save_version(args.version)

@@ -87,10 +87,6 @@ def npc_resultr(smiles_string: str):
     url = "https://npclassifier.ucsd.edu"
 
     r = requests.get(f"{url}/classify?smiles={smiles_string}")
-    # npc_pathway = r.json()["pathway_results"]
-    # npc_superclass = r.json()["superclass_results"]
-    # npc_class = r.json()["class_results"]
-    # return [npc_pathway, npc_superclass, npc_class]
     return r.json()
 
 
