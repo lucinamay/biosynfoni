@@ -63,6 +63,7 @@ SIM_FUNCTIONS = {
 
 # =============================================================================
 
+
 def id_mol_dict(struct_loc: str) -> dict:
     return {mol.GetProp("compound_id"): mol for mol in Chem.SDMolSupplier(struct_loc)}  # type: ignore
 

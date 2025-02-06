@@ -6,10 +6,10 @@ ____________________________________
 
 title: RDKit functions              ||
 created: 2023-09-13                 ||
-author: Lucina-May Nollen           || 
+author: Lucina-May Nollen           ||
 institute: WUR Bioinformatics       ||
 ____________________________________
- 
+
 ||||||||||||  ()()()  |||||||||||||||
 
 contains general reusable functionalities depending on RDKit packages,

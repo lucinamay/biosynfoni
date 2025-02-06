@@ -66,7 +66,6 @@ class testBiosynfoni(unittest.TestCase):
             all_detected = Biosynfoni(mol, version_name=defaultVersion).overlap_matches
             assert all_detected != empty_fp
 
-
     def test_substructure_detection_visually(self):
         for i, mol in enumerate(general_test_mols):
             info = get_highlight_mapping(mol)

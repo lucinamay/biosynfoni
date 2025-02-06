@@ -5,7 +5,7 @@ ____________________________________
 
 title: NPC_ifier                    ||
 language: python                    ||
-author: Lucina-May Nollen           || 
+author: Lucina-May Nollen           ||
 institute: WUR Bioinformatics       ||
 ____________________________________
 
@@ -15,7 +15,7 @@ description:    using RDK Chem mols and NPClassifier API, requests
                 classification information with time delay
                 saves the classfications every 1000 molecules
                 at the end, takes the 400 files and combines them
-                
+
                 *checks which files are present in the related folder
                 and starts from where it left off (rewriting only the last file
                 in case it was not completed with a 1000 molecules)

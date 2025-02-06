@@ -7,10 +7,10 @@ ____________________________________
 
 title: ConCERTO-fp                  ||
 created: 2023-09-22                 ||
-author: Lucina-May Nollen           || 
+author: Lucina-May Nollen           ||
 institute: WUR Bioinformatics       ||
 ____________________________________
- 
+
 ||||||||||||  ()()()  |||||||||||||||
 
 ConCERTO-fp | CONvert Compound E-Representation TO FingerPrint
@@ -72,8 +72,8 @@ class Biosynfoni:
         mol: Chem.Mol,
         substructure_set: list = BiosynfoniVersion(defaultVersion).substructures,
         version_name: str = None,
-        #substructure_set: list = None,
-        #version_name: str = defaultVersion,
+        # substructure_set: list = None,
+        # version_name: str = defaultVersion,
         intersub_overlap: bool = True,
         intrasub_overlap: bool = True,
     ) -> None:

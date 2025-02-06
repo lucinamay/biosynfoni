@@ -13,6 +13,7 @@ ____________________________________
 
 description: functions for figuremaking
 """
+
 from enum import Enum
 import typing as ty
 import logging

@@ -13,6 +13,7 @@ ____________________________________
 Biosynfoni Definition. Can be converted into an sdf file per 'version'
 
 """
+
 from functools import partial
 
 from biosynfoni.subkeys.biosmartfonis import substructureSmarts
