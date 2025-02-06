@@ -6,7 +6,7 @@ ____________________________________
 
 title: inoutput                     ||
 creaetd: 2023.09.13 14:40           ||
-author: lucina-may nollen           || 
+author: lucina-may nollen           ||
 institute: WUR Bioinformatics       ||
 ____________________________________
 
@@ -18,7 +18,7 @@ description:    general functions needed in the other file
 - readr(filename:str,ignore_start='',
           encoding='UTF-8',errors='ignore')->list
 - entry_parser(lines:list, sep:str = "$$$$")->list[list]
-- extractr(lines:list, starts:list=[], remove_starts:bool= True, 
+- extractr(lines:list, starts:list=[], remove_starts:bool= True,
             strip_extra:str=' - ')->dict[list[str]]
 ======= general =======
 - per_entry(entries,fnx,*args,**kwargs)->list

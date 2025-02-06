@@ -6,10 +6,10 @@ ____________________________________
 
 title: fingerprints                 ||
 created: 2023-09-28 12:20           ||
-author: Lucina-May Nollen           || 
+author: Lucina-May Nollen           ||
 institute: WUR Bioinformatics       ||
 ____________________________________
- 
+
 ||||||||||||  ()()()  |||||||||||||||
 
 description: fingerprints and related functionality.

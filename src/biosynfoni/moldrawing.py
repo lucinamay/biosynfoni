@@ -13,6 +13,7 @@ ____________________________________
 
 description: functions for figuremaking
 """
+
 from enum import Enum
 import typing as ty
 import logging
@@ -22,43 +23,6 @@ from rdkit.Chem.Draw import rdMolDraw2D, MolsToGridImage
 
 from biosynfoni.subkeys import substructureSmarts
 
-# imported by rdkfnx
-
-
-# coloured_subs = {
-#     "d_indoleC2N_12": (0.65, 0.51, 0.71),
-#     "d_phenylC2N_9": (0.65, 0.51, 0.71),
-#     # acetate
-#     "d_c5n_6": (1, 0.55, 0.38),
-#     "d_c4n_5": (1, 0.55, 0.38),
-#     # shikimate
-#     "d_phenylC3_9_1007": (0.65, 0.51, 0.71),
-#     "d_phenylC2_8_1007": (0.65, 0.51, 0.71),
-#     "d_phenylC1_7_1007": (0.65, 0.51, 0.71),
-#     "d_phenylC3_9": (0.65, 0.51, 0.71),
-#     "d_phenylC2_8": (0.65, 0.51, 0.71),
-#     "d_phenylC1_7": (0.65, 0.51, 0.71),
-#     "d_phenylC3_9_strict": (0.65, 0.51, 0.71),
-#     "d_phenylC2_8_strict": (0.65, 0.51, 0.71),
-#     "d_phenylC1_7_strict": (0.65, 0.51, 0.71),
-#     # mevalonate/MEP
-#     "d_isoprene_5": (0.61, 0.76, 0.73),
-#     # acetate, aromaticity ok
-#     "d_ethyl_2": (1, 0.55, 0.38),
-#     "d_methyl_1": (1, 0.55, 0.38),
-#     # sugar-related --------------------------------------------------------
-#     "s_pyranose_C5O4": (1, 0.77, 0.81),
-#     "s_furanose_C4O3": (1, 0.77, 0.81),
-#     "s_openpyr_C6O6": (1, 0.77, 0.81),
-#     "s_openfur_C5O5": (1, 0.77, 0.81),
-#     # additional from dewick -----------------------------------------------
-#     # acetate
-#     "d2_acetyl_C2O1": (1, 0.55, 0.38),
-#     "d2_methylmalonyl_C3": (1, 0.55, 0.38),
-#     # amino acids:
-#     "allstnd_aminos": (1, 0.92, 0.63),
-#     "nonstnd_aminos": (1, 0.92, 0.63),
-# }
 
 pathway_colours = {
     "shikimate": (0.65, 0.51, 0.71),
@@ -70,7 +34,6 @@ pathway_colours = {
 }
 
 
-# ===== David's code =====
 class Palette(Enum):
     """
     Palette of colors for drawing molecules as RGB.
@@ -141,11 +104,9 @@ class Palette(Enum):
 # =============
 
 
-# adapted from David's code to have distinct modules ======================
 def _get_highlight_loc_and_col(
     mol: Chem.Mol,
     subs_matches_for_highlighting: list = [],  # list of lists of lists of atom indices
-    # subs_ids: ty.List[str] = [],  # list of substructure names
     subs_colors: ty.Optional[ty.List[ty.Tuple[float, float, float]]] = None,
 ) -> tuple[tuple[list, dict]]:
     """gets highlighting information"""
@@ -164,15 +125,7 @@ def _get_highlight_loc_and_col(
 
     for sub_index, sub_matches in enumerate(subs_matches_for_highlighting):
         atom_indices = []
-        # sub_id = subs_ids[sub_index]
         color = subs_colors[sub_index]
-        # if Substructures[sub_id]["pathway"]:
-        #     first_pathway = Substructures[sub_id]["pathway"][0]
-        #     color = pathway_colours[first_pathway]
-        # else:
-        #     # color = palette[sub_index % len(palette)] #for random colour
-        #     color = (0.7, 0.7, 0.7)  # grey
-
         for match in sub_matches:
             # individual substructure-match indices
             match_indices = []
@@ -207,7 +160,6 @@ def _get_highlight_loc_and_col(
 
 def draw(
     mol: Chem.Mol,
-    # subs: ty.List[ty.List[tuple[tuple[int]]]] = [],
     window_size: ty.Tuple[int, int] = (800, 800),
     background_color: ty.Optional[str] = None,
     highlight_atoms_bonds_mappings=None,
@@ -239,8 +191,6 @@ def draw(
     if background_color is not None:
         options.setBackgroundColour(background_color)
     options.useBWAtomPalette()
-    # options.addAtomIndices = True
-    # options.addBondIndices = True
     drawing.DrawMolecule(
         mol,
         highlightAtoms=atoms_to_highlight,
@@ -255,43 +205,22 @@ def draw(
     return svg_str
 
 
-# def drawfp(
-#     version: str = DEFAULT_BIOSYNFONI_VERSION,
-#     window_size: ty.Tuple[int, int] = (1000, 1000),
-# ) -> str:
-#     drawing = rdMolDraw2D.MolDraw2DSVG(*window_size)
-#     mols, indexes = [], []
-#     for i in range(len(gss(version))):
-#         if gss(version)[i]:
-#             mols.append(gss(version)[i])
-#             indexes.append(i)
-#     drawing.DrawMolecules(mols)
-#     drawing.FinishDrawing()
-#     svg_str = drawing.GetDrawingText().replace("svg:", "")
-#     return svg_str
-
-
 def drawfp(
     subs_set: list[Chem.Mol],
     subs_colors: list,
     subs_labels: list[str],
     window_size: ty.Tuple[int, int] = (1000, 1000),
 ) -> str:
-    # drawing = Draw.MolsToGridImage())/
     mols, indexes = [], []
     subs_atoms_to_highlight, subs_bonds_to_highlight = [], []
     subs_atom_highlight_colors, subs_bond_highlight_colors = [], []
     for sub_index, sub_mol in enumerate(subs_set):
-        # if sub_index < 3:
-        #     continue
         if sub_mol:
             emulate_match_for_highlighting = [[[]] for each_sub in subs_set]
             emulate_match_for_highlighting[sub_index] = [
                 [atom.GetIdx() for atom in sub_mol.GetAtoms()]
             ]
             logging.debug(emulate_match_for_highlighting)
-            # get atom index lists for each substructure
-
             loc, col = _get_highlight_loc_and_col(
                 sub_mol, emulate_match_for_highlighting, subs_colors
             )
@@ -306,9 +235,7 @@ def drawfp(
             indexes.append(sub_index)
 
     successful_subs = [subs_labels[i] for i in indexes]
-    # clean up later
     names = [sub_label.replace("_", " ") for sub_label in successful_subs]
-    # names = [subs_labels[i] for i in indexes]
     logging.debug(len(mols), len(names), len(subs_atoms_to_highlight))
     logging.debug(subs_atoms_to_highlight)
     subs_atoms_to_highlight = [[], [], [], [], []]
@@ -318,8 +245,6 @@ def drawfp(
         subImgSize=window_size,
         legends=names,
         highlightAtomLists=[[i for i in range(len(mol.GetAtoms()))] for mol in mols],
-        # # highlightAtomsList=subs_atoms_to_highlight,
-        # # highlightBondsList=subs_bonds_to_highlight,
         highlightAtomColors=subs_atom_highlight_colors,
         highlightBondColors=subs_bond_highlight_colors,
         useSVG=True,
@@ -327,14 +252,3 @@ def drawfp(
     svg_str = grid_image.replace("svg:", "")
     logging.debug(grid_image[:10], svg_str, sep="\n")
     return svg_str
-    # # drawing.DrawMolecules(
-    # #     mols,
-    # #     legends=names,
-    # #     # highlightAtoms=subs_atoms_to_highlight,
-    # #     # highlightBonds=subs_bonds_to_highlight,
-    # #     # highlightAtomColors=subs_atom_highlight_colors,
-    # #     # highlightBondColors=subs_bond_highlight_colors,
-    # # )
-    # # drawing.FinishDrawing()
-    # svg_str = drawing.GetDrawingText().replace("svg:", "")
-    # return svg_str
