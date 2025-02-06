@@ -33,6 +33,7 @@ experiments = [
     "jupyter",
 ]
 dev = [
+    "black",
     "pytest",
 ]
 

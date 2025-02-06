@@ -15,3 +15,9 @@ Tests will be run automatically when you push a pull request. You can also run t
 ```bash
 pytest tests/
 ```
+
+Please use `black` to format your code before submitting a pull request:
+
+```bash
+black .
+```
