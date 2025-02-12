@@ -35,6 +35,8 @@
 
 ### Getting started 🌿
 
+Read more about Biosynfoni in our preprint [here](https://doi.org/10.26434/chemrxiv-2025-cwq74).
+
 #### Predict biosynthetic class
 
 We have trained a biosynthetic class predictor on `biosynfoni` fingerprints. 
@@ -86,20 +88,23 @@ Write the fingerprints of all molecules in an SDF file to a CSV file:
 biosynfoni <molecule_supplier.sdf>
 ```
 
-<!-- ### Preprint
+### Preprint
 
 #### Citation
 
-If you use `biosynfoni` in your research, please cite our [preprint](https://chemrxiv.org/engage/chemrxiv/public-dashboard):
+If you use `biosynfoni` in your research, please cite our [preprint](https://chemrxiv.org/engage/chemrxiv/article-details/67a6c0426dde43c90801e335):
 
 ```bibtex
 @article{nollen2025biosynfoni,
-  title={Biosynfoni: A Biosynthesis-informed and Interpretable Lightweight Molecular Fingerprint},
-  author={Nollen, Lucina-May, Meijer, David, Sorokina, Maria, and Van der Hooft, Justin J. J.},
-  journal={chemRxiv},
-  year={2025}
+    doi={10.26434/chemrxiv-2025-cwq74},
+    url={https://doi.org/10.26434/chemrxiv-2025-cwq74},
+    year={2025},
+    month={feb},
+    author={Lucina-May Nollen, David Meijer, Maria Sorokina, Justin J. J. and Van der Hooft},
+    title={Biosynfoni: A Biosynthesis-informed and Interpretable Lightweight Molecular Fingerprint},
+    journal={ChemRxiv},
 }
-``` -->
+```
 
 #### Data availability
 
