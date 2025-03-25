@@ -27,6 +27,16 @@ def rdk_fp(mol: Chem.Mol) -> list:
     return Chem.RDKFingerprint(mol, fpSize=2048)
 
 
+def morgan_mini(mol: Chem.Mol) -> list:
+    return AllChem.GetMorganFingerprintAsBitVect(
+        mol, useChirality=False, radius=2, nBits=39
+    )
+
+
+def rdk_mini(mol: Chem.Mol) -> list:
+    return Chem.RDKFingerprint(mol, fpSize=39)
+
+
 def biosynfoni(mol: Chem.Mol) -> list:
     """returns counted fingerprint list"""
     return Biosynfoni(
@@ -63,16 +73,22 @@ def time_fingerprint(fp_function, mol) -> tuple:
     return end - start, fp
 
 
-def write_fingerprints(sdf: Path):
+def write_coverages(sdf: Path):
     suppl = Chem.SDMolSupplier(sdf)
     coverages = [Biosynfoni(mol).get_coverage() for mol in suppl]
     np.savetxt(f"{sdf.stem}_coverages.csv", coverages, delimiter=",", fmt="%.3f")
 
+
+def write_fingerprints(sdf: Path):
+    suppl = Chem.SDMolSupplier(sdf)
+
     fp_functions = {
-        "maccs": maccs,
-        "morgan": morgan,
-        "rdk": rdk_fp,
-        "bsf": biosynfoni,
+        # "maccs": maccs,
+        # "morgan": morgan,
+        # "rdk": rdk_fp,
+        # "bsf": biosynfoni,
+        "minimorgan": morgan_mini,
+        "minirdk": rdk_mini,
     }
 
     for name, fnx in tqdm(fp_functions.items(), desc="Getting fingerprints"):
@@ -95,6 +111,7 @@ def main():
     for sdf in sdf_folder.glob("*.sdf"):
         with ChangeDirectory(fp_folder):
             write_fingerprints(sdf)
+            # write_coverages(sdf)
 
     return 0
 
