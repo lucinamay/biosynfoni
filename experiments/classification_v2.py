@@ -310,10 +310,9 @@ def evaluate(
 
     # (Hyper)parameter grid for RandomForest Classifier
     param_grid = {
-        # "n_estimators": [100, 500, 1000],
-        # "max_depth": [None, 10, 20, 30],
-        # "max_features": ["sqrt", "log2"],
-        "n_estimators": [100, 500],
+        "n_estimators": [100, 500, 1000],
+        "max_depth": [None, 10, 50, 100],
+        "max_features": ["sqrt", "log2"],
     }
 
     # Calculate micro averaged F1 scores for each parameter combination, report on average score and its std over the folds.
