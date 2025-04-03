@@ -436,7 +436,7 @@ def main() -> None:
         logger.info(f"  * {target_class}: {count} / {len(chebi_df)} ({count / len(chebi_df) * 100:.2f}%)")
 
     # Featurize data in several ways and evaluate.
-    split_names = ["biosynfoni", "morgan39", "morgan2048"]
+    split_names = ["random", "biosynfoni", "morgan39", "morgan2048"]
     analysis_names = ["biosynfoni", "morgan39", "morgan2048"]
 
     # Featurize data in several ways.
@@ -447,41 +447,58 @@ def main() -> None:
 
     for split_name in split_names:
 
-        # Select X for splitting.
-        if split_name == "biosynfoni":
-            X_splitting = X_biosyfoni
-        elif split_name == "morgan39":
-            X_splitting = X_morgan39
-        elif split_name == "morgan2048":
-            X_splitting = X_morgan2048
-        else:
-            raise ValueError(f"Unknown split name: {split_name}")
+        if split_name == "random":
+            # get random indices for train and test sets, first shuffle
+            shuffled_inds = np.arange(len(chebi_df))
+            np.random.shuffle(shuffled_inds)
 
-        # Cluster data and select clusters for the left-out set.
-        num_clusters_target = 1000
-        cluster_labels = KMeans(n_clusters=num_clusters_target, random_state=42).fit_predict(X_splitting)
-        # Randomly select ratio of the clusters for the test set.
-        test_ratio = 0.3
-        min_samples_per_class = 100
-        while True:
-            test_clusters = np.random.choice(np.unique(cluster_labels), size=int(num_clusters_target * test_ratio), replace=False)
-            inds_test = np.where(np.isin(cluster_labels, test_clusters))[0]
-            inds_train = np.where(~np.isin(cluster_labels, test_clusters))[0]
+            # Select 30% of the data for the test set.
+            test_ratio = 0.3
+            num_test_samples = int(len(chebi_df) * test_ratio)
+            inds_test = shuffled_inds[:num_test_samples]
+            inds_train = shuffled_inds[num_test_samples:]
             y_test = y[inds_test]
-            X_splitting_train = X_splitting[inds_train]  # Need those for clustering.
             y_train = y[inds_train]
-            # Check if every target class is represented in the test and train sets with at least N samples.
-            if (
-                all(np.sum(y_test[:, i]) >= min_samples_per_class for i in range(y_test.shape[1]))
-                and all(np.sum(y_train[:, i]) >= min_samples_per_class for i in range(y_train.shape[1]))
-            ):
-                break
-            else:
-                logger.warning(f"Test and/or train clusters for analysis {analysis_name} not valid, retrying...")
 
-        # Cluster the train data by KMeans.
-        num_clusters_target = 1000
-        cluster_labels_train = KMeans(n_clusters=num_clusters_target, random_state=42).fit_predict(X_splitting_train)
+            # every train item gets unique cluster label, so in essence there is no clustering
+            cluster_labels_train = np.array(list(np.arange(len(inds_train))))
+
+        else:
+            # Select X for splitting.
+            if split_name == "biosynfoni":
+                X_splitting = X_biosyfoni
+            elif split_name == "morgan39":
+                X_splitting = X_morgan39
+            elif split_name == "morgan2048":
+                X_splitting = X_morgan2048
+            else:
+                raise ValueError(f"Unknown split name: {split_name}")
+
+            # Cluster data and select clusters for the left-out set.
+            num_clusters_target = 1000
+            cluster_labels = KMeans(n_clusters=num_clusters_target, random_state=42).fit_predict(X_splitting)
+            # Randomly select ratio of the clusters for the test set.
+            test_ratio = 0.3
+            min_samples_per_class = 100
+            while True:
+                test_clusters = np.random.choice(np.unique(cluster_labels), size=int(num_clusters_target * test_ratio), replace=False)
+                inds_test = np.where(np.isin(cluster_labels, test_clusters))[0]
+                inds_train = np.where(~np.isin(cluster_labels, test_clusters))[0]
+                y_test = y[inds_test]
+                X_splitting_train = X_splitting[inds_train]  # Need those for clustering.
+                y_train = y[inds_train]
+                # Check if every target class is represented in the test and train sets with at least N samples.
+                if (
+                    all(np.sum(y_test[:, i]) >= min_samples_per_class for i in range(y_test.shape[1]))
+                    and all(np.sum(y_train[:, i]) >= min_samples_per_class for i in range(y_train.shape[1]))
+                ):
+                    break
+                else:
+                    logger.warning(f"Test and/or train clusters for analysis {analysis_name} not valid, retrying...")
+
+            # Cluster the train data by KMeans.
+            num_clusters_target = 1000
+            cluster_labels_train = KMeans(n_clusters=num_clusters_target, random_state=42).fit_predict(X_splitting_train)
 
         # Report on sizes of train and test sets.
         logger.info(f"Train set size {split_name}: {len(inds_train)}")
