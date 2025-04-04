@@ -63,29 +63,14 @@ def _read_sim(folder_path) -> Generator:
         )
 
 
-def similarity_clusters(folder_path, *args, **kwargs) -> np.array:
-    """returns an array of cluster labels"""
-    sim_arrays = {fp_name: sim for fp_name, sim in _read_sim(folder_path)}
-    mean_sim = np.mean(np.array(list(sim_arrays.values())), axis=0)
-    assert mean_sim.shape[0] == mean_sim.shape[1]
-    assert mean_sim.shape == sim_arrays[list(sim_arrays.keys())[0]].shape
-
-    clusters = Butina.ClusterData(mean_sim, mean_sim.shape[0], *args, **kwargs)
-    # map the cluster numbers to each instance in similarity matrix
-    cluster_labels = np.zeros(mean_sim.shape[0], dtype=int)
-    for label, cluster in enumerate(clusters):
-        cluster_labels[cluster] = label
-    return cluster_labels
-
-
 def get_ids_and_labels(labels_path) -> np.array:
     ids_classifications = np.loadtxt(labels_path, delimiter=",", dtype=str)
-    ids_classifications[:, 1] = np.array(
-        [
-            x.replace("isoprenoid;fatty_acid", "isoprenoid")
-            for x in ids_classifications[:, 1]
-        ]
-    )
+    # ids_classifications[:, 1] = np.array(
+    #     [
+    #         x.replace("isoprenoid;fatty_acid", "isoprenoid")
+    #         for x in ids_classifications[:, 1]
+    #     ]
+    # )
     return ids_classifications
 
 
@@ -105,32 +90,6 @@ def multilabel_and_dict(classifications: np.array) -> tuple[np.array, dict]:
 
 def predict_one(X_test: np.array, classifier) -> np.array:
     return np.array(classifier.predict(X_test))
-
-
-def test_optimized(X, y, classifier=RandomForestClassifier, *args, **kwargs) -> tuple:
-    """
-    *args and **kwargs are passed to classifier
-    """
-    train, test = train_test_split(
-        np.arange(X.shape[0]), test_size=0.2, random_state=42
-    )
-    X_train, X_test = X[train], X[test]
-    y_train, y_test = y[train], y[test]
-    # grid search
-    param_grid = {
-        "n_estimators": [100, 500, 1000, 2000],
-        "max_depth": [10, 50, 100],
-        "max_features": ["sqrt", "log2"],
-    }
-    grid_search = GridSearchCV(classifier(), param_grid, cv=5, verbose=1)
-    grid_search.fit(X_train, y_train)
-    print(grid_search.best_params_)
-
-    # test
-    optimized = classifier(**grid_search.best_params_).fit(X_train, y_train)
-    y_proba = np.transpose(np.array(optimized.predict_proba(X_test))[:, :, 1])
-    # @TODO: make sure output is same as kfold_performance
-    return [classifier.feature_importances_], y_proba, np.zeros(y_test.shape[0])
 
 
 def kfold_performance(X, y, *args, **kwargs) -> tuple:
@@ -226,12 +185,6 @@ def random_forest(ids_classifications, fp_folder) -> None:
     ids, classifications = ids_classifications.T
     y, cl_idx = multilabel_and_dict(classifications)
 
-    # undersample to remedy class imbalance
-    balanced_sample_idxs = undersample(classifications)
-    classifications = classifications[balanced_sample_idxs]
-    y = y[balanced_sample_idxs]
-    ids = ids[balanced_sample_idxs]
-
     logging.info(y.shape, len(cl_idx))
 
     with ChangeDirectory(fp_folder.parent / "output"):
@@ -240,14 +193,10 @@ def random_forest(ids_classifications, fp_folder) -> None:
         np.savetxt("class_labels.tsv", np.array(list(cl_idx)), delimiter="\t", fmt="%s")
 
     for fp_name, X in _read_fps(fp_folder):
-        X = X[balanced_sample_idxs]
         logging.info(f"{fp_name} X, y:{X.shape}, {y.shape}")
 
         # k-fold cross validation. ------------------------------------------------------
-        # importances, probas, ks = kfold_performance(
-        #     X, y, n_estimators=n_estimators, max_depth=max_depth
-        # )
-        importances, probas, ks = test_optimized(X, y)
+        importances, probas, ks = kfold_performance(X, y, **parameters)
 
         with ChangeDirectory(fp_folder.parent / "output"):
             np.savetxt("ks.csv", ks, fmt="%d")
@@ -264,32 +213,6 @@ def random_forest(ids_classifications, fp_folder) -> None:
 
             joblib.dump(full_classifier, f"{fp_name}_model.joblib", compress=3)
 
-            # tracemalloc.start()
-            # tic = time.perf_counter()
-            # full_classifier = RandomForestClassifier(
-            #     n_estimators=n_estimators, max_depth=max_depth
-            # ).fit(X, y)
-            # toc = time.perf_counter()
-            # current, peak = tracemalloc.get_traced_memory()
-            # tracemalloc.stop()
-            # logging.info(
-            #     f"Current:{current / (1024*1024)}MB; Peak:{peak / (1024*1024)}MB"
-            # )
-            # logging.info(f"training took {toc-tic} seconds")
-
-            # joblib.dump(full_classifier, f"{fp_name}_model.joblib", compress=3)
-            # np.savetxt(
-            #     f"{fp_name}_time.tsv",
-            #     np.array([toc - tic]),
-            #     delimiter="\t",
-            #     fmt="%s",
-            # )
-            # np.savetxt(
-            #     f"{fp_name}_mem.tsv",
-            #     np.array([peak / (1024 * 1024)]),
-            #     delimiter="\t",
-            #     fmt="%s",
-            # )
             np.savetxt(
                 "model_labels.tsv", list(cl_idx.keys()), delimiter="\t", fmt="%s"
             )
@@ -368,8 +291,8 @@ def main():
     ids_labels = get_ids_and_labels(input_folder / "chebi_classes.csv")
 
     random_forest(ids_labels, fp_folder)
-    write_similarities(fp_folder)
-    dimensionality_reduction(fp_folder.parent / "output")
+    # write_similarities(fp_folder)
+    # dimensionality_reduction(fp_folder.parent / "output")
 
     exit(0)
     return None

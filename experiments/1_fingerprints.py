@@ -27,16 +27,6 @@ def rdk_fp(mol: Chem.Mol) -> list:
     return Chem.RDKFingerprint(mol, fpSize=2048)
 
 
-def morgan_mini(mol: Chem.Mol) -> list:
-    return AllChem.GetMorganFingerprintAsBitVect(
-        mol, useChirality=False, radius=2, nBits=39
-    )
-
-
-def rdk_mini(mol: Chem.Mol) -> list:
-    return Chem.RDKFingerprint(mol, fpSize=39)
-
-
 def biosynfoni(mol: Chem.Mol) -> list:
     """returns counted fingerprint list"""
     return Biosynfoni(
@@ -83,12 +73,10 @@ def write_fingerprints(sdf: Path):
     suppl = Chem.SDMolSupplier(sdf)
 
     fp_functions = {
-        # "maccs": maccs,
-        # "morgan": morgan,
-        # "rdk": rdk_fp,
-        # "bsf": biosynfoni,
-        "minimorgan": morgan_mini,
-        "minirdk": rdk_mini,
+        "maccs": maccs,
+        "morgan": morgan,
+        "rdk": rdk_fp,
+        "bsf": biosynfoni,
     }
 
     for name, fnx in tqdm(fp_functions.items(), desc="Getting fingerprints"):
