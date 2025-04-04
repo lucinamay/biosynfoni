@@ -112,5 +112,5 @@ We created several biosynthetic class predictors for our manuscript, which can b
 
 We have used data from the [COCONUT](https://coconut.naturalproducts.net) natural product database ([DOI](https://doi.org/10.1186/s13321-020-00478-9)) and [ZINC](https://zinc.docking.org) compound database ([DOI](https://pubs.acs.org/doi/10.1021/acs.jcim.0c00675)). The parsed data used for the analysis in our manuscript can be downloaded from Zenodo [here](https://zenodo.org/records/14791205). 
 
-
+Results for the stratified classification analysis (see: `experiments/classification_stratified.py`) can be downloaded from Zenodo [here](https://doi.org/10.5281/zenodo.15150841).
 
