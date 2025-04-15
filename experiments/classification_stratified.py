@@ -32,7 +32,9 @@ np.random.seed(42)
 tqdm.pandas()
 
 
-CHEBI_COMPLETE_3STAR_LINK = "https://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_complete_3star.sdf.gz"
+CHEBI_COMPLETE_3STAR_LINK = (
+    "https://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_complete_3star.sdf.gz"
+)
 CHEBI_3STAR_CLASSIFICATIONS_LINK = "https://zenodo.org/records/14791205/files/ChEBI_3star_classifications.tsv?download=1"
 
 
@@ -46,43 +48,45 @@ CHEBI_TARGET_CLASSES = [
     "polyketide",
 ]
 CHEBI_CLASS_MAPPING = {
-        "alkaloid": ["alkaloid"],
-        "aminoacid": ["amino_acid"],
-        "aminofattyacid": ["amino_acid", "fatty_acid"],
-        "aminoglycan": ["amino_acid", "carbohydrate"],
-        "aminoglycoside": ["amino_acid", "carbohydrate"],
-        "carbohydrate": ["carbohydrate"],
-        "fattyacid": ["fatty_acid"],
-        "flavanglycoside": ["carbohydrate", "phenylpropanoid"],
-        "flavones": ["phenylpropanoid"],
-        "flavonoid": ["phenylpropanoid"],
-        "flavonoids": ["phenylpropanoid"],
-        "glycoalkaloid": ["alkaloid", "carbohydrate"],
-        "glycolipid": ["carbohydrate", "fatty_acid"],
-        "glycopeptide": ["amino_acid", "carbohydrate"],
-        "glycosaminoglycan": ["amino_acid", "carbohydrate"],
-        "glycosinolate": ["amino_acid", "carbohydrate"],
-        "glycosyloxyflavone": ["carbohydrate", "phenylpropanoid"],
-        "glycosyloxyisoflavone": ["carbohydrate", "phenylpropanoid"],
-        "isoprenoid": ["isoprenoid"],
-        "lipid": ["fatty_acid"],
-        "lipopeptide": ["amino_acid", "fatty_acid"],
-        "liposaccharide": ["carbohydrate", "fatty_acid"],
-        "peptide": ["amino_acid"],
-        "phenylpropanoid": ["phenylpropanoid"],
-        "polyketide": ["polyketide"],
-        "polysaccharide": ["carbohydrate"],
-        "saccharolipid": ["carbohydrate", "fatty_acid"],
-        "steroid": ["isoprenoid"],
-        "steroidalkaloid": ["alkaloid", "isoprenoid"],
-        "terpene": ["isoprenoid"],
-        "terpenealkaloid": ["alkaloid", "isoprenoid"],
-        "terpeneglycoside": ["carbohydrate", "isoprenoid"],
-        "terpenoid": ["isoprenoid"],
+    "alkaloid": ["alkaloid"],
+    "aminoacid": ["amino_acid"],
+    "aminofattyacid": ["amino_acid", "fatty_acid"],
+    "aminoglycan": ["amino_acid", "carbohydrate"],
+    "aminoglycoside": ["amino_acid", "carbohydrate"],
+    "carbohydrate": ["carbohydrate"],
+    "fattyacid": ["fatty_acid"],
+    "flavanglycoside": ["carbohydrate", "phenylpropanoid"],
+    "flavones": ["phenylpropanoid"],
+    "flavonoid": ["phenylpropanoid"],
+    "flavonoids": ["phenylpropanoid"],
+    "glycoalkaloid": ["alkaloid", "carbohydrate"],
+    "glycolipid": ["carbohydrate", "fatty_acid"],
+    "glycopeptide": ["amino_acid", "carbohydrate"],
+    "glycosaminoglycan": ["amino_acid", "carbohydrate"],
+    "glycosinolate": ["amino_acid", "carbohydrate"],
+    "glycosyloxyflavone": ["carbohydrate", "phenylpropanoid"],
+    "glycosyloxyisoflavone": ["carbohydrate", "phenylpropanoid"],
+    "isoprenoid": ["isoprenoid"],
+    "lipid": ["fatty_acid"],
+    "lipopeptide": ["amino_acid", "fatty_acid"],
+    "liposaccharide": ["carbohydrate", "fatty_acid"],
+    "peptide": ["amino_acid"],
+    "phenylpropanoid": ["phenylpropanoid"],
+    "polyketide": ["polyketide"],
+    "polysaccharide": ["carbohydrate"],
+    "saccharolipid": ["carbohydrate", "fatty_acid"],
+    "steroid": ["isoprenoid"],
+    "steroidalkaloid": ["alkaloid", "isoprenoid"],
+    "terpene": ["isoprenoid"],
+    "terpenealkaloid": ["alkaloid", "isoprenoid"],
+    "terpeneglycoside": ["carbohydrate", "isoprenoid"],
+    "terpenoid": ["isoprenoid"],
 }
 
 
-def setup_logging(logger_level: str = "INFO", logger_file_path: ty.Optional[str] = None) -> None:
+def setup_logging(
+    logger_level: str = "INFO", logger_file_path: ty.Optional[str] = None
+) -> None:
     """Set up logging configuration.
 
     :param logger_level: logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL), default is INFO.
@@ -97,7 +101,9 @@ def setup_logging(logger_level: str = "INFO", logger_file_path: ty.Optional[str]
     logger.setLevel(logger_level)
 
     # Specify logging format.
-    formatter = logging.Formatter("[%(asctime)s - %(name)s - %(levelname)s] %(message)s")
+    formatter = logging.Formatter(
+        "[%(asctime)s - %(name)s - %(levelname)s] %(message)s"
+    )
 
     # Create console handler and set level.
     ch = logging.StreamHandler()
@@ -116,22 +122,22 @@ def setup_logging(logger_level: str = "INFO", logger_file_path: ty.Optional[str]
 
 def cli() -> argparse.Namespace:
     """Command line interface.
-    
+
     :return: Namespace: parsed arguments.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--out-dir", 
-        type=str, 
-        required=True, 
-        help="Output directory to be used (and created if it doesn't exist)."
+        "--out-dir",
+        type=str,
+        required=True,
+        help="Output directory to be used (and created if it doesn't exist).",
     )
     parser.add_argument(
         "--logger-level",
         type=str,
         default="INFO",
         help="Logger level (default: DEBUG).",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
     return parser.parse_args()
 
@@ -149,13 +155,16 @@ def download_file(url: str, out_path: str, logger: logging.Logger) -> None:
         response.raise_for_status()
         total_size = int(response.headers.get("content-length", 0))
         block_size = 1024  # 1 KB
-        with open(out_path, "wb") as file, tqdm(
-            desc=out_path,
-            total=total_size,
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
+        with (
+            open(out_path, "wb") as file,
+            tqdm(
+                desc=out_path,
+                total=total_size,
+                unit="iB",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as bar,
+        ):
             for data in response.iter_content(block_size):
                 file.write(data)
                 bar.update(len(data))
@@ -170,29 +179,43 @@ def download_data(out_dir: str, logger: logging.Logger) -> ty.Tuple[str, str]:
     :return: Tuple of paths to the downloaded files.
     """
     chebi_complete_3star_path = os.path.join(out_dir, "ChEBI_complete_3star.sdf.gz")
-    unzipped_file_path_chebi_complete_3star = chebi_complete_3star_path.replace(".gz", "")
-    chebi_3star_classifications_path = os.path.join(out_dir, "ChEBI_3star_classifications.tsv")
+    unzipped_file_path_chebi_complete_3star = chebi_complete_3star_path.replace(
+        ".gz", ""
+    )
+    chebi_3star_classifications_path = os.path.join(
+        out_dir, "ChEBI_3star_classifications.tsv"
+    )
 
     # Check if the files already exist before downloading. Also skip if the unzipped file already exists.
-    if not os.path.exists(chebi_complete_3star_path) and not os.path.exists(unzipped_file_path_chebi_complete_3star):
-        download_file(CHEBI_COMPLETE_3STAR_LINK, chebi_complete_3star_path, logger) 
+    if not os.path.exists(chebi_complete_3star_path) and not os.path.exists(
+        unzipped_file_path_chebi_complete_3star
+    ):
+        download_file(CHEBI_COMPLETE_3STAR_LINK, chebi_complete_3star_path, logger)
     else:
         logger.info(f"{chebi_complete_3star_path} already exists. Skipping download.")
 
     # Check if the classifications file already exists before downloading.
     if not os.path.exists(chebi_3star_classifications_path):
-        download_file(CHEBI_3STAR_CLASSIFICATIONS_LINK, chebi_3star_classifications_path, logger)
+        download_file(
+            CHEBI_3STAR_CLASSIFICATIONS_LINK, chebi_3star_classifications_path, logger
+        )
     else:
-        logger.info(f"{chebi_3star_classifications_path} already exists. Skipping download.")
+        logger.info(
+            f"{chebi_3star_classifications_path} already exists. Skipping download."
+        )
 
     # If the unzipped sdf file not exists, unzip the gzipped file.
     if not os.path.exists(unzipped_file_path_chebi_complete_3star):
         with gzip.open(chebi_complete_3star_path, "rb") as f_in:
             with open(unzipped_file_path_chebi_complete_3star, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
-        logger.info(f"Unzipped {chebi_complete_3star_path} to {unzipped_file_path_chebi_complete_3star}.")
+        logger.info(
+            f"Unzipped {chebi_complete_3star_path} to {unzipped_file_path_chebi_complete_3star}."
+        )
     else:
-        logger.info(f"{unzipped_file_path_chebi_complete_3star} already exists. Skipping unzipping.")
+        logger.info(
+            f"{unzipped_file_path_chebi_complete_3star} already exists. Skipping unzipping."
+        )
 
     return unzipped_file_path_chebi_complete_3star, chebi_3star_classifications_path
 
@@ -208,9 +231,11 @@ def retrieve_annotated_data(out_dir: str, logger: logging.Logger) -> pd.DataFram
     chebi_sdf_path, chebi_classes_path = download_data(out_dir, logger)
 
     # Create ChEBI->classification mapping.
-    chebi_classes_df = pd.read_csv(chebi_classes_path, sep="\t", header=0, index_col=0)  # Index is ChEBI ID, every column is a class with boolean values.
+    chebi_classes_df = pd.read_csv(
+        chebi_classes_path, sep="\t", header=0, index_col=0
+    )  # Index is ChEBI ID, every column is a class with boolean values.
     chebi_classes_lookup = chebi_classes_df.to_dict(orient="index")
-    
+
     # Read the SDF file and create a DataFrame with ChEBI ID and SMILES. Only retain ChEBI IDs that are in the classification file.
     succeeded_to_read, failed_to_read, wildcard_in_smiles = 0, 0, 0
     sdf_supplier = Chem.SDMolSupplier(chebi_sdf_path, removeHs=False)
@@ -230,28 +255,46 @@ def retrieve_annotated_data(out_dir: str, logger: logging.Logger) -> pd.DataFram
 
             chebi_smiles_lookup[chebi_id] = smiles
             succeeded_to_read += 1
-    logger.info(f"Successfully read {succeeded_to_read} compounds from the ChEBI SDF file.")
+    logger.info(
+        f"Successfully read {succeeded_to_read} compounds from the ChEBI SDF file."
+    )
     logger.info(f"Failed to read {failed_to_read} compounds from the ChEBI SDF file.")
-    logger.info(f"Found {wildcard_in_smiles} compounds with wildcard characters in SMILES.")
+    logger.info(
+        f"Found {wildcard_in_smiles} compounds with wildcard characters in SMILES."
+    )
 
     # Create a DataFrame with ChEBI ID, SMILES, and ChEBI target classes.
-    chebi_df = pd.DataFrame.from_dict(chebi_smiles_lookup, orient="index", columns=["SMILES"])
+    chebi_df = pd.DataFrame.from_dict(
+        chebi_smiles_lookup, orient="index", columns=["SMILES"]
+    )
     chebi_df["ChEBI ID"] = chebi_df.index
     chebi_df = chebi_df.reset_index(drop=True)
-    
+
     # Get all classes for ChEBI ID and convert them to target classes.
     # Check for which original classes ChEBI ID has True, and retrieve target classes for each True original class.
     # Then convert target classes to set to remove duplicates, and convert to list. Every target class will be a column in the DataFrame.
-    chebi_df["ChEBI classes"] = chebi_df["ChEBI ID"].apply(lambda x: [k for k, v in chebi_classes_lookup[x].items() if v])
+    chebi_df["ChEBI classes"] = chebi_df["ChEBI ID"].apply(
+        lambda x: [k for k, v in chebi_classes_lookup[x].items() if v]
+    )
     chebi_df["ChEBI target classes"] = chebi_df["ChEBI classes"].apply(
-        lambda x: list(set([target_class for original_class in x for target_class in CHEBI_CLASS_MAPPING.get(original_class, [])]))
+        lambda x: list(
+            set(
+                [
+                    target_class
+                    for original_class in x
+                    for target_class in CHEBI_CLASS_MAPPING.get(original_class, [])
+                ]
+            )
+        )
     )
     # Convert target classes to boolean values. Every target class will be a column in the DataFrame.
     for target_class in CHEBI_TARGET_CLASSES:
-        chebi_df[target_class] = chebi_df["ChEBI target classes"].apply(lambda x: target_class in x)
+        chebi_df[target_class] = chebi_df["ChEBI target classes"].apply(
+            lambda x: target_class in x
+        )
 
     # Remove original classes from the DataFrame.
-    chebi_df = chebi_df.drop(columns=["ChEBI classes"]) 
+    chebi_df = chebi_df.drop(columns=["ChEBI classes"])
 
     # Remove original target classes from the DataFrame.
     chebi_df = chebi_df.drop(columns=["ChEBI target classes"])
@@ -272,7 +315,7 @@ def smiles_to_biosynfoni_fingerprint(smiles: str) -> ty.List[int]:
 
 def smiles_morgan_fingerprint(smiles: str, radius: int, num_bits: int) -> np.ndarray:
     """Convert SMILES to a Morgan fingerprint.
-    
+
     :param smiles: SMILES string to convert.
     :param radius: Radius for the Morgan fingerprint.
     :param num_bits: Number of bits for the Morgan fingerprint.
@@ -285,13 +328,13 @@ def smiles_morgan_fingerprint(smiles: str, radius: int, num_bits: int) -> np.nda
 
 def evaluate(
     split_name: str,
-    analysis_name: str, 
-    X_train: np.ndarray, 
+    analysis_name: str,
+    X_train: np.ndarray,
     X_test: np.ndarray,
-    y_train: np.ndarray, 
+    y_train: np.ndarray,
     y_test: np.ndarray,
     cluster_labels_train: np.ndarray,
-    out_dir: str, 
+    out_dir: str,
     logger: logging.Logger,
 ) -> None:
     """Evaluate the model using RandomForestClassifier and GridSearchCV.
@@ -319,26 +362,36 @@ def evaluate(
     rf = RandomForestClassifier(random_state=42, n_jobs=-1)
     group_kfold = GroupKFold(n_splits=5)
     scorer = make_scorer(f1_score, average="macro")
-    grid_search = GridSearchCV(rf, param_grid, cv=group_kfold, scoring=scorer, n_jobs=-1, verbose=3)
-    grid_search.fit(X_train, y_train, groups=cluster_labels_train)  # Make sure cluster is either in train or test set.
+    grid_search = GridSearchCV(
+        rf, param_grid, cv=group_kfold, scoring=scorer, n_jobs=-1, verbose=3
+    )
+    grid_search.fit(
+        X_train, y_train, groups=cluster_labels_train
+    )  # Make sure cluster is either in train or test set.
 
     # Get scores for all parameter combinations, and its standard deviations over the folds.
     results = grid_search.cv_results_
     labeled_values = []
     for i in range(len(results["params"])):
-        labeled_values.append({
-            "params": results["params"][i],
-            "mean_test_score": results["mean_test_score"][i],
-            "std_test_score": results["std_test_score"][i],
-            "rank_test_score": results["rank_test_score"][i],
-        })
+        labeled_values.append(
+            {
+                "params": results["params"][i],
+                "mean_test_score": results["mean_test_score"][i],
+                "std_test_score": results["std_test_score"][i],
+                "rank_test_score": results["rank_test_score"][i],
+            }
+        )
 
     # Create a DataFrame with the labeled values.
     grid_search_results_df = pd.DataFrame(labeled_values)
 
     # For every parameter combination, train the model and report on the test score.
     test_scores = []
-    for i in tqdm(range(len(grid_search_results_df)), desc="Evaluating test scores", unit="param combination"):
+    for i in tqdm(
+        range(len(grid_search_results_df)),
+        desc="Evaluating test scores",
+        unit="param combination",
+    ):
         params = grid_search_results_df.iloc[i]["params"]
         rf = RandomForestClassifier(**params, random_state=42, n_jobs=-1)
         rf.fit(X_train, y_train)
@@ -350,12 +403,18 @@ def evaluate(
     grid_search_results_df["left_out_score"] = test_scores
 
     # Sort first on rank_test_score, then on test_score.
-    grid_search_results_df = grid_search_results_df.sort_values(by=["rank_test_score", "left_out_score"], ascending=[True, False])
+    grid_search_results_df = grid_search_results_df.sort_values(
+        by=["rank_test_score", "left_out_score"], ascending=[True, False]
+    )
 
     # Save DataFrame to TSV file.
-    grid_search_results_path = os.path.join(out_dir, f"grid_search_results_split_{split_name}_analysis_{analysis_name}.tsv")
+    grid_search_results_path = os.path.join(
+        out_dir, f"grid_search_results_split_{split_name}_analysis_{analysis_name}.tsv"
+    )
     grid_search_results_df.to_csv(grid_search_results_path, sep="\t", index=False)
-    logger.info(f"Saved grid search results for analysis {split_name}-{analysis_name} to {grid_search_results_path}.")
+    logger.info(
+        f"Saved grid search results for analysis {split_name}-{analysis_name} to {grid_search_results_path}."
+    )
 
     # Also get best set of parameters, predict on the test set and write confusion matrices out to files.
     best_params = grid_search.best_params_
@@ -364,10 +423,17 @@ def evaluate(
     rf.fit(X_train, y_train)
     y_pred = rf.predict(X_test)
     cm = multilabel_confusion_matrix(y_test, y_pred)
-    
+
     # Create single figure with all confusion matrices.
-    fig, axes = plt.subplots(nrows=len(CHEBI_TARGET_CLASSES), ncols=1, figsize=(10, 5 * len(CHEBI_TARGET_CLASSES)))
-    fig.suptitle(f"Confusion matrices for {split_name}-{analysis_name} with best parameters: {best_params}", fontsize=16)
+    fig, axes = plt.subplots(
+        nrows=len(CHEBI_TARGET_CLASSES),
+        ncols=1,
+        figsize=(10, 5 * len(CHEBI_TARGET_CLASSES)),
+    )
+    fig.suptitle(
+        f"Confusion matrices for {split_name}-{analysis_name} with best parameters: {best_params}",
+        fontsize=16,
+    )
     for i, target_class in enumerate(CHEBI_TARGET_CLASSES):
         axes[i].imshow(cm[i], interpolation="nearest", cmap=plt.cm.Blues)
         axes[i].set_title(f"Confusion matrix for {target_class}")
@@ -383,11 +449,18 @@ def evaluate(
         axes[i].text(1, 1, cm[i][1][1], ha="center", va="center", color="black")
     plt.tight_layout()
     plt.subplots_adjust(top=0.9)
-    plt.savefig(os.path.join(out_dir, f"confusion_matrices_split_{split_name}_analysis_{analysis_name}.png"))
+    plt.savefig(
+        os.path.join(
+            out_dir,
+            f"confusion_matrices_split_{split_name}_analysis_{analysis_name}.png",
+        )
+    )
     plt.close(fig)
-    logger.info(f"Saved confusion matrices for {split_name}-{analysis_name} to {out_dir}.")
+    logger.info(
+        f"Saved confusion matrices for {split_name}-{analysis_name} to {out_dir}."
+    )
     logger.info(f"Finished evaluating {split_name}-{analysis_name}.")
-    
+
 
 def main() -> None:
     """Entry point for the script."""
@@ -403,8 +476,10 @@ def main() -> None:
 
     # Set up logging.
     logger = setup_logging(
-        logger_level=args.logger_level, 
-        logger_file_path=os.path.join(args.out_dir, f"{args.logger_level.lower()}_log.txt")
+        logger_level=args.logger_level,
+        logger_file_path=os.path.join(
+            args.out_dir, f"{args.logger_level.lower()}_log.txt"
+        ),
     )
     logger.info(f"command line arguments: {args}")
 
@@ -424,7 +499,9 @@ def main() -> None:
 
     # Report on number of compounds and number of classes.
     logger.info(f"Number of compounds: {len(chebi_df)}")
-    logger.info(f"Number of classes: {len(chebi_df.columns) - 2}")  # Exclude ChEBI ID and SMILES columns.
+    logger.info(
+        f"Number of classes: {len(chebi_df.columns) - 2}"
+    )  # Exclude ChEBI ID and SMILES columns.
     logger.info(f"Classes: {list(chebi_df.columns[2:])}")
 
     # Report on class balance for every target class.
@@ -433,16 +510,28 @@ def main() -> None:
         class_counts[target_class] = chebi_df[target_class].sum()
     logger.info("Class balance:")
     for target_class, count in class_counts.items():
-        logger.info(f"  * {target_class}: {count} / {len(chebi_df)} ({count / len(chebi_df) * 100:.2f}%)")
+        logger.info(
+            f"  * {target_class}: {count} / {len(chebi_df)} ({count / len(chebi_df) * 100:.2f}%)"
+        )
 
     # Featurize data in several ways and evaluate.
     split_names = ["random", "biosynfoni", "morgan39", "morgan2048"]
     analysis_names = ["biosynfoni", "morgan39", "morgan2048"]
 
     # Featurize data in several ways.
-    X_biosyfoni = np.array(chebi_df["SMILES"].progress_apply(smiles_to_biosynfoni_fingerprint).tolist())
-    X_morgan39 = np.array(chebi_df["SMILES"].progress_apply(lambda x: smiles_morgan_fingerprint(x, radius=2, num_bits=39)).tolist())
-    X_morgan2048 = np.array(chebi_df["SMILES"].progress_apply(lambda x: smiles_morgan_fingerprint(x, radius=2, num_bits=2048)).tolist())
+    X_biosyfoni = np.array(
+        chebi_df["SMILES"].progress_apply(smiles_to_biosynfoni_fingerprint).tolist()
+    )
+    X_morgan39 = np.array(
+        chebi_df["SMILES"]
+        .progress_apply(lambda x: smiles_morgan_fingerprint(x, radius=2, num_bits=39))
+        .tolist()
+    )
+    X_morgan2048 = np.array(
+        chebi_df["SMILES"]
+        .progress_apply(lambda x: smiles_morgan_fingerprint(x, radius=2, num_bits=2048))
+        .tolist()
+    )
     y = np.array(chebi_df[CHEBI_TARGET_CLASSES].values.tolist())
 
     for split_name in split_names:
@@ -476,29 +565,44 @@ def main() -> None:
 
             # Cluster data and select clusters for the left-out set.
             num_clusters_target = 1000
-            cluster_labels = KMeans(n_clusters=num_clusters_target, random_state=42).fit_predict(X_splitting)
+            cluster_labels = KMeans(
+                n_clusters=num_clusters_target, random_state=42
+            ).fit_predict(X_splitting)
             # Randomly select ratio of the clusters for the test set.
             test_ratio = 0.3
             min_samples_per_class = 100
             while True:
-                test_clusters = np.random.choice(np.unique(cluster_labels), size=int(num_clusters_target * test_ratio), replace=False)
+                test_clusters = np.random.choice(
+                    np.unique(cluster_labels),
+                    size=int(num_clusters_target * test_ratio),
+                    replace=False,
+                )
                 inds_test = np.where(np.isin(cluster_labels, test_clusters))[0]
                 inds_train = np.where(~np.isin(cluster_labels, test_clusters))[0]
                 y_test = y[inds_test]
-                X_splitting_train = X_splitting[inds_train]  # Need those for clustering.
+                X_splitting_train = X_splitting[
+                    inds_train
+                ]  # Need those for clustering.
                 y_train = y[inds_train]
                 # Check if every target class is represented in the test and train sets with at least N samples.
-                if (
-                    all(np.sum(y_test[:, i]) >= min_samples_per_class for i in range(y_test.shape[1]))
-                    and all(np.sum(y_train[:, i]) >= min_samples_per_class for i in range(y_train.shape[1]))
+                if all(
+                    np.sum(y_test[:, i]) >= min_samples_per_class
+                    for i in range(y_test.shape[1])
+                ) and all(
+                    np.sum(y_train[:, i]) >= min_samples_per_class
+                    for i in range(y_train.shape[1])
                 ):
                     break
                 else:
-                    logger.warning(f"Test and/or train clusters for analysis {analysis_name} not valid, retrying...")
+                    logger.warning(
+                        f"Test and/or train clusters for analysis {analysis_name} not valid, retrying..."
+                    )
 
             # Cluster the train data by KMeans.
             num_clusters_target = 1000
-            cluster_labels_train = KMeans(n_clusters=num_clusters_target, random_state=42).fit_predict(X_splitting_train)
+            cluster_labels_train = KMeans(
+                n_clusters=num_clusters_target, random_state=42
+            ).fit_predict(X_splitting_train)
 
         # Report on sizes of train and test sets.
         logger.info(f"Train set size {split_name}: {len(inds_train)}")
@@ -506,7 +610,7 @@ def main() -> None:
 
         # Split the data into training and test sets.
         for analysis_name in analysis_names:
-            
+
             # Based on the splitting indices, select for the correct data for training and testing.
             if analysis_name == "biosynfoni":
                 X_train = X_biosyfoni[inds_train]
@@ -519,7 +623,7 @@ def main() -> None:
                 X_test = X_morgan2048[inds_test]
             else:
                 raise ValueError(f"Unknown analysis name: {analysis_name}")
-            
+
             # Report on experiment:
             logger.info(f"Running experiment {split_name}-{analysis_name}...")
             logger.info(f"X_train shape: {X_train.shape}")
