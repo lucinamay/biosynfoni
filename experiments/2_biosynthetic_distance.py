@@ -12,9 +12,8 @@ import pandas as pd
 from rdkit import Chem
 from tqdm import tqdm
 
-# from biosynfoni.inoutput import *
 from helper import ChangeDirectory
-from biosynfoni import fingerprints as fp  # for similarity functions
+from biosynfoni import fingerprints as fp
 
 
 def compound_graph(reaction_info: pd.DataFrame) -> nx.DiGraph:

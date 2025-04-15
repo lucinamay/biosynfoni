@@ -1,7 +1,6 @@
-import sys, logging
+import sys
 from time import perf_counter
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 from rdkit import Chem
@@ -9,7 +8,6 @@ from rdkit.Chem import AllChem
 from tqdm import tqdm
 
 from biosynfoni import Biosynfoni
-from biosynfoni.fingerprints import counted_tanimoto_sim
 from helper import ChangeDirectory
 
 

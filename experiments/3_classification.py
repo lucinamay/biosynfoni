@@ -6,11 +6,10 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-from rdkit.ML.Cluster import Butina
 from scipy.spatial.distance import pdist, squareform
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import TSNE
-from sklearn.model_selection import KFold, train_test_split, GridSearchCV
+from sklearn.model_selection import KFold
 from sklearn.tree import export_graphviz
 from tqdm import tqdm
 from umap import UMAP
@@ -291,8 +290,8 @@ def main():
     ids_labels = get_ids_and_labels(input_folder / "chebi_classes.csv")
 
     random_forest(ids_labels, fp_folder)
-    # write_similarities(fp_folder)
-    # dimensionality_reduction(fp_folder.parent / "output")
+    write_similarities(fp_folder)
+    dimensionality_reduction(fp_folder.parent / "output")
 
     exit(0)
     return None

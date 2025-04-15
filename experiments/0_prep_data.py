@@ -1,4 +1,4 @@
-import logging, os, sys, subprocess, re
+import logging, os, sys, subprocess
 from functools import partial
 from pathlib import Path
 
