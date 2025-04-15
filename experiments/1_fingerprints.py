@@ -1,7 +1,6 @@
-import sys, logging
+import sys
 from time import perf_counter
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 from rdkit import Chem
@@ -9,7 +8,6 @@ from rdkit.Chem import AllChem
 from tqdm import tqdm
 
 from biosynfoni import Biosynfoni
-from biosynfoni.fingerprints import counted_tanimoto_sim
 from helper import ChangeDirectory
 
 
@@ -63,10 +61,14 @@ def time_fingerprint(fp_function, mol) -> tuple:
     return end - start, fp
 
 
-def write_fingerprints(sdf: Path):
+def write_coverages(sdf: Path):
     suppl = Chem.SDMolSupplier(sdf)
     coverages = [Biosynfoni(mol).get_coverage() for mol in suppl]
     np.savetxt(f"{sdf.stem}_coverages.csv", coverages, delimiter=",", fmt="%.3f")
+
+
+def write_fingerprints(sdf: Path):
+    suppl = Chem.SDMolSupplier(sdf)
 
     fp_functions = {
         "maccs": maccs,
@@ -95,6 +97,7 @@ def main():
     for sdf in sdf_folder.glob("*.sdf"):
         with ChangeDirectory(fp_folder):
             write_fingerprints(sdf)
+            # write_coverages(sdf)
 
     return 0
 
