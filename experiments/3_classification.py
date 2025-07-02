@@ -91,25 +91,39 @@ def predict_one(X_test: np.array, classifier) -> np.array:
     return np.array(classifier.predict(X_test))
 
 
-def kfold_performance(X, y, *args, **kwargs) -> tuple:
+def kfold_performance(X, y, *args, **kwargs) -> dict:
     """
     *args and **kwargs are passed to RandomForestClassifier
     """
     importances = []
-
+    k = 5
+    # train_probabilities, train_ks = (np.empty(y.shape, k),np.empty(y.shape[0], k))
+    train_probabilities = np.empty((y.shape[0], y.shape[1], k))
     probabilities, ks = (np.empty(y.shape), np.empty(y.shape[0]))
 
-    for k, (train, test) in enumerate(KFold(shuffle=True, random_state=42).split(X)):
+    for i, (train, test) in enumerate(KFold(shuffle=True, random_state=42).split(X)):
         X_train, X_test = X[train], X[test]
         y_train, y_test = y[train], y[test]
         classifier = RandomForestClassifier(*args, **kwargs).fit(X_train, y_train)
         importances.append(classifier.feature_importances_)
 
         # only probabilities of being in class
+        y_train_proba = np.transpose(
+            np.array(classifier.predict_proba(X_train))[:, :, 1]
+        )
         y_proba = np.transpose(np.array(classifier.predict_proba(X_test))[:, :, 1])
+        train_probabilities[train, :, i] = y_train_proba
+        # train_ks[train,i] = i
         probabilities[test] = y_proba
-        ks[test] = k
+        ks[test] = i
 
+    return {
+        "importances": importances,
+        "probabilities": probabilities,
+        "ks": ks,
+        "train_probabilities": train_probabilities,
+        # "train_ks": train_ks,
+    }
     return importances, probabilities, ks
 
 
@@ -195,7 +209,10 @@ def random_forest(ids_classifications, fp_folder) -> None:
         logging.info(f"{fp_name} X, y:{X.shape}, {y.shape}")
 
         # k-fold cross validation. ------------------------------------------------------
-        importances, probas, ks = kfold_performance(X, y, **parameters)
+        # importances, probas, ks = kfold_performance(X, y, **parameters)
+        res = kfold_performance(X, y, **parameters)
+        importances, probas, ks = res["importances"], res["probabilities"], res["ks"]
+        train_probas = res["train_probabilities"]
 
         with ChangeDirectory(fp_folder.parent / "output"):
             np.savetxt("ks.csv", ks, fmt="%d")
@@ -206,6 +223,7 @@ def random_forest(ids_classifications, fp_folder) -> None:
                 delimiter="\t",
                 fmt="%.3f",
             )
+            np.save(f"{fp_name}_trainproba.npy", train_probas)
 
             with TrackMemoryAndTime(fp_name):
                 full_classifier = RandomForestClassifier(**parameters).fit(X, y)
