@@ -88,23 +88,11 @@ Write the fingerprints of all molecules in an SDF file to a CSV file:
 biosynfoni <molecule_supplier.sdf>
 ```
 
-### Preprint
+### Publication
 
 #### Citation
 
-If you use `biosynfoni` in your research, please cite our [preprint](https://chemrxiv.org/engage/chemrxiv/article-details/67a6c0426dde43c90801e335):
-
-```bibtex
-@article{nollen2025biosynfoni,
-    doi={10.26434/chemrxiv-2025-cwq74},
-    url={https://doi.org/10.26434/chemrxiv-2025-cwq74},
-    year={2025},
-    month={feb},
-    author={Lucina-May Nollen, David Meijer, Maria Sorokina, Justin J. J. and Van der Hooft},
-    title={Biosynfoni: A Biosynthesis-informed and Interpretable Lightweight Molecular Fingerprint},
-    journal={ChemRxiv},
-}
-```
+If you use `biosynfoni` in your research, please cite our [publication](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-025-01081-6).
 
 #### Data availability
 
